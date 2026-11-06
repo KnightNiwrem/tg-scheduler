@@ -1,7 +1,10 @@
 import type { InputFile } from 'grammy';
 import type { ApiMethods, Opts } from 'grammy/types';
 
-/** Inbound update processing and webhook management are outside the scheduler. */
+/**
+ * Outgoing Bot API methods include lifecycle calls. Inbound update processing and webhook
+ * management are outside the scheduler.
+ */
 export type TelegramMethod = Exclude<
   keyof ApiMethods,
   'getUpdates' | 'setWebhook' | 'deleteWebhook' | 'getWebhookInfo'

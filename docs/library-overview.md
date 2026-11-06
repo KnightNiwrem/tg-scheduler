@@ -63,14 +63,16 @@ example yet.
 
 - `submit(method, payload, options?)` returns a durable job handle after acceptance.
 - `getJob(jobId)` retrieves a stored snapshot or `undefined` when the job does not exist.
-- `createSchedule(method, payload, options)` returns a handle for a recurring schedule.
+- `createSchedule(method, payload, options)` returns a handle for an ordinary-lane recurring schedule.
 - `disableSchedule(scheduleId)` stops future occurrences while preserving accepted jobs.
 - `close()` releases a client's owned backend resources.
 - `worker.start()` begins due-work activation; `worker.close()` stops admission, drains active
   work, and releases its resources.
 
-Public payload and result types come from grammY. File IDs remain supported string references;
-`InputFile` uploads are excluded from payload types. Submission must eventually validate durable
+Public payload and result types come from grammY. Outgoing lifecycle methods such as `logOut` and
+`close` remain part of the method surface; update polling and webhook management are excluded.
+File IDs remain supported string references; `InputFile` uploads are excluded from payload types.
+Submission must eventually validate durable
 JSON at runtime as well. A job snapshot pairs each method with its result type: checking
 `state === 'succeeded'` and `method === 'sendMessage'` exposes the returned message's fields.
 

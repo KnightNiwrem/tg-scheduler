@@ -26,9 +26,17 @@ export async function submitAndInspect(options: SchedulerClientOptions) {
       console.log(job.result.message_id);
     }
     await client.disableSchedule(schedule.id);
-  } finally {
-    await client.close();
+  } catch (operationError) {
+    await client.close().catch((cleanupError: unknown) => {
+      throw new AggregateError(
+        [operationError, cleanupError],
+        'Scheduler operation and client cleanup both failed',
+        { cause: operationError },
+      );
+    });
+    throw operationError;
   }
+  await client.close();
 }
 
 export function configureWorker(

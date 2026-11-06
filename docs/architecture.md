@@ -93,7 +93,8 @@ types remain implementation choices:
 - `getJob(jobId)` retrieves job status and the eventual result/error. The result type corresponds
   to the Bot API method.
 - `createSchedule(method, payload, scheduleOptions)` returns a durable schedule handle. Schedule
-  options define the fixed interval and planned-time anchor.
+  options define the fixed interval and planned-time anchor. Occurrences use the ordinary lane;
+  urgent submission is available through explicit `submit` calls.
 - `disableSchedule(scheduleId)` prevents future occurrence creation while preserving already
   materialized jobs.
 
