@@ -289,10 +289,17 @@ non-monotonic rate-limit expiry updates.
 
 The implementation reuses durable machinery rather than building a general-purpose queue engine.
 
-Ordering, monotonic cooldowns, recurrence/coalescing and uncertainty handling require validation in
-the selected dependency version on Bun, Node.js and Deno. A dependency conflict remains unresolved
-until its impact on these requirements is understood. Convex and Durable Objects are background
-comparisons; additional backends are outside the first slice.
+[Selected-version experiments](library-research.md#selected-version-native-behavior) on Bun, Node.js,
+and Deno verified native global capacity, unique current claims, cooldown activation, and settlement
+fencing. Native cooldown setters can shorten pauses, delayed promotion and concurrent 429 requeue
+can lose original rank, and default stalled recovery can repeat an ambiguous effect.
+`maxStalledCount: 0` prevents processor replay but reports failure rather than uncertainty. These
+policies require additional coordination; native settings alone do not implement this design.
+
+The scheduler's ordering, monotonic cooldowns, recurrence/coalescing, and uncertainty handling still
+require acceptance validation. A dependency conflict remains unresolved until its impact on these
+requirements is understood. Convex and Durable Objects are background comparisons; additional
+backends are outside the first slice.
 
 Configuration, payload schema, ordering and uncertainty semantics become migration boundaries once
 the library has public consumers or production data. Internal draft interfaces carry no hypothetical
