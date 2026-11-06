@@ -22,9 +22,9 @@ long-lived workers activating due work through BullMQ and Valkey.
 The selected design uses BullMQ's supported injectable connection interface backed by Valkey, with
 ioredis as the provisional initial driver. The first local deployment will use Docker Compose with
 a Bun worker and the official `valkey/valkey` image. Node.js and Deno remain library compatibility
-targets. The maintainer has confirmed that BullMQ and ioredis work on Deno. This project's scheduler
-implementation and integration tests remain pending. Inbound updates, polling, and webhook ingestion
-are outside scope.
+targets; [runtime compatibility research](docs/library-research.md#runtime-compatibility) records
+dependency support. This project's scheduler implementation and integration tests remain pending.
+Inbound updates, polling, and webhook ingestion are outside scope.
 
 ## Getting started
 
@@ -38,7 +38,11 @@ bun install --frozen-lockfile
 
 - `bun run start` — run the sample `src/main.ts` entry point
 - `bun run dev` — run `src/main.ts` with file watching
-- `bun run test` — run tests
+- `bun run test` — run the shared tests on Bun
+- `bun run test:bun` — run the shared tests on Bun explicitly
+- `bun run test:node` — run the shared tests on Node.js
+- `bun run test:deno` — run the shared tests on Deno
+- `bun run test:all` — run the shared tests on all three runtimes
 - `bun run lint` — lint files with Biome
 - `bun run fmt` — format files with Biome
 - `bun run fmt:check` — check formatting
@@ -48,6 +52,17 @@ Biome uses two-space indentation, single quotes, and a 100-column line width. Gi
 formatting, lint, type, and test checks on pushes to `main` or `master` and on pull requests.
 Tool versions and scripts are defined in [package.json](package.json), with dependencies locked in
 [bun.lock](bun.lock).
+
+## Testing
+
+[Poku](https://poku.io/docs) runs the same TypeScript suite on Bun, Node.js, and Deno, with `tsx`
+handling TypeScript execution on Node.js. Tests import `assert` and `test` from `poku`; asynchronous
+tests and test hooks are supported. Bun remains the default for `bun run test`.
+
+`bun run test:all` requires all three runtimes to be installed. CI uses Bun 1.4.4, Node.js 24.22.1,
+and Deno 2.9.6 and runs each runtime in a separate job. All dependencies come from `bun.lock`;
+the Deno test command uses the installed local packages without creating a separate Deno lockfile.
+The current suite covers the starter only; scheduler integration tests remain pending.
 
 ## Project documentation
 

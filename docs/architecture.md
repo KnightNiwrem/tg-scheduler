@@ -66,9 +66,9 @@ on all target runtimes. A driver-specific compatibility failure is grounds to ev
 replacement; it does not by itself invalidate the fixed backend or runtime targets. Valkey is the
 server; its use does not itself require a Valkey-specific client.
 
-The maintainer has confirmed that BullMQ and ioredis work on Deno. Bun-specific dependency validation
-and this project's queue/scheduler acceptance tests across the target runtimes remain pending.
-[Library research](library-research.md) records the integration checks.
+Dependency support is recorded in the
+[runtime compatibility research](library-research.md#runtime-compatibility). This project's
+queue/scheduler acceptance tests across the target runtimes remain pending.
 
 A durable queue does not inherently require a user-hosted always-running coordinator: a platform can
 persist state and wake ephemeral code. The first implementation uses operated workers; a serverless

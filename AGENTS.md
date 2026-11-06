@@ -12,7 +12,9 @@
 - Keep changes scoped to the task and preserve unrelated work. Test observable behavior and relevant
   edge cases, and update documentation when behavior or workflows change.
 - Follow repository configuration and existing conventions for Bun tooling, Biome, formatting, linting,
-  and type checking. Run checks appropriate to the change and report failures or checks not run.
+  and type checking. Run checks appropriate to the change and report passed, failed, and unrun checks
+  separately. Do not weaken acceptance criteria to excuse a failure or claim readiness while a
+  required check with material risk remains unresolved.
 - For code-quality reviews and refactoring, use the
   [code-quality skill](.agents/skills/code-quality/SKILL.md).
 - For queue/backend integration or durable worker behavior validation, use the
@@ -21,7 +23,8 @@
 ## Project workflow
 
 Bun is the primary development and worker runtime. Use the scripts and pinned tooling in
-`package.json`, `bun.lock`, Biome for formatting/linting, TypeScript for type checking, and `bun:test`.
+`package.json`, `bun.lock`, Biome for formatting/linting, TypeScript for type checking, and Poku for
+shared tests across Bun, Node.js, and Deno.
 
 The [README](README.md) describes current project status. The [architecture](docs/architecture.md),
 [acceptance criteria](docs/validation.md), and [library research](docs/library-research.md) define
@@ -54,9 +57,6 @@ blocked.
 Rerun checks whose results may have changed. Broaden validation when the change's impact or a
 remaining uncertainty warrants it. Once relevant checks pass and the completion requirements are
 met, finish.
-
-Report passed, failed, and unrun checks separately. Do not weaken acceptance criteria to excuse a
-failure or claim readiness while a required check with material risk remains unresolved.
 
 ## Content placement
 

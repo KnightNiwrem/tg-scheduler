@@ -6,6 +6,12 @@ acceptance criteria. Queue dependencies have not yet been added to the Bun start
 source links can change, so the findings need verification against the pinned versions selected for
 implementation.
 
+## Runtime compatibility
+
+The maintainer has confirmed that BullMQ and ioredis work on Deno. Bun dependency integration still
+needs runtime checks. This project's queue/scheduler acceptance tests remain pending on all target
+runtimes; those checks cover its scheduling and recovery semantics as well as the selected versions.
+
 ## BullMQ integration findings
 
 BullMQ with Valkey is fixed; actual ioredis is the provisional initial driver. BullMQ's [connection
@@ -16,10 +22,6 @@ full selected-version contract: commands, lifecycle/events, duplication, Lua scr
 Valkey is the server, independent of the JavaScript client choice. The
 [architecture](architecture.md#1-scope-and-ownership) records the required ioredis worker connection
 settings and the boundary for changing the provisional driver.
-
-The maintainer has confirmed that BullMQ and ioredis work on Deno. Bun dependency integration still
-needs runtime checks. This project's queue/scheduler acceptance tests remain pending on all target
-runtimes; those checks cover its scheduling and recovery semantics as well as the selected versions.
 
 The source review identified these integration risks to verify in the selected version:
 
@@ -43,6 +45,14 @@ The source review identified these integration risks to verify in the selected v
 
 These risks are reflected in the architecture and acceptance criteria; the selected backend remains
 BullMQ with Valkey.
+
+## Cross-runtime test framework
+
+[Poku](https://poku.io/docs) is the selected test runner for Bun, Node.js, and Deno. It provides
+assertions, test grouping, lifecycle hooks, asynchronous tests, parallel execution, watch mode,
+plugins, and service/process helpers. The same TypeScript test files run on each runtime; `tsx`
+handles Node.js TypeScript execution. The [testing guide](../README.md#testing) describes the
+repository commands and CI runtime versions.
 
 ## Alternatives reviewed: background only
 

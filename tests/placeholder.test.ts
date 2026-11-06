@@ -1,6 +1,6 @@
-import { expect, test } from 'bun:test';
+import { assert, test } from 'poku';
 import { add } from '../src/placeholder.ts';
 
-test('add combines two numbers', () => {
-  expect(add(2, 3)).toBe(5);
+await test('add combines two numbers', () => {
+  assert.strictEqual(add(2, 3), 5);
 });

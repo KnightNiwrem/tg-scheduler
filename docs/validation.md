@@ -11,14 +11,16 @@ and Deno remain library compatibility targets. The provisional topology is a lon
 containing the grammY caller; actual ioredis is the provisional initial driver. Docker Compose with
 the official `valkey/valkey` image is part of the first implementation slice.
 
-BullMQ/ioredis compatibility on Deno is maintainer-confirmed. The checks below validate this
-project's library and scheduling behavior, including the dependency versions selected for it.
+The [runtime compatibility research](library-research.md#runtime-compatibility) records dependency
+support. The checks below cover this project's library and scheduling behavior, including the
+dependency versions selected for it.
 
 ## Validation coverage
 
 The [repository checks](../README.md#commands) currently cover the Bun starter. Passing them does
-not establish the queue/scheduler acceptance criteria below. Cross-runtime acceptance coverage
-exercises the shared library without depending on the Bun-specific test runner.
+not establish the queue/scheduler acceptance criteria below. The shared suite uses
+[Poku on Bun, Node.js, and Deno](../README.md#testing), so cross-runtime acceptance coverage exercises
+the same library tests on each runtime.
 
 ## Selected slice
 
