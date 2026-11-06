@@ -37,7 +37,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error) {
   console.error(error instanceof Error ? error.message : 'Unknown smoke test error');
   process.exitCode = 1;
-});
+}

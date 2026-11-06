@@ -72,7 +72,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error) {
   reportError(error);
   process.exitCode = 1;
-});
+}

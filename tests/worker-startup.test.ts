@@ -42,7 +42,8 @@ test.each([
   });
 
   try {
-    await import('../src/main.ts');
+    const workerModule = import('../src/main.ts');
+    await vi.waitFor(() => expect(createWorker).toHaveBeenCalledOnce());
     expect(createWorker).toHaveBeenCalledWith(
       expect.anything(),
       expect.any(Function),
@@ -64,7 +65,7 @@ test.each([
     activeJob.resolve();
     await stopped.promise;
     ready.resolve();
-    await ready.promise;
+    await workerModule;
     expect(output).toHaveBeenCalledWith('Worker stopped');
     if (!processingStarted) {
       expect(run).not.toHaveBeenCalled();
