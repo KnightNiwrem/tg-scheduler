@@ -16,6 +16,38 @@
 - For code-quality reviews and refactoring, use the
   [code-quality skill](.agents/skills/code-quality/SKILL.md).
 
+## Project workflow
+
+Bun is the primary development and worker runtime. Use the scripts and pinned tooling in
+`package.json`, `bun.lock`, Biome for formatting/linting, TypeScript for type checking, and `bun:test`.
+
+Read [README.md](README.md) and inspect the code before assuming a documented capability exists.
+Before queue/scheduler implementation or behavioral validation, read the
+[architecture](docs/architecture.md), [acceptance criteria](docs/validation.md), and
+[library research](docs/library-research.md). Recover missing references before relying on an
+incomplete design. These documents contain the project contract; no original conversation is needed.
+The full first-slice design does not expand a narrower requested task.
+
+- **Fixed:** preserve explicit requirements and established external contracts. Report a concrete
+  conflict before changing them; reversibility does not make them optional.
+- **Provisional:** implement the selected working choice. Revise it when evidence supports a simpler
+  or safer approach, explain consequential changes, and update affected code, tests, and design
+  together. It is not a question awaiting approval.
+- **Deferred:** outside the first slice. Do not implement it speculatively or make it a blocker.
+
+Make reasonable choices about dependency versions and internal APIs within the task. Investigate
+decisions in proportion to migration costs, security boundaries, public commitments, or production
+data. Ask when a fixed requirement must change, a material commitment exceeds the task, or a missing
+fact blocks responsible progress. Inspect actual consumers and stored data before incompatible
+changes; draft status and pre-v1 versions do not make existing contracts or data disposable.
+
+Validate the selected BullMQ/ioredis/Valkey combination early on Bun and preserve the Node.js and Deno
+library compatibility targets. Isolate runtime-specific code at the edges. Reuse native durable
+machinery where its semantics match the design. Diagnose and report demonstrated conflicts rather
+than silently replacing fixed dependencies or dropping compatibility targets. Source research,
+successful imports, type checking, and passing starter tests do not establish queue integration or
+runtime support; exercise actual queue and worker operations on each target runtime.
+
 ## Completion
 
 For implementation tasks, complete the requested behavior and bring changed code to the engineering
@@ -28,6 +60,15 @@ blocked.
 Rerun checks whose results may have changed. Broaden validation when the change's impact or a
 remaining uncertainty warrants it. Once relevant checks pass and the completion requirements are
 met, finish.
+
+A blocking review finding needs a concrete trigger, material impact, evidence, and a reason it must
+be fixed now. Address fixed-requirement violations, core acceptance failures, and credible material
+security, data-integrity, or operational risks, including rare severe risks. Defer useful nonblocking
+improvements without turning every suggestion into a backlog item or restarting an unrestricted
+audit after each fix.
+
+Report passed, failed, and unrun checks separately. Do not weaken acceptance criteria to excuse a
+failure or claim readiness while a required check with material risk remains unresolved.
 
 ## Content placement
 
@@ -46,5 +87,7 @@ merely recounts the change conversation or reassures its participants.
 - AGENTS.md: Include durable instructions an agent needs in every fresh session within its scope.
   Put instructions needed only for particular tasks or workflows in skills; retain only the minimal
   routing guidance needed to find and invoke them.
+- docs/: Keep project requirements, design, acceptance criteria, and supporting research here.
+  Put agent instructions and implementation workflows in AGENTS.md or repository skills instead.
 - PRs, commits, and decision records: Preserve relevant change context, alternatives considered, and
   decision history.
