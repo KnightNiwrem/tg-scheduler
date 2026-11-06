@@ -41,43 +41,49 @@ integrationTest(
     inspector.on('error', onError);
     const producer = createQueue<HealthcheckData, HealthcheckResult>(environment, onError);
     const consumer = createWorker(environment, processHealthcheck, onError);
+    let ownedIds: string[] = [];
     try {
-      await Promise.all([producer.queue.waitUntilReady(), consumer.worker.waitUntilReady()]);
-      const ownedIds = Array.from(
-        await clientIds(
-          inspector,
-          new Set([
-            `${environment.QUEUE_NAME}-producer`,
-            `${environment.QUEUE_NAME}-worker`,
-            consumer.worker.getBackend().clientName(),
-          ]),
-        ),
-      );
-      expect(ownedIds.length).toBe(3);
+      try {
+        await Promise.all([producer.queue.waitUntilReady(), consumer.worker.waitUntilReady()]);
+        ownedIds = Array.from(
+          await clientIds(
+            inspector,
+            new Set([
+              `${environment.QUEUE_NAME}-producer`,
+              `${environment.QUEUE_NAME}-worker`,
+              consumer.worker.getBackend().clientName(),
+            ]),
+          ),
+        );
+        expect(ownedIds.length).toBe(3);
 
-      const immediate = await producer.queue.add('healthcheck', { message: 'immediate' });
-      const delayed = await producer.queue.add(
-        'healthcheck',
-        { message: 'delayed' },
-        { delay: 300 },
-      );
-      await expect
-        .poll(async () => (await producer.queue.getJob(immediate.id ?? ''))?.getState())
-        .toBe('completed');
-      await expect
-        .poll(async () => (await producer.queue.getJob(delayed.id ?? ''))?.getState())
-        .toBe('completed');
-      expect((await producer.queue.getJob(immediate.id ?? ''))?.returnvalue).toEqual({
-        status: 'ok',
-        message: 'immediate',
-      });
-      const delayedResult = await producer.queue.getJob(delayed.id ?? '');
-      expect(delayedResult?.returnvalue).toEqual({ status: 'ok', message: 'delayed' });
-      expect(delayedResult?.processedOn).toBeGreaterThanOrEqual(delayed.timestamp + 300);
-
-      await consumer.close();
-      await producer.queue.obliterate();
-      await producer.close();
+        const immediate = await producer.queue.add('healthcheck', { message: 'immediate' });
+        const delayed = await producer.queue.add(
+          'healthcheck',
+          { message: 'delayed' },
+          { delay: 300 },
+        );
+        await expect
+          .poll(async () => (await producer.queue.getJob(immediate.id ?? ''))?.getState())
+          .toBe('completed');
+        await expect
+          .poll(async () => (await producer.queue.getJob(delayed.id ?? ''))?.getState())
+          .toBe('completed');
+        expect((await producer.queue.getJob(immediate.id ?? ''))?.returnvalue).toEqual({
+          status: 'ok',
+          message: 'immediate',
+        });
+        const delayedResult = await producer.queue.getJob(delayed.id ?? '');
+        expect(delayedResult?.returnvalue).toEqual({ status: 'ok', message: 'delayed' });
+        expect(delayedResult?.processedOn).toBeGreaterThanOrEqual(delayed.timestamp + 300);
+      } finally {
+        await consumer.close();
+        try {
+          await producer.queue.obliterate({ force: true });
+        } finally {
+          await producer.close();
+        }
+      }
       await expect
         .poll(async () => {
           const remaining = await clientIds(inspector);
@@ -86,8 +92,6 @@ integrationTest(
         .toEqual([]);
       expect(errors).toEqual([]);
     } finally {
-      await consumer.close();
-      await producer.close();
       inspector.disconnect();
     }
   },
@@ -109,6 +113,7 @@ integrationTest(
         return finish.promise;
       },
       onError,
+      { autorun: false },
     );
     let replacement:
       | ReturnType<typeof createWorker<HealthcheckData, HealthcheckResult>>
@@ -116,6 +121,10 @@ integrationTest(
     try {
       await Promise.all([producer.queue.waitUntilReady(), consumer.worker.waitUntilReady()]);
       const active = await producer.queue.add('healthcheck', { message: 'active' });
+      expect(await active.getState()).toBe('waiting');
+      expect(consumer.worker.isRunning()).toBe(false);
+      const running = consumer.worker.run();
+      void running.catch(onError);
       await started.promise;
       const waiting = await producer.queue.add('healthcheck', { message: 'waiting' });
       let closed = false;
@@ -128,6 +137,7 @@ integrationTest(
       expect(closed).toBe(false);
       finish.resolve({ status: 'ok', message: 'active' });
       await closing;
+      await running;
       expect(await active.getState()).toBe('completed');
       expect(await waiting.getState()).toBe('waiting');
 

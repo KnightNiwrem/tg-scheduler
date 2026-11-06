@@ -40,12 +40,14 @@ export function createWorker<Data, Result>(
   environment: Environment,
   processor: Processor<Data, Result>,
   onError: ErrorHandler,
+  options: { autorun?: boolean } = {},
 ) {
   const connection = createValkeyConnection(environment, 'worker', onError);
   // BullMQ owns the extra blocking connection duplicated from this client.
   const worker = new Worker<Data, Result>(environment.QUEUE_NAME, processor, {
     connection,
     concurrency: environment.WORKER_CONCURRENCY,
+    autorun: options.autorun ?? true,
   });
   worker.on('error', onError);
   let closing: Promise<void> | undefined;

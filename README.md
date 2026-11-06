@@ -79,7 +79,8 @@ an abrupt crash can still lose roughly one second of writes, and volume deletion
 removes the data. See [Valkey persistence](https://valkey.io/topics/persistence/) for the persistence
 tradeoffs. This configuration is for local testing.
 
-SIGINT and SIGTERM stop the worker from claiming new work, let active jobs finish, close BullMQ's
+The worker begins processing only after both Valkey connections are ready. SIGINT and SIGTERM stop
+the worker from claiming new work, let active jobs finish, close BullMQ's
 blocking connection, and disconnect the owned ioredis client. Startup and shutdown each have a
 ten-second deadline; exceeding either exits unsuccessfully. Compose allows thirty seconds before
 forcing termination. Worker connections use `maxRetriesPerRequest: null`; producer commands fail

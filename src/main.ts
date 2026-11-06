@@ -12,11 +12,12 @@ async function main(): Promise<void> {
     environment,
     processHealthcheck,
     reportError,
+    { autorun: false },
   );
-  let ready = false;
+  let processingStarted = false;
   let shuttingDown: Promise<void> | undefined;
 
-  function shutdown(exitCode: number): Promise<void> {
+  function shutdown(exitCode: number, force = false): Promise<void> {
     shuttingDown ??= (async () => {
       clearTimeout(startupTimer);
       console.log('Stopping worker');
@@ -25,8 +26,8 @@ async function main(): Promise<void> {
         process.exit(1);
       }, 10_000);
       try {
-        // An incomplete startup has no active jobs to drain.
-        await runtime.close(!ready);
+        // With autorun disabled, no job can be active until run() is called below.
+        await runtime.close(force || !processingStarted);
         process.exitCode = exitCode;
         console.log('Worker stopped');
       } catch (error) {
@@ -49,20 +50,24 @@ async function main(): Promise<void> {
   process.on('SIGTERM', onSignal);
   const startupTimer = setTimeout(() => {
     console.error('Worker startup exceeded 10 seconds; check Valkey connectivity');
-    void shutdown(1);
+    void shutdown(1, true);
   }, 10_000);
 
   try {
     await runtime.worker.waitUntilReady();
     clearTimeout(startupTimer);
     if (!shuttingDown) {
-      ready = true;
+      processingStarted = true;
+      void runtime.worker.run().catch((error: unknown) => {
+        reportError(error);
+        void shutdown(1, true);
+      });
       console.log(`Worker ready: ${environment.QUEUE_NAME}`);
     }
   } catch (error) {
     if (!shuttingDown) {
       reportError(error);
-      await shutdown(1);
+      await shutdown(1, true);
     }
   }
 }
