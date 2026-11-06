@@ -1,8 +1,7 @@
 # tg-scheduler
 
 A planned durable queue and scheduler for outgoing Telegram Bot API calls, written in TypeScript
-with grammY, BullMQ, and Valkey. Bun is the primary development and worker runtime; Biome handles
-linting and formatting.
+with grammY, BullMQ, and Valkey. Bun is the primary development and worker runtime.
 
 The repository currently contains the Bun starter, a sample entry point, and a placeholder test.
 The queue, scheduler, Telegram transport, and Docker Compose setup are not implemented yet.
@@ -43,13 +42,11 @@ bun install --frozen-lockfile
 - `bun run test:node` — run the shared tests on Node.js
 - `bun run test:deno` — run the shared tests on Deno
 - `bun run test:all` — run the shared tests on all three runtimes
-- `bun run lint` — lint files with Biome
-- `bun run fmt` — format files with Biome
+- `bun run lint` — lint files
+- `bun run fmt` — format files
 - `bun run fmt:check` — check formatting
 - `bun run check` — type-check source files and tests with TypeScript
 
-Biome uses two-space indentation, single quotes, and a 100-column line width. GitHub Actions runs
-formatting, lint, type, and test checks on pushes to `main` or `master` and on pull requests.
 Tool versions and scripts are defined in [package.json](package.json), with dependencies locked in
 [bun.lock](bun.lock).
 
@@ -60,8 +57,7 @@ import `expect` and `test` from `vitest`; mocking, fake timers, snapshots, and l
 available without a separate assertion or mocking library. Bun remains the default for
 `bun run test`.
 
-`bun run test:all` requires all three runtimes to be installed. CI uses Bun 1.4.4, Node.js 24.22.1,
-and Deno 2.9.6 and runs each runtime in a separate job. All dependencies come from `bun.lock`;
+`bun run test:all` requires all three runtimes to be installed. All dependencies come from `bun.lock`;
 the Deno test command uses the installed local packages without creating a separate Deno lockfile.
 The current suite covers the starter only; scheduler integration tests remain pending.
 
