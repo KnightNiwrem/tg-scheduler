@@ -7,6 +7,12 @@ The repository currently provides local Valkey and Bun worker infrastructure, Zo
 validation, BullMQ queue/worker initialization, graceful shutdown, and a diagnostic job with a stored
 result. Telegram delivery, per-bot coordination, and recurrence are not implemented yet.
 
+A typed library skeleton outlines the client, worker, coordinator, backend, and grammY transport.
+Its operations explicitly reject with `UnimplementedError`. See the
+[library overview](docs/library-overview.md) for the component flow and source map, and the
+[usage sketch](examples/library.ts) for the intended API. The diagnostic commands below continue to
+run the working bootstrap.
+
 ## Planned capabilities
 
 The first implementation will provide explicit enqueue and status/result retrieval for immediate
@@ -129,6 +135,7 @@ the full scheduler acceptance criteria remain pending.
 
 ## Project documentation
 
+- [Library overview](docs/library-overview.md): component flow, source map, and scaffolded public API.
 - [Architecture](docs/architecture.md): requirements, selected design, API boundaries, scheduling,
   concurrency, and failure semantics.
 - [Validation](docs/validation.md): first-slice acceptance criteria, runtime and recovery checks,

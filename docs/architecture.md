@@ -6,6 +6,9 @@ its full acceptance tests are pending. **Fixed** identifies a project requiremen
 correctness constraint. **Provisional** identifies a selected implementation approach that can be
 revised with evidence.
 
+The [library overview](library-overview.md) maps the typed skeleton to these components. Its
+operations explicitly reject as unimplemented; the bootstrap remains the runnable implementation.
+
 The [project overview](../README.md) describes current capabilities. [Validation](validation.md)
 defines acceptance criteria for this design; [library research](library-research.md) records
 supporting dependency findings.
@@ -90,7 +93,8 @@ types remain implementation choices:
 - `getJob(jobId)` retrieves job status and the eventual result/error. The result type corresponds
   to the Bot API method.
 - `createSchedule(method, payload, scheduleOptions)` returns a durable schedule handle. Schedule
-  options define the fixed interval and planned-time anchor.
+  options define the fixed interval and planned-time anchor. Occurrences use the ordinary lane;
+  urgent submission is available through explicit `submit` calls.
 - `disableSchedule(scheduleId)` prevents future occurrence creation while preserving already
   materialized jobs.
 
