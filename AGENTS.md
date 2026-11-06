@@ -15,18 +15,19 @@
   and type checking. Run checks appropriate to the change and report failures or checks not run.
 - For code-quality reviews and refactoring, use the
   [code-quality skill](.agents/skills/code-quality/SKILL.md).
+- For queue/backend integration or durable worker behavior validation, use the
+  [queue-backend-integration skill](.agents/skills/queue-backend-integration/SKILL.md).
 
 ## Project workflow
 
 Bun is the primary development and worker runtime. Use the scripts and pinned tooling in
 `package.json`, `bun.lock`, Biome for formatting/linting, TypeScript for type checking, and `bun:test`.
 
-Read [README.md](README.md) and inspect the code before assuming a documented capability exists.
-Before queue/scheduler implementation or behavioral validation, read the
-[architecture](docs/architecture.md), [acceptance criteria](docs/validation.md), and
-[library research](docs/library-research.md). Recover missing references before relying on an
-incomplete design. These documents contain the project contract; no original conversation is needed.
-The full first-slice design does not expand a narrower requested task.
+The [README](README.md) describes current project status. The [architecture](docs/architecture.md),
+[acceptance criteria](docs/validation.md), and [library research](docs/library-research.md) define
+the project contract. Consult the relevant sections for domain changes and inspect the code before
+assuming a documented capability exists. The full first-slice design does not expand a narrower
+requested task.
 
 - **Fixed:** preserve explicit requirements and established external contracts. Report a concrete
   conflict before changing them; reversibility does not make them optional.
@@ -40,17 +41,6 @@ decisions in proportion to migration costs, security boundaries, public commitme
 data. Ask when a fixed requirement must change, a material commitment exceeds the task, or a missing
 fact blocks responsible progress. Inspect actual consumers and stored data before incompatible
 changes; draft status and pre-v1 versions do not make existing contracts or data disposable.
-
-BullMQ, Valkey, and BullMQ's supported injectable client contract with ioredis-compatible
-interoperability are fixed. Actual ioredis is the provisional initial driver. Validate it early on
-Bun and preserve the Node.js and Deno library compatibility targets. If evidence warrants replacing
-the driver, choose a supported client/adapter that preserves the fixed contract and runtime targets,
-validate it, and update the design. A driver change alone does not require approval; a conflict with
-a fixed backend requirement or a runtime target must be reported before changing that requirement.
-Isolate runtime-specific code at the edges and reuse native durable machinery where its semantics
-match the design. Source research, successful imports, type checking, and passing starter tests do
-not establish queue integration or runtime support; exercise actual queue and worker operations on
-each target runtime.
 
 ## Completion
 

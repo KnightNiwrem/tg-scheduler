@@ -1,6 +1,6 @@
 # Outbound queue and scheduler architecture
 
-Status: selected design; queue/scheduler implementation and runtime validation are pending. The
+Status: selected design; queue/scheduler implementation and its acceptance tests are pending. The
 repository currently contains a Bun starter. **Fixed** identifies a project requirement or necessary
 correctness constraint. **Provisional** identifies a selected implementation approach that can be
 revised with evidence.
@@ -66,10 +66,9 @@ on all target runtimes. A driver-specific compatibility failure is grounds to ev
 replacement; it does not by itself invalidate the fixed backend or runtime targets. Valkey is the
 server; its use does not itself require a Valkey-specific client.
 
-The selected dependency combination still needs validation on Bun first and on Node.js and Deno for
-compatibility. The upstream [Deno support issue](https://github.com/taskforcesh/bullmq/issues/3024)
-records a separate compatibility risk; it does not change the primary Bun runtime. [Library
-research](library-research.md) records the integration checks.
+The maintainer has confirmed that BullMQ and ioredis work on Deno. Bun-specific dependency validation
+and this project's queue/scheduler acceptance tests across the target runtimes remain pending.
+[Library research](library-research.md) records the integration checks.
 
 A durable queue does not inherently require a user-hosted always-running coordinator: a platform can
 persist state and wake ephemeral code. The first implementation uses operated workers; a serverless

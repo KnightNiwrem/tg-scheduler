@@ -11,6 +11,9 @@ and Deno remain library compatibility targets. The provisional topology is a lon
 containing the grammY caller; actual ioredis is the provisional initial driver. Docker Compose with
 the official `valkey/valkey` image is part of the first implementation slice.
 
+BullMQ/ioredis compatibility on Deno is maintainer-confirmed. The checks below validate this
+project's library and scheduling behavior, including the dependency versions selected for it.
+
 ## Repository checks
 
 Install dependencies with `bun install --frozen-lockfile`, then run the existing checks:

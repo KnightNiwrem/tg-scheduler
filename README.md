@@ -22,8 +22,9 @@ long-lived workers activating due work through BullMQ and Valkey.
 The selected design uses BullMQ's supported injectable connection interface backed by Valkey, with
 ioredis as the provisional initial driver. The first local deployment will use Docker Compose with
 a Bun worker and the official `valkey/valkey` image. Node.js and Deno remain library compatibility
-targets; queue integration has not been validated on any runtime. Inbound updates, polling, and
-webhook ingestion are outside scope.
+targets. The maintainer has confirmed that BullMQ and ioredis work on Deno. This project's scheduler
+implementation and integration tests remain pending. Inbound updates, polling, and webhook ingestion
+are outside scope.
 
 ## Getting started
 

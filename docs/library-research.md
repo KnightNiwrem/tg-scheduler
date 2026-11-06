@@ -1,6 +1,6 @@
 # Supporting library research
 
-Source-review findings dated 2 November 2026; these are not runtime validation. The
+The library source findings below date to 2 November 2026. The
 [architecture](architecture.md) defines selected choices, and [validation](validation.md) defines
 acceptance criteria. Queue dependencies have not yet been added to the Bun starter. Default-branch
 source links can change, so the findings need verification against the pinned versions selected for
@@ -17,10 +17,9 @@ Valkey is the server, independent of the JavaScript client choice. The
 [architecture](architecture.md#1-scope-and-ownership) records the required ioredis worker connection
 settings and the boundary for changing the provisional driver.
 
-The upstream [Deno support issue](https://github.com/taskforcesh/bullmq/issues/3024) was open at
-source-review time. Deno is a secondary library compatibility target. Bun Queue/Worker integration
-needs its own tests, followed by the Node.js and Deno compatibility checks; npm imports or TypeScript
-types alone do not establish runtime support.
+The maintainer has confirmed that BullMQ and ioredis work on Deno. Bun dependency integration still
+needs runtime checks. This project's queue/scheduler acceptance tests remain pending on all target
+runtimes; those checks cover its scheduling and recovery semantics as well as the selected versions.
 
 The source review identified these integration risks to verify in the selected version:
 
