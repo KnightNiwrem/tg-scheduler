@@ -55,12 +55,6 @@ Rerun checks whose results may have changed. Broaden validation when the change'
 remaining uncertainty warrants it. Once relevant checks pass and the completion requirements are
 met, finish.
 
-A blocking review finding needs a concrete trigger, material impact, evidence, and a reason it must
-be fixed now. Address fixed-requirement violations, core acceptance failures, and credible material
-security, data-integrity, or operational risks, including rare severe risks. Defer useful nonblocking
-improvements without turning every suggestion into a backlog item or restarting an unrestricted
-audit after each fix.
-
 Report passed, failed, and unrun checks separately. Do not weaken acceptance criteria to excuse a
 failure or claim readiness while a required check with material risk remains unresolved.
 

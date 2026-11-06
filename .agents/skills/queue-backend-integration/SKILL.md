@@ -38,7 +38,8 @@ runtime target before changing that requirement.
   not silently retransmit an ambiguous Telegram effect or allow stale attempts to overwrite state.
 - Use deterministic fake Telegram responses and a controllable clock where practical. Cover valid
   retry delays, the documented missing/invalid-delay fallback, both lanes, and durable reactivation
-  after restart. Simulate 429s instead of deliberately provoking production flood limits.
+  after restart. Simulate 429s instead of deliberately provoking production flood limits. For live
+  checks included in the requested scope, use a dedicated test bot/chat and narrowly scoped calls.
 
 Use the acceptance criteria for detailed cases relevant to the requested change. Distinguish
 verified behavior from pending runtime or recovery checks when reporting the result.

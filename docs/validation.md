@@ -14,21 +14,11 @@ the official `valkey/valkey` image is part of the first implementation slice.
 BullMQ/ioredis compatibility on Deno is maintainer-confirmed. The checks below validate this
 project's library and scheduling behavior, including the dependency versions selected for it.
 
-## Repository checks
+## Validation coverage
 
-Install dependencies with `bun install --frozen-lockfile`, then run the existing checks:
-
-```sh
-bun run fmt:check
-bun run lint
-bun run check
-bun run test
-```
-
-These commands use Biome, TypeScript, and Bun's test runner as configured in
-[package.json](../package.json). They currently cover the starter only. Passing them does not
-establish the queue/scheduler acceptance criteria below. Additional runtime tests must exercise the
-shared library without depending on the Bun-specific test runner.
+The [repository checks](../README.md#commands) currently cover the Bun starter. Passing them does
+not establish the queue/scheduler acceptance criteria below. Cross-runtime acceptance coverage
+exercises the shared library without depending on the Bun-specific test runner.
 
 ## Selected slice
 
@@ -52,24 +42,24 @@ validated Valkey persistence/recovery configuration and documented recovery limi
 - A documented Docker Compose command starts the Bun worker and official `valkey/valkey` service on
   the local VM. Tested image/dependency versions are pinned, and secrets are supplied outside
   committed Compose files.
-- Run a local Compose smoke test for submission, worker execution and visible results using fake
-  Telegram responses; verify worker restart and Valkey persistence/restart behaviour within the
-  documented durability limits.
+- The local Compose smoke test covers submission, worker execution, visible results, worker restart,
+  and Valkey persistence/restart behavior within the documented durability limits.
 - TypeScript checking passes through `bun run check`. Imports and package entry points work on Bun,
   Node.js and Deno. Actual BullMQ/client enqueue, claim, delayed activation and result retrieval run
   against Valkey on each runtime; a successful import alone is insufficient.
 - When using ioredis, worker startup succeeds with a manually created client configured with
   `maxRetriesPerRequest: null`, including the duplicated connection used for blocking operations.
-- Test the grammY transport through its outgoing API surface without adding inbound update
-  processing or hidden automatic retries.
+- The grammY transport uses its outgoing API surface without inbound update processing or hidden
+  automatic retries.
 - Runtime-specific permissions, startup and shutdown requirements are documented separately from the
   portable core. Compatibility evidence identifies tested dependency/runtime versions and any failed
   or unrun checks; type compatibility alone does not establish runtime support.
 
 ## Core checks
 
-- Accepted work survives producer exit and the documented worker/backend recovery conditions.
-  Identify which component retains work, activates due jobs and recovers abandoned claims.
+- Accepted work survives producer exit and the documented worker/backend recovery conditions. The
+  recovery guarantees identify the components responsible for retaining work, activating due jobs,
+  and recovering abandoned claims.
 - Concurrent submissions do not lose accepted jobs or create more current reservations than
   configured capacity. The documented failover limitation still applies to already-sent physical
   HTTP requests.
@@ -104,10 +94,6 @@ validated Valkey persistence/recovery configuration and documented recovery limi
   without silently cancelling already materialized work.
 - Supported payloads remain usable after the submitting process exits. Unsupported transient
   payloads are rejected at submission rather than accepted unreliably.
-
-Use deterministic fake Telegram responses and a controllable clock where practical. Simulate 429
-responses rather than deliberately provoking production limits. Live checks, when part of the task,
-use a dedicated test bot/chat and narrowly scoped calls.
 
 ## Deferred, not blocking this slice
 
