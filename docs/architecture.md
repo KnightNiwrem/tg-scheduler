@@ -54,10 +54,17 @@ workflow.
 
 **Provisional driver:** actual ioredis connected to Valkey through BullMQ's supported connection
 interface. BullMQ's [connection documentation](https://docs.bullmq.io/guide/connections) describes
-raw ioredis compatibility and the `IRedisClient` adapter contract. An alternative client must
-satisfy the full selected-version contract, including commands, connection lifecycle/events,
-duplication, Lua/scripts and pipelines. Valkey is the server; its use does not itself require a
-Valkey-specific client.
+raw ioredis compatibility and the `IRedisClient` adapter contract. A manually created ioredis client
+passed to a BullMQ `Worker` must set `maxRetriesPerRequest: null`; the worker also needs a duplicated
+connection for blocking operations. These requirements need validation in the selected version.
+
+The ioredis package itself is provisional; the fixed requirement is BullMQ's supported injectable
+client contract with ioredis-compatible interoperability backed by Valkey. A replacement client
+remains within this design if it satisfies the full selected-version contract, including commands,
+connection lifecycle/events, duplication, Lua/scripts and pipelines, and passes integration checks
+on all target runtimes. A driver-specific compatibility failure is grounds to evaluate such a
+replacement; it does not by itself invalidate the fixed backend or runtime targets. Valkey is the
+server; its use does not itself require a Valkey-specific client.
 
 The selected dependency combination still needs validation on Bun first and on Node.js and Deno for
 compatibility. The upstream [Deno support issue](https://github.com/taskforcesh/bullmq/issues/3024)
@@ -74,10 +81,19 @@ observed result/errors required for this path.
 
 ## 2. Public API and payloads
 
-**Provisional first API:** explicit `submit(method, payload, options)`, returning a durable job
-handle, plus status/result retrieval. The eventual result type corresponds to the Bot API method.
-Options initially cover earliest execution time and the supported urgent exception; exact API names
-are implementation details.
+**Provisional first API:** explicit operations for jobs and recurring schedules. Names and exact
+types remain implementation choices:
+
+- `submit(method, payload, options)` returns a durable job handle for immediate or one-time delayed
+  work. Options cover earliest execution time and the supported urgent exception.
+- `getJob(jobId)` retrieves job status and the eventual result/error. The result type corresponds
+  to the Bot API method.
+- `createSchedule(method, payload, scheduleOptions)` returns a durable schedule handle. Schedule
+  options define the fixed interval and planned-time anchor.
+- `disableSchedule(scheduleId)` prevents future occurrence creation while preserving already
+  materialized jobs.
+
+Payload and result constraints:
 
 - Stored requests contain method names and JSON-serializable payloads, without callbacks or
   closures.
@@ -112,6 +128,12 @@ Reference: [grammY transformers](https://grammy.dev/advanced/transformers).
 - **Schedule:** interval, planned-time anchor, next occurrence, enabled state and unique occurrence
   identity.
 
+**Provisional time representation:** application timestamps are integer milliseconds since the Unix
+epoch in UTC. This includes public execution times, persisted due times, retry eligibility, lane
+cooldown expiries, lease expiries and recurrence anchors. Intervals and lease durations are in
+milliseconds. `nowMs` uses the same timestamp units; native engine units are converted explicitly
+at the boundary.
+
 Initial states are queued, in-flight, succeeded, failed and uncertain. A definite 429 returns the
 same job to queued with its original ordering rank. An uncertain outcome is visible and is not
 automatically retransmitted. Concurrency above one requires multiple in-flight reservations rather
@@ -138,8 +160,8 @@ given concurrency will always be safe.
 - When enabled, urgent capacity U is 1 in addition to ordinary capacity. Maximum normally admitted
   attempts is C + U, not one shared cap.
 - Ordinary cooldown is bot-wide. Urgent cooldown covers the entire urgent lane independently.
-- Each cooldown update takes `max(existing expiry, now + retry_after)`, never shortening an existing
-  pause.
+- Each lane atomically updates `blockedUntilMs = max(blockedUntilMs, nowMs + retryDelayMs)`, never
+  shortening an existing pause.
 
 Ordinary processing:
 
@@ -162,8 +184,17 @@ Urgent processing:
 - These lane boundaries are conservative application policy, not a claim about Telegram's actual
   rate-limit buckets.
 
-Cooldown duration comes from Telegram's response `parameters.retry_after`; the design assumes no
-universal requests-per-second threshold. Urgent bypass cannot guarantee timeliness:
+Telegram's optional response `parameters.retry_after` is in seconds. For a positive integer value
+whose conversion and resulting expiry are safely representable, `retryDelayMs = retry_after * 1000`.
+**Provisional fallback:** if `parameters` or `retry_after` is absent, or the value is invalid,
+nonpositive or unrepresentable, `retryDelayMs = 30_000`. The fallback applies to either lane and to
+every such 429. It never causes an immediate retry, never shortens a longer existing cooldown, and
+does not cap a valid server-specified delay. The chosen expiry is persisted with a durable wakeup
+so recovery does not depend on another submission or a local timer.
+
+The fallback is application policy, not a guarantee of Telegram acceptance after thirty seconds.
+The design assumes no universal requests-per-second threshold. Urgent bypass cannot guarantee
+timeliness:
 [answerPreCheckoutQuery](https://core.telegram.org/bots/api#answerprecheckoutquery), for example,
 has a ten-second response requirement. Permanent API failures remain visible rather than being
 retried indefinitely.
@@ -236,10 +267,10 @@ exceed the cap on current reservations.
 
 ## 8. Example with C=2 and urgent capacity 1
 
-A and B are admitted; C waits. A returns a twenty-second 429, preserving A's rank and pausing
+Jobs A and B are admitted; job D waits. A returns a twenty-second 429, preserving A's rank and pausing
 ordinary admission. B can still succeed or extend that cooldown. An allowlisted callback answer can
 use the urgent slot if the urgent gate is open. Its own 429 pauses the urgent lane. After the
-ordinary cooldown, A is selected before later ordinary work, but C may occupy the second slot and
+ordinary cooldown, A is selected before later ordinary work, but D may occupy the second slot and
 finish first.
 
 ## 9. Backend compatibility and contract boundaries

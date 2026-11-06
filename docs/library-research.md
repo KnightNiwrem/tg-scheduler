@@ -10,15 +10,17 @@ implementation.
 
 BullMQ with Valkey is fixed; actual ioredis is the provisional initial driver. BullMQ's [connection
 documentation](https://docs.bullmq.io/guide/connections) describes raw ioredis compatibility and
-`IRedisClient` adapters, including an adapter for Bun's built-in Redis client. The selected ioredis
-driver can still be used on Bun; the runtime choice does not require changing it. Other clients need
-the full selected-version contract: commands, lifecycle/events, duplication, Lua scripts and
-pipelines. Valkey is the server, independent of the JavaScript client choice.
+`IRedisClient` adapters, including an adapter for Bun's built-in Redis client. Ioredis is the initial
+candidate to test on Bun; its queue/worker compatibility remains unverified. Other clients need the
+full selected-version contract: commands, lifecycle/events, duplication, Lua scripts and pipelines.
+Valkey is the server, independent of the JavaScript client choice. The
+[architecture](architecture.md#1-scope-and-ownership) records the required ioredis worker connection
+settings and the boundary for changing the provisional driver.
 
 The upstream [Deno support issue](https://github.com/taskforcesh/bullmq/issues/3024) was open at
-source-review time. Deno is a secondary library compatibility target. Bun
-Queue/Worker integration needs its own tests, followed by the Node.js and Deno compatibility checks;
-npm imports or TypeScript types alone do not establish runtime support.
+source-review time. Deno is a secondary library compatibility target. Bun Queue/Worker integration
+needs its own tests, followed by the Node.js and Deno compatibility checks; npm imports or TypeScript
+types alone do not establish runtime support.
 
 The source review identified these integration risks to verify in the selected version:
 

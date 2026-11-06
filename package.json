@@ -1,5 +1,5 @@
 {
-  "name": "template-bun",
+  "name": "tg-scheduler",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.4.4",

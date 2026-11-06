@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "template-bun",
+      "name": "tg-scheduler",
       "devDependencies": {
         "@biomejs/biome": "2.6.4",
         "@types/bun": "1.4.4",

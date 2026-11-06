@@ -8,8 +8,8 @@ verification.
 The fixed stack is **TypeScript, grammY, Bun as the primary runtime, and BullMQ using its supported
 injectable connection interface with ioredis-compatible interoperability backed by Valkey**. Node.js
 and Deno remain library compatibility targets. The provisional topology is a long-lived Bun worker
-containing the grammY caller, using actual ioredis as the initial driver. Docker Compose with the
-official `valkey/valkey` image is part of the first implementation slice.
+containing the grammY caller; actual ioredis is the provisional initial driver. Docker Compose with
+the official `valkey/valkey` image is part of the first implementation slice.
 
 ## Repository checks
 
@@ -55,6 +55,8 @@ validated Valkey persistence/recovery configuration and documented recovery limi
 - TypeScript checking passes through `bun run check`. Imports and package entry points work on Bun,
   Node.js and Deno. Actual BullMQ/client enqueue, claim, delayed activation and result retrieval run
   against Valkey on each runtime; a successful import alone is insufficient.
+- When using ioredis, worker startup succeeds with a manually created client configured with
+  `maxRetriesPerRequest: null`, including the duplicated connection used for blocking operations.
 - Test the grammY transport through its outgoing API surface without adding inbound update
   processing or hidden automatic retries.
 - Runtime-specific permissions, startup and shutdown requirements are documented separately from the
@@ -70,6 +72,12 @@ validated Valkey persistence/recovery configuration and documented recovery limi
   HTTP requests.
 - Producers for one bot share ordinary cooldown state; other bots remain independent.
 - A later shorter 429 cannot shorten either lane's longer existing cooldown.
+- Application timestamps use Unix epoch milliseconds and durations use milliseconds. A valid
+  `retry_after` in seconds is converted exactly once before computing the lane cooldown expiry.
+- A 429 with missing `parameters`, missing `retry_after`, or an invalid, nonpositive or
+  unrepresentable value uses the thirty-second fallback. Both lanes retain the job, preserve any
+  longer cooldown and retry through a durable wakeup, including after restart. A valid server delay
+  longer than the fallback is honored in full.
 - No new ordinary admission occurs during an ordinary pause; already admitted attempts remain
   accounted for.
 - Urgent bypass is disabled by default, restricted to the allowlist when enabled, and bounded by its

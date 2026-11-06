@@ -19,10 +19,11 @@ ordinary admission pauses on Telegram 429 responses. An opt-in, bounded urgent l
 time-sensitive callback and pre-checkout answers. Accepted work will survive producer exit, with
 long-lived workers activating due work through BullMQ and Valkey.
 
-The selected design uses BullMQ's supported injectable connection interface with ioredis connected
-to Valkey. The first local deployment will use Docker Compose with a Bun worker and the official
-`valkey/valkey` image. Node.js and Deno remain library compatibility targets; queue integration has
-not been validated on any runtime. Inbound updates, polling, and webhook ingestion are outside scope.
+The selected design uses BullMQ's supported injectable connection interface backed by Valkey, with
+ioredis as the provisional initial driver. The first local deployment will use Docker Compose with
+a Bun worker and the official `valkey/valkey` image. Node.js and Deno remain library compatibility
+targets; queue integration has not been validated on any runtime. Inbound updates, polling, and
+webhook ingestion are outside scope.
 
 ## Getting started
 

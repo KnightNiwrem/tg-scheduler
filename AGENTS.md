@@ -41,12 +41,16 @@ data. Ask when a fixed requirement must change, a material commitment exceeds th
 fact blocks responsible progress. Inspect actual consumers and stored data before incompatible
 changes; draft status and pre-v1 versions do not make existing contracts or data disposable.
 
-Validate the selected BullMQ/ioredis/Valkey combination early on Bun and preserve the Node.js and Deno
-library compatibility targets. Isolate runtime-specific code at the edges. Reuse native durable
-machinery where its semantics match the design. Diagnose and report demonstrated conflicts rather
-than silently replacing fixed dependencies or dropping compatibility targets. Source research,
-successful imports, type checking, and passing starter tests do not establish queue integration or
-runtime support; exercise actual queue and worker operations on each target runtime.
+BullMQ, Valkey, and BullMQ's supported injectable client contract with ioredis-compatible
+interoperability are fixed. Actual ioredis is the provisional initial driver. Validate it early on
+Bun and preserve the Node.js and Deno library compatibility targets. If evidence warrants replacing
+the driver, choose a supported client/adapter that preserves the fixed contract and runtime targets,
+validate it, and update the design. A driver change alone does not require approval; a conflict with
+a fixed backend requirement or a runtime target must be reported before changing that requirement.
+Isolate runtime-specific code at the edges and reuse native durable machinery where its semantics
+match the design. Source research, successful imports, type checking, and passing starter tests do
+not establish queue integration or runtime support; exercise actual queue and worker operations on
+each target runtime.
 
 ## Completion
 
