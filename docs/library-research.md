@@ -1,6 +1,7 @@
 # Supporting library research
 
-The library source findings below date to 2 November 2026. The
+The source findings below date to 2 November 2026; the native behavior checks were run on
+6 November 2026 against the pinned dependencies. The
 [architecture](architecture.md) defines selected choices, and [validation](validation.md) defines
 acceptance criteria. The bootstrap pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; its integration
 coverage is described in the [testing guide](../README.md#testing). Default-branch source links can
@@ -8,10 +9,53 @@ change, so the policy findings below still need selected-version verification.
 
 ## Runtime compatibility
 
-The bootstrap integration suite exercises BullMQ/ioredis enqueue, claim, delayed activation,
-result retrieval, connection cleanup, and graceful shutdown on Bun, Node.js, and Deno. This
-project's full queue/scheduler acceptance tests remain pending on all target runtimes; those checks
-cover its coordination, scheduling, and recovery semantics as well as the selected versions.
+The integration suite exercises BullMQ/ioredis enqueue, claim, delayed activation, result retrieval,
+connection cleanup, and graceful shutdown on Bun, Node.js, and Deno. Native admission, ordering,
+cooldown, and stalled-recovery checks also run on all three. This project's full queue/scheduler
+acceptance tests remain pending; native behavior checks expose integration gaps rather than
+establishing the scheduler's required policies.
+
+## Selected-version native behavior
+
+The checks use BullMQ **6.7.1**, ioredis **6.0.0**, and the official
+`valkey/valkey:9.0.7-alpine` image (Valkey **9.0.7**). Tested runtimes are Bun **1.4.4**, Node.js
+**24.22.1**, and Deno **2.9.6** on Linux ARM64. The same integration tests pass on each runtime.
+They use isolated queue names, simulated 429 responses, and a separate accepted-effect ledger;
+they make no Telegram calls.
+
+The complete suite passed **54 tests on each runtime**, including 15 native behavior cases, with
+no failures or skips when `VALKEY_TEST_URL` was set. TypeScript, Biome lint, and formatting checks
+also passed.
+
+| Requirement or primitive     | Observed native behavior                                                                                                                                                                                                            | Integration consequence                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Shared capacity              | `setGlobalConcurrency(1)` and `(2)` bound competing claims across workers and producers; completion frees a slot. Worker-local concurrency alone permits multiple workers to exceed a shared limit.                                 | Configure queue-wide capacity for each bot; process-local settings are insufficient.                         |
+| Unique current claim         | Competing workers acquire a single job only once while its lock is valid.                                                                                                                                                           | Reuse native atomic claims and ownership tokens.                                                             |
+| Shared cooldown              | With a configured limiter, `queue.rateLimit()` blocks other workers while admitted jobs can settle. Separate queue identities remain independent.                                                                                   | Native gating is reusable, but requires limiter configuration. Setting an expiry alone does not gate claims. |
+| Monotonic cooldown           | A later shorter `rateLimit()` replaces a longer expiry.                                                                                                                                                                             | Extend the expiry atomically by maximum; the native setter alone violates this requirement.                  |
+| Activation after replacement | A replacement worker processes queued work after the stored cooldown expires, with no new submission or application wakeup timer.                                                                                                   | Reuse the native activation machinery after establishing the correct durable gate.                           |
+| Eligible ordinary ordering   | Ready jobs retain submission FIFO and future jobs do not block. An older-due delayed job is promoted behind a newer ready backlog.                                                                                                  | Native ready-list FIFO does not implement ordering by original due time across all eligible work.            |
+| Concurrent 429 retries       | Returning two admitted jobs through `RateLimitError` retries the last-returned job first. Responses in admission order reverse their original rank; reverse responses happen to preserve it. The order survives worker replacement. | Preserve original rank explicitly across retries; native manual requeue is insufficient.                     |
+| Ambiguous effect recovery    | Killing a worker after the simulated service accepted its effect causes default stalled recovery to repeat the effect with a new token.                                                                                             | Default recovery violates the no-retransmission uncertainty policy.                                          |
+| Disabled stalled replay      | `maxStalledCount: 0` skips another processor invocation but records `failed`, not `uncertain`. Both recovery configurations release capacity and allow unrelated work.                                                              | This setting can prevent replay, but still needs durable attempt records and explicit uncertainty reporting. |
+| Stale settlement             | An old token cannot complete or fail a job owned by a replacement, or overwrite its completed result.                                                                                                                               | Native fencing protects job settlement; it cannot revoke an already transmitted external request.            |
+
+Evidence lives in [admission tests](../tests/bullmq-admission.integration.test.ts),
+[ordering tests](../tests/bullmq-ordering.integration.test.ts), and
+[recovery tests](../tests/bullmq-recovery.integration.test.ts). The recovery fixture is a real child
+worker killed with `SIGKILL` after recording an accepted effect and before settling its job.
+Manual claim tests control competing admissions and response order; the cooldown replacement check
+uses the running worker loop to establish automatic reactivation.
+
+Run these checks with the [documented Valkey test setup](../README.md#testing), using
+`VALKEY_TEST_URL=redis://127.0.0.1:6379/0 bun run test:all`. CI already supplies a Valkey service and
+runs the same suite for each runtime. The local verification used isolated host port `16379`.
+
+These findings retain BullMQ/Valkey as the selected backend. They establish reusable claim,
+capacity, activation, and settlement primitives, with additional coordination required for
+monotonic cooldowns, original-rank admission/requeue, and uncertainty. They do not establish
+Valkey persistence across restart, recurrence/coalescing, urgent-lane policy, Telegram error
+classification or retry-delay validation, or the complete scheduler acceptance criteria.
 
 ## BullMQ integration findings
 
@@ -24,7 +68,9 @@ Valkey is the server, independent of the JavaScript client choice. The
 [architecture](architecture.md#1-scope-and-ownership) records the required ioredis worker connection
 settings and the boundary for changing the provisional driver.
 
-The source review identified these integration risks to verify in the selected version:
+The source review identified the following integration risks. The native behavior checks above
+verify cooldown replacement, ordinary retry ordering, stalled recovery, and shared limits in the
+selected version. Recurrence/coalescing remains unverified:
 
 - **Cooldown extension:** the inspected Redis-compatible backend replaces the rate-limit expiry
   rather than taking the later expiry. The library requires atomic maximum-expiry updates. [Backend

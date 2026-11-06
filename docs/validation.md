@@ -1,10 +1,11 @@
 # First-slice validation
 
 These are acceptance criteria for the planned [architecture](architecture.md), not a record of
-passing tests. The current suite covers the local Compose bootstrap and basic queue/worker behavior;
+passing tests. The current suite covers the local Compose bootstrap, basic queue/worker behavior,
+and selected-version native admission, ordering, cooldown, and recovery behavior;
 the Telegram queue/scheduler implementation and full acceptance checks remain pending.
-[Library research](library-research.md) records dependency findings that require
-selected-version verification for those policies.
+[Library research](library-research.md#selected-version-native-behavior) records verified native
+behavior, integration gaps, and policies still awaiting validation.
 
 The fixed stack is **TypeScript, grammY, Bun as the primary runtime, and BullMQ using its supported
 injectable connection interface with ioredis-compatible interoperability backed by Valkey**. Node.js
@@ -19,8 +20,11 @@ dependency versions selected for it.
 ## Validation coverage
 
 The [repository checks](../README.md#commands) cover environment and diagnostic payload validation,
-basic queue operations, delayed activation, and lifecycle cleanup. Passing them does not establish
-the full queue/scheduler acceptance criteria below. The shared suite uses
+basic queue operations, delayed activation, lifecycle cleanup, and native shared concurrency,
+cooldowns, FIFO/requeue ordering, and stalled recovery. The native checks deliberately assert
+observed behavior, including cases that violate the scheduler contract: cooldown shortening,
+original-rank loss, and replay of an ambiguous effect. Passing them does not establish the full
+queue/scheduler acceptance criteria below. The shared suite uses
 [Vitest on Bun, Node.js, and Deno](../README.md#testing), so cross-runtime acceptance coverage exercises
 the same library tests on each runtime.
 
@@ -114,5 +118,6 @@ grammY Telegram attempt → visible outcome works, the local Compose setup and r
 and no known material blocker remains. Compatibility claims require evidence from the relevant
 runtime tests.
 
-Source findings are not runtime tests. The chosen dependency version must satisfy the retry/requeue,
-cooldown expiry, recurrence and stalled-job recovery criteria above.
+Native behavior tests establish which dependency primitives can be reused and which require
+additional coordination. The implemented scheduler must satisfy the retry/requeue, cooldown expiry,
+recurrence, and stalled-job recovery criteria above; those acceptance checks remain pending.

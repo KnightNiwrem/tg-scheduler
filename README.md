@@ -125,6 +125,11 @@ and SIGINT/SIGTERM integration tests. Tests use unique queue names and delete th
 use a local test instance. Without this variable, backend integration tests are skipped. CI starts
 Valkey and enables them for every runtime.
 
+The suite also characterizes native shared concurrency, cooldowns, retry ordering, and stalled
+recovery. These checks expose where BullMQ needs additional coordination; they do not implement
+the scheduler policies. See the [verified native behavior](docs/library-research.md#selected-version-native-behavior)
+for results and integration limits.
+
 ```sh
 docker compose up -d valkey
 VALKEY_TEST_URL=redis://127.0.0.1:6379/0 bun run test:all
