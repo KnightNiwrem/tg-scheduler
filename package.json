@@ -1,0 +1,21 @@
+{
+  "name": "template-bun",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.4",
+  "scripts": {
+    "dev": "bun --watch src/main.ts",
+    "start": "bun src/main.ts",
+    "fmt:check": "biome format .",
+    "fmt": "biome format --write .",
+    "lint": "biome lint --error-on-warnings .",
+    "check": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "@types/bun": "1.4.4",
+    "fallow": "3.35.0",
+    "typescript": "7.0.2"
+  }
+}
