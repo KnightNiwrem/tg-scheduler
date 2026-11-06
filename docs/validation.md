@@ -1,9 +1,10 @@
 # First-slice validation
 
 These are acceptance criteria for the planned [architecture](architecture.md), not a record of
-passing tests. Queue/scheduler implementation, Compose setup, and integration checks are pending.
-[Library research](library-research.md) records dependency findings that require selected-version
-verification.
+passing tests. [Bootstrap validation](bootstrap-validation.md) records current Compose and basic
+queue/worker checks; the Telegram queue/scheduler implementation and full acceptance checks remain
+pending. [Library research](library-research.md) records dependency findings that require
+selected-version verification for those policies.
 
 The fixed stack is **TypeScript, grammY, Bun as the primary runtime, and BullMQ using its supported
 injectable connection interface with ioredis-compatible interoperability backed by Valkey**. Node.js
@@ -17,8 +18,9 @@ dependency versions selected for it.
 
 ## Validation coverage
 
-The [repository checks](../README.md#commands) currently cover the Bun starter. Passing them does
-not establish the queue/scheduler acceptance criteria below. The shared suite uses
+The [repository checks](../README.md#commands) cover environment and diagnostic payload validation,
+basic queue operations, delayed activation, and lifecycle cleanup. Passing them does not establish
+the full queue/scheduler acceptance criteria below. The shared suite uses
 [Vitest on Bun, Node.js, and Deno](../README.md#testing), so cross-runtime acceptance coverage exercises
 the same library tests on each runtime.
 

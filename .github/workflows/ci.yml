@@ -34,6 +34,18 @@ jobs:
   tests:
     name: test:${{ matrix.runtime }}
     runs-on: ubuntu-latest
+    services:
+      valkey:
+        image: valkey/valkey:9.0.7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 2s
+          --health-timeout 1s
+          --health-retries 15
+    env:
+      VALKEY_TEST_URL: redis://127.0.0.1:6379/0
     strategy:
       fail-fast: false
       matrix:

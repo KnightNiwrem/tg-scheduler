@@ -1,7 +1,8 @@
 # Outbound queue and scheduler architecture
 
-Status: selected design; queue/scheduler implementation and its acceptance tests are pending. The
-repository currently contains a Bun starter. **Fixed** identifies a project requirement or necessary
+Status: selected design; the repository provides the local Valkey/BullMQ bootstrap described in
+[bootstrap validation](bootstrap-validation.md). The Telegram queue/scheduler implementation and
+its full acceptance tests are pending. **Fixed** identifies a project requirement or necessary
 correctness constraint. **Provisional** identifies a selected implementation approach that can be
 revised with evidence.
 
@@ -67,8 +68,9 @@ replacement; it does not by itself invalidate the fixed backend or runtime targe
 server; its use does not itself require a Valkey-specific client.
 
 Dependency support is recorded in the
-[runtime compatibility research](library-research.md#runtime-compatibility). This project's
-queue/scheduler acceptance tests across the target runtimes remain pending.
+[runtime compatibility research](library-research.md#runtime-compatibility). Bootstrap queue/worker
+operations have cross-runtime integration coverage; the queue/scheduler policies below remain
+pending.
 
 A durable queue does not inherently require a user-hosted always-running coordinator: a platform can
 persist state and wake ephemeral code. The first implementation uses operated workers; a serverless
