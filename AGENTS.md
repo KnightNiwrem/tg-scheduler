@@ -12,9 +12,38 @@
 - Keep changes scoped to the task and preserve unrelated work. Test observable behavior and relevant
   edge cases, and update documentation when behavior or workflows change.
 - Follow repository configuration and existing conventions for Bun tooling, Biome, formatting, linting,
-  and type checking. Run checks appropriate to the change and report failures or checks not run.
+  and type checking. Run checks appropriate to the change and report passed, failed, and unrun checks
+  separately. Do not weaken acceptance criteria to excuse a failure or claim readiness while a
+  required check with material risk remains unresolved.
 - For code-quality reviews and refactoring, use the
   [code-quality skill](.agents/skills/code-quality/SKILL.md).
+- For queue/backend integration or durable worker behavior validation, use the
+  [queue-backend-integration skill](.agents/skills/queue-backend-integration/SKILL.md).
+
+## Project workflow
+
+Bun is the primary development and worker runtime. Use the scripts and pinned tooling in
+`package.json`, `bun.lock`, Biome for formatting/linting, TypeScript for type checking, and Vitest for
+shared tests across Bun, Node.js, and Deno.
+
+The [README](README.md) describes current project status. The [architecture](docs/architecture.md),
+[acceptance criteria](docs/validation.md), and [library research](docs/library-research.md) define
+the project contract. Consult the relevant sections for domain changes and inspect the code before
+assuming a documented capability exists. The full first-slice design does not expand a narrower
+requested task.
+
+- **Fixed:** preserve explicit requirements and established external contracts. Report a concrete
+  conflict before changing them; reversibility does not make them optional.
+- **Provisional:** implement the selected working choice. Revise it when evidence supports a simpler
+  or safer approach, explain consequential changes, and update affected code, tests, and design
+  together. It is not a question awaiting approval.
+- **Deferred:** outside the first slice. Do not implement it speculatively or make it a blocker.
+
+Make reasonable choices about dependency versions and internal APIs within the task. Investigate
+decisions in proportion to migration costs, security boundaries, public commitments, or production
+data. Ask when a fixed requirement must change, a material commitment exceeds the task, or a missing
+fact blocks responsible progress. Inspect actual consumers and stored data before incompatible
+changes; draft status and pre-v1 versions do not make existing contracts or data disposable.
 
 ## Completion
 
@@ -46,5 +75,7 @@ merely recounts the change conversation or reassures its participants.
 - AGENTS.md: Include durable instructions an agent needs in every fresh session within its scope.
   Put instructions needed only for particular tasks or workflows in skills; retain only the minimal
   routing guidance needed to find and invoke them.
+- docs/: Keep project requirements, design, acceptance criteria, and supporting research here.
+  Put agent instructions and implementation workflows in AGENTS.md or repository skills instead.
 - PRs, commits, and decision records: Preserve relevant change context, alternatives considered, and
   decision history.

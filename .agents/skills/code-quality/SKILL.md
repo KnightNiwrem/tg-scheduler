@@ -44,6 +44,12 @@ uncertain. Support the classification with code and usage evidence:
 - For complexity, identify a concrete comprehension, correctness, or maintenance problem. A lower
   score is useful only when the design improves.
 
+A blocking review finding needs a concrete trigger, material impact, evidence, and a reason it must
+be fixed now. Address fixed-requirement violations, core acceptance failures, and credible material
+security, data-integrity, or operational risks, including rare severe risks. Defer useful nonblocking
+improvements without turning every suggestion into a backlog item or restarting an unrestricted
+audit after each fix.
+
 Prioritize confirmed issues by impact and task scope. Investigate uncertain findings; leave code
 unchanged when evidence remains insufficient and continue with independent, supported findings.
 Explain dismissals that affect confidence in the analysis or a decision the user needs to make. Keep

@@ -1,5 +1,5 @@
 {
-  "name": "template-bun",
+  "name": "tg-scheduler",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.4.4",
@@ -10,12 +10,17 @@
     "fmt": "biome format --write .",
     "lint": "biome lint --error-on-warnings .",
     "check": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun run test:bun",
+    "test:bun": "bun ./node_modules/vitest/vitest.mjs run",
+    "test:node": "node ./node_modules/vitest/vitest.mjs run",
+    "test:deno": "deno run -A --no-lock ./node_modules/vitest/vitest.mjs run",
+    "test:all": "bun run test:bun && bun run test:node && bun run test:deno"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@types/bun": "1.4.4",
     "fallow": "3.35.0",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
   }
 }
