@@ -55,9 +55,10 @@ Tool versions and scripts are defined in [package.json](package.json), with depe
 
 ## Testing
 
-[Poku](https://poku.io/docs) runs the same TypeScript suite on Bun, Node.js, and Deno, with `tsx`
-handling TypeScript execution on Node.js. Tests import `assert` and `test` from `poku`; asynchronous
-tests and test hooks are supported. Bun remains the default for `bun run test`.
+[Vitest](https://vitest.dev/guide/) runs the same TypeScript suite on Bun, Node.js, and Deno. Tests
+import `expect` and `test` from `vitest`; mocking, fake timers, snapshots, and lifecycle hooks are
+available without a separate assertion or mocking library. Bun remains the default for
+`bun run test`.
 
 `bun run test:all` requires all three runtimes to be installed. CI uses Bun 1.4.4, Node.js 24.22.1,
 and Deno 2.9.6 and runs each runtime in a separate job. All dependencies come from `bun.lock`;

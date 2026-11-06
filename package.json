@@ -11,17 +11,16 @@
     "lint": "biome lint --error-on-warnings .",
     "check": "tsc --noEmit",
     "test": "bun run test:bun",
-    "test:bun": "bun ./node_modules/poku/lib/bin/index.js tests",
-    "test:node": "node ./node_modules/poku/lib/bin/index.js tests",
-    "test:deno": "deno run -A --no-lock ./node_modules/poku/lib/bin/index.js tests",
+    "test:bun": "bun ./node_modules/vitest/vitest.mjs run",
+    "test:node": "node ./node_modules/vitest/vitest.mjs run",
+    "test:deno": "deno run -A --no-lock ./node_modules/vitest/vitest.mjs run",
     "test:all": "bun run test:bun && bun run test:node && bun run test:deno"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@types/bun": "1.4.4",
     "fallow": "3.35.0",
-    "poku": "4.5.0",
-    "tsx": "4.23.15",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
   }
 }

@@ -48,11 +48,11 @@ BullMQ with Valkey.
 
 ## Cross-runtime test framework
 
-[Poku](https://poku.io/docs) is the selected test runner for Bun, Node.js, and Deno. It provides
-assertions, test grouping, lifecycle hooks, asynchronous tests, parallel execution, watch mode,
-plugins, and service/process helpers. The same TypeScript test files run on each runtime; `tsx`
-handles Node.js TypeScript execution. The [testing guide](../README.md#testing) describes the
-repository commands and CI runtime versions.
+[Vitest](https://vitest.dev/guide/features.html) is the selected test runner for Bun, Node.js, and
+Deno. It provides TypeScript support, assertions, lifecycle hooks, asynchronous tests, mocking,
+fake timers, snapshots, and watch mode. The same TypeScript test files run directly on each
+runtime. The [testing guide](../README.md#testing) describes the repository commands and verified
+CI runtime versions.
 
 ## Alternatives reviewed: background only
 

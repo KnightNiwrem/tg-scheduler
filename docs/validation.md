@@ -19,7 +19,7 @@ dependency versions selected for it.
 
 The [repository checks](../README.md#commands) currently cover the Bun starter. Passing them does
 not establish the queue/scheduler acceptance criteria below. The shared suite uses
-[Poku on Bun, Node.js, and Deno](../README.md#testing), so cross-runtime acceptance coverage exercises
+[Vitest on Bun, Node.js, and Deno](../README.md#testing), so cross-runtime acceptance coverage exercises
 the same library tests on each runtime.
 
 ## Selected slice

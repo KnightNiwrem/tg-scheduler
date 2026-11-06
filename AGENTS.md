@@ -23,7 +23,7 @@
 ## Project workflow
 
 Bun is the primary development and worker runtime. Use the scripts and pinned tooling in
-`package.json`, `bun.lock`, Biome for formatting/linting, TypeScript for type checking, and Poku for
+`package.json`, `bun.lock`, Biome for formatting/linting, TypeScript for type checking, and Vitest for
 shared tests across Bun, Node.js, and Deno.
 
 The [README](README.md) describes current project status. The [architecture](docs/architecture.md),
