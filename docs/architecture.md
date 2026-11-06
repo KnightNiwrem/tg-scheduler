@@ -6,6 +6,9 @@ its full acceptance tests are pending. **Fixed** identifies a project requiremen
 correctness constraint. **Provisional** identifies a selected implementation approach that can be
 revised with evidence.
 
+The [library overview](library-overview.md) maps the typed skeleton to these components. Its
+operations explicitly reject as unimplemented; the bootstrap remains the runnable implementation.
+
 The [project overview](../README.md) describes current capabilities. [Validation](validation.md)
 defines acceptance criteria for this design; [library research](library-research.md) records
 supporting dependency findings.
