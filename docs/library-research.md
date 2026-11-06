@@ -2,22 +2,23 @@
 
 The library source findings below date to 2 November 2026. The
 [architecture](architecture.md) defines selected choices, and [validation](validation.md) defines
-acceptance criteria. Queue dependencies have not yet been added to the Bun starter. Default-branch
-source links can change, so the findings need verification against the pinned versions selected for
-implementation.
+acceptance criteria. The bootstrap pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; its integration
+coverage is described in the [testing guide](../README.md#testing). Default-branch source links can
+change, so the policy findings below still need selected-version verification.
 
 ## Runtime compatibility
 
-The maintainer has confirmed that BullMQ and ioredis work on Deno. Bun dependency integration still
-needs runtime checks. This project's queue/scheduler acceptance tests remain pending on all target
-runtimes; those checks cover its scheduling and recovery semantics as well as the selected versions.
+The bootstrap integration suite exercises BullMQ/ioredis enqueue, claim, delayed activation,
+result retrieval, connection cleanup, and graceful shutdown on Bun, Node.js, and Deno. This
+project's full queue/scheduler acceptance tests remain pending on all target runtimes; those checks
+cover its coordination, scheduling, and recovery semantics as well as the selected versions.
 
 ## BullMQ integration findings
 
 BullMQ with Valkey is fixed; actual ioredis is the provisional initial driver. BullMQ's [connection
 documentation](https://docs.bullmq.io/guide/connections) describes raw ioredis compatibility and
 `IRedisClient` adapters, including an adapter for Bun's built-in Redis client. Ioredis is the initial
-candidate to test on Bun; its queue/worker compatibility remains unverified. Other clients need the
+driver used by the verified bootstrap. Other clients need the
 full selected-version contract: commands, lifecycle/events, duplication, Lua scripts and pipelines.
 Valkey is the server, independent of the JavaScript client choice. The
 [architecture](architecture.md#1-scope-and-ownership) records the required ioredis worker connection
