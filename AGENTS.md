@@ -11,6 +11,9 @@
   boundaries; do not hide problems with unchecked assertions or suppressions.
 - Keep changes scoped to the task and preserve unrelated work. Test observable behavior and relevant
   edge cases, and update documentation when behavior or workflows change.
+- Test behavior promised by project code through its interfaces. Keep standalone dependency
+  characterization out of the active suite and CI; preserve research findings and versioned evidence
+  separately.
 - Follow repository configuration and existing conventions for Bun tooling, Biome, formatting, linting,
   and type checking. Run checks appropriate to the change and report passed, failed, and unrun checks
   separately. Do not weaken acceptance criteria to excuse a failure or claim readiness while a

@@ -289,8 +289,8 @@ non-monotonic rate-limit expiry updates.
 
 The implementation reuses durable machinery rather than building a general-purpose queue engine.
 
-[Selected-version checks](library-research.md#selected-version-native-behavior) on Bun, Node.js, and
-Deno verify native global capacity, unique current claims, cooldown activation, and settlement
+[Selected-version experiments](library-research.md#selected-version-native-behavior) on Bun, Node.js,
+and Deno verified native global capacity, unique current claims, cooldown activation, and settlement
 fencing. Native cooldown setters can shorten pauses, delayed promotion and concurrent 429 requeue
 can lose original rank, and default stalled recovery can repeat an ambiguous effect.
 `maxStalledCount: 0` prevents processor replay but reports failure rather than uncertainty. These
