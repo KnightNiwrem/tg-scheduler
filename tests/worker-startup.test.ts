@@ -1,6 +1,8 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
 afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.doUnmock('../src/queue.ts');
@@ -13,6 +15,7 @@ test.each([
   ['SIGINT', true],
   ['SIGTERM', true],
 ] as const)('%s closes safely when processing started is %s', async (signal, processingStarted) => {
+  vi.useFakeTimers();
   const ready = Promise.withResolvers<void>();
   const activeJob = Promise.withResolvers<void>();
   const stopped = Promise.withResolvers<void>();
@@ -30,9 +33,11 @@ test.each([
     if (message === 'Worker stopped') stopped.resolve();
   });
   const signalHandlers = new Map<string, unknown>();
+  const removeListeners: Array<() => void> = [];
   const registerListener = process.on.bind(process);
   vi.spyOn(process, 'on').mockImplementation((event, listener) => {
     signalHandlers.set(event, listener);
+    removeListeners.push(() => process.off(event, listener));
     return registerListener(event, listener);
   });
 
@@ -66,8 +71,18 @@ test.each([
       expect(output).not.toHaveBeenCalledWith(expect.stringContaining('Worker ready:'));
     }
   } finally {
-    activeJob.resolve();
-    ready.resolve();
-    await stopped.promise;
+    try {
+      activeJob.resolve();
+      ready.resolve();
+      const handler = signalHandlers.get(signal);
+      if (typeof handler === 'function') {
+        handler();
+        await vi.waitFor(() => expect(output).toHaveBeenCalledWith('Worker stopped'), {
+          timeout: 1_000,
+        });
+      }
+    } finally {
+      for (const removeListener of removeListeners) removeListener();
+    }
   }
 });

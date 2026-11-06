@@ -1,7 +1,7 @@
 # Outbound queue and scheduler architecture
 
 Status: selected design; the repository provides the local Valkey/BullMQ bootstrap described in
-[bootstrap validation](bootstrap-validation.md). The Telegram queue/scheduler implementation and
+the [project overview](../README.md). The Telegram queue/scheduler implementation and
 its full acceptance tests are pending. **Fixed** identifies a project requirement or necessary
 correctness constraint. **Provisional** identifies a selected implementation approach that can be
 revised with evidence.

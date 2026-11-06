@@ -21,8 +21,8 @@ long-lived workers activating due work through BullMQ and Valkey.
 
 The selected design uses BullMQ's supported injectable connection interface backed by Valkey, with
 ioredis as the provisional initial driver. Node.js and Deno remain library compatibility targets.
-[Bootstrap validation](docs/bootstrap-validation.md) records the tested runtime/dependency versions
-and current coverage. Inbound updates, polling, and webhook ingestion are outside scope.
+The [testing guide](#testing) describes current coverage and the commands to run it.
+Inbound updates, polling, and webhook ingestion are outside scope.
 
 ## Getting started
 

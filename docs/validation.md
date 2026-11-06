@@ -1,9 +1,9 @@
 # First-slice validation
 
 These are acceptance criteria for the planned [architecture](architecture.md), not a record of
-passing tests. [Bootstrap validation](bootstrap-validation.md) records current Compose and basic
-queue/worker checks; the Telegram queue/scheduler implementation and full acceptance checks remain
-pending. [Library research](library-research.md) records dependency findings that require
+passing tests. The current suite covers the local Compose bootstrap and basic queue/worker behavior;
+the Telegram queue/scheduler implementation and full acceptance checks remain pending.
+[Library research](library-research.md) records dependency findings that require
 selected-version verification for those policies.
 
 The fixed stack is **TypeScript, grammY, Bun as the primary runtime, and BullMQ using its supported

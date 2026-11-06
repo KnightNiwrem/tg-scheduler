@@ -2,9 +2,9 @@
 
 The library source findings below date to 2 November 2026. The
 [architecture](architecture.md) defines selected choices, and [validation](validation.md) defines
-acceptance criteria. The bootstrap pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; its tested
-operations are recorded in [bootstrap validation](bootstrap-validation.md). Default-branch source
-links can change, so the policy findings below still need selected-version verification.
+acceptance criteria. The bootstrap pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; its integration
+coverage is described in the [testing guide](../README.md#testing). Default-branch source links can
+change, so the policy findings below still need selected-version verification.
 
 ## Runtime compatibility
 
