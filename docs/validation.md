@@ -73,9 +73,10 @@ acceptance validates the documented Compose configuration and its recovery limit
 - Application timestamps use Unix epoch milliseconds and durations use milliseconds. A valid
   `retry_after` in seconds is converted exactly once before computing the lane cooldown expiry.
 - A 429 with missing `parameters`, missing `retry_after`, or an invalid, nonpositive or
-  unrepresentable value uses the thirty-second fallback. Both lanes retain the job, preserve any
-  longer cooldown and retry through a durable wakeup, including after restart. A valid server delay
-  longer than the fallback is honored in full.
+  unrepresentable value uses the
+  [60-second fallback](decisions/rate-limit-retry-after-fallback.md). Both lanes retain the job,
+  preserve any longer cooldown and retry through a durable wakeup, including after restart. A valid
+  server delay longer than the fallback is honored in full.
 - No new ordinary admission occurs during an ordinary pause; already admitted attempts remain
   accounted for.
 - Urgent bypass is disabled by default, restricted to the allowlist when enabled, and bounded by its
