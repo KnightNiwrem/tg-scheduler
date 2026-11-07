@@ -78,11 +78,6 @@ export async function coordinateJob(
   }
 }
 
-/** Atomically coalesce missed unmaterialized occurrences and advance their planned times. */
-export async function materializeDueOccurrences(_queues: BotQueues, _nowMs: number): Promise<void> {
-  throw new UnimplementedError('materializeDueOccurrences');
-}
-
 /** Fence stale attempts and record interrupted failures without retransmitting them. */
 export async function recoverAbandonedAttempts(_queues: BotQueues, _nowMs: number): Promise<void> {
   throw new UnimplementedError('recoverAbandonedAttempts');

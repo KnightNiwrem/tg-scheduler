@@ -1,26 +1,30 @@
-# Fixed-interval recurrence anchored to planned times
+# Fixed-interval recurrence with native BullMQ recovery
 
 - **Status:** provisional
-- **Human-confirmed:** no
+- **Human-confirmed:** yes
 
 ## Decision
 
-Schedules recur at a fixed interval in absolute UTC timestamps, anchored to planned times rather
-than completion times.
+Fixed-interval schedules use BullMQ Job Schedulers, with absolute UTC planned times rather than
+completion-time anchoring. Missed-occurrence recovery follows BullMQ's native behavior:
 
-- After downtime, missed occurrences that were never materialized coalesce into one job for the
-  latest missed time, and the schedule advances to the next future occurrence.
-- Each occurrence is created uniquely, atomically with advancing the schedule.
-- Coalescing preserves already accepted jobs.
+- Already-created overdue jobs remain queued and run when a worker has capacity.
+- When a worker begins processing an occurrence, BullMQ creates the next scheduled occurrence.
+- Missed times whose jobs were never created are skipped, including under capacity delays. The
+  library adds no latest-missed occurrence, catch-up backlog, or custom recurrence recovery loop.
+- Occurrence creation and schedule advancement use BullMQ's native scheduler coordination.
 - Disabling a schedule stops future occurrences and leaves materialized jobs intact.
 - Occurrences use the ordinary lane.
 
 Calendar cron expressions, time zones and alternative missed-occurrence policies are outside the
-first slice. Native BullMQ job schedulers are usable only where their semantics match this decision.
+first slice. Interrupted Telegram attempts still follow the
+[no-retransmission policy](uncertainty-no-automatic-retransmission.md).
 
 ## Context
 
-Planned-time anchoring keeps the interval from drifting with delivery delays, and coalescing keeps
-downtime from producing a burst of stale occurrences. BullMQ's native scheduler semantics for this
-policy have not yet been verified; see the
-[BullMQ integration findings](../library-research.md#bullmq-integration-findings).
+Planned-time anchoring keeps the interval from drifting with delivery delays. Skipping uncreated
+times avoids a burst of stale work, while retaining queued jobs preserves accepted work. Reusing
+BullMQ's durable scheduler and delayed-job machinery avoids a second recovery system. Schedules
+advance as workers start occurrences, so capacity delays can reduce the actual execution rate. The
+[native scheduler recovery probe](../library-research.md#native-scheduler-recovery-probe)
+records the verified behavior and its limits.
