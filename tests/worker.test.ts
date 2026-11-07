@@ -53,10 +53,8 @@ test('urgent bypass is not implemented yet', async () => {
   await worker.close();
 });
 
-test('start rejects when Valkey is unreachable and can be retried', async () => {
+test('start rejects when Valkey is unreachable', async () => {
   const worker = createSchedulerWorker(workerOptions());
   await expect(worker.start()).rejects.toThrow();
-  // The caller's connection policy determines the next failure, not an already-started flag.
-  await expect(worker.start()).rejects.not.toThrow('SchedulerWorker is already started');
   await worker.close();
 });

@@ -15,10 +15,11 @@ Closing a scheduler client or worker closes its BullMQ resources and removes the
 leaves the supplied connection open. BullMQ owns and closes the duplicated connection it creates
 for blocking worker commands. The caller closes the supplied connection after its users finish.
 
-Connections must satisfy BullMQ's connection contract. Worker connections use
-`maxRetriesPerRequest: null`, and key prefixes are supplied through the scheduler's `queuePrefix`
-rather than ioredis's `keyPrefix`. The library checks worker retry compatibility before allocating
-BullMQ resources and reports invalid settings without changing them.
+Connections must satisfy BullMQ's connection contract. BullMQ recommends
+`maxRetriesPerRequest: null` for workers; the pinned version also accepts `0`, which the library
+passes through unchanged. Key prefixes are supplied through the scheduler's `queuePrefix` rather
+than ioredis's `keyPrefix`. The library checks worker retry compatibility before allocating BullMQ
+resources and reports invalid settings without changing them.
 
 ## Context
 

@@ -481,24 +481,59 @@ integrationTest(
   },
 );
 
-integrationTest('a worker can share the caller connection without closing it', async () => {
-  const connection = openConnection();
-  const originalOptions = { ...connection.options };
-  const originalErrorListeners = connection.listenerCount('error');
-  const telegram = new FakeTelegram();
-  const client = openClient(connection);
-  const worker = openWorker(telegram, undefined, connection);
-  await worker.start();
-  const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
-  await settledJob(client, handle.id);
-  await worker.close();
+integrationTest.each([null, 0])(
+  'a worker shares and preserves a caller connection with maxRetriesPerRequest: %s',
+  async (maxRetriesPerRequest) => {
+    const connection = openConnection({ maxRetriesPerRequest });
+    const originalOptions = { ...connection.options };
+    const originalErrorListeners = connection.listenerCount('error');
+    const telegram = new FakeTelegram();
+    const client = openClient(connection);
+    const worker = openWorker(telegram, undefined, connection);
+    await worker.start();
+    const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+    await settledJob(client, handle.id);
+    await worker.close();
 
-  expect(await connection.ping()).toBe('PONG');
-  expect((await client.getJob(handle.id))?.state).toBe('succeeded');
-  expect(connection.options).toEqual(originalOptions);
-  await client.close();
-  expect(connection.listenerCount('error')).toBe(originalErrorListeners);
-});
+    expect(await connection.ping()).toBe('PONG');
+    expect((await client.getJob(handle.id))?.state).toBe('succeeded');
+    expect(connection.options).toEqual(originalOptions);
+    await client.close();
+    expect(connection.listenerCount('error')).toBe(originalErrorListeners);
+  },
+);
+
+integrationTest(
+  'the same worker can start and deliver work after the caller reconnects',
+  async () => {
+    const connection = openConnection();
+    await connection.connect();
+    connection.disconnect();
+    await expect.poll(() => connection.status).toBe('end');
+    const originalErrorListeners = connection.listenerCount('error');
+    const telegram = new FakeTelegram();
+    const worker = openWorker(telegram, undefined, connection);
+
+    await expect(worker.start()).rejects.toThrow('Connection is closed.');
+    for (const error of backendErrors.splice(0)) {
+      expect(error.message).toBe('Connection is closed.');
+    }
+    expect(connection.listenerCount('error')).toBe(originalErrorListeners);
+    expect(telegram.attempts).toEqual([]);
+
+    await connection.connect();
+    await worker.start();
+    const client = openClient();
+    const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+    expect((await settledJob(client, handle.id)).state).toBe('succeeded');
+    expect(telegram.attempts.map((attempt) => attempt.request)).toEqual([
+      { method: 'sendMessage', payload: { chat_id: 1, text: 'hello' } },
+    ]);
+    await worker.close();
+    expect(connection.listenerCount('error')).toBe(originalErrorListeners);
+    expect(await connection.ping()).toBe('PONG');
+  },
+);
 
 integrationTest('a failed start preserves the caller connection and can be retried', async () => {
   const connection = openConnection({ maxRetriesPerRequest: 1 });
