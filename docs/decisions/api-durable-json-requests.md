@@ -12,7 +12,8 @@ as strings.
 
 `submit` rejects, with a `TypeError` naming the path, `InputFile` uploads, other class instances,
 dates, functions, bigints, symbols, non-finite numbers, undefined or missing array elements, arrays
-with a `toJSON` hook and circular references.
+or objects with a `toJSON` hook (including non-enumerable or inherited hooks) and circular
+references.
 
 Method names must look like Bot API methods and exclude inbound methods. They are not checked
 against the full method list, and per-method fields are left to Telegram.
