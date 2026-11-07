@@ -1,6 +1,6 @@
-import type { Queue } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
+import type { SettledJobOutcome } from '../jobs.ts';
 import type { TelegramRequest } from '../telegram.ts';
-import type { TelegramAttemptOutcome } from '../transport/grammy.ts';
 import { UnimplementedError } from '../unimplemented-error.ts';
 
 export interface BullMqBackendOptions {
@@ -13,10 +13,17 @@ export interface BullMqBackendOptions {
   queuePrefix?: string;
 }
 
+/**
+ * A stored job holds its Telegram request and, once settled, its outcome as the BullMQ result. A
+ * definite 429 requeues the job without setting a result.
+ */
+export type BotJob = Job<TelegramRequest, SettledJobOutcome>;
+export type BotQueue = Queue<TelegramRequest, SettledJobOutcome>;
+
 /** Native BullMQ queues backed by Valkey; connection ownership belongs to this module. */
 export interface BotQueues {
-  ordinary: Queue<TelegramRequest, TelegramAttemptOutcome>;
-  urgent?: Queue<TelegramRequest, TelegramAttemptOutcome>;
+  ordinary: BotQueue;
+  urgent?: BotQueue;
   close(): Promise<void>;
 }
 

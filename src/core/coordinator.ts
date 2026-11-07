@@ -1,7 +1,5 @@
-import type { Job } from 'bullmq';
-import type { BotQueues } from '../backend/bullmq.ts';
-import type { TelegramRequest } from '../telegram.ts';
-import type { TelegramAttemptOutcome, TelegramTransport } from '../transport/grammy.ts';
+import type { BotJob, BotQueues } from '../backend/bullmq.ts';
+import type { TelegramTransport } from '../transport/telegram-transport.ts';
 import { UnimplementedError } from '../unimplemented-error.ts';
 
 export interface BotPolicy {
@@ -19,7 +17,7 @@ export interface CoordinatorDependencies {
 
 /** Admit atomically, perform one attempt, and persist its outcome or durable 429 retry. */
 export async function coordinateJob(
-  _job: Job<TelegramRequest, TelegramAttemptOutcome>,
+  _job: BotJob,
   _dependencies: CoordinatorDependencies,
 ): Promise<void> {
   throw new UnimplementedError('coordinateJob');

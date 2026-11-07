@@ -3,6 +3,7 @@ import {
   createSchedulerClient,
   createSchedulerWorker,
   type SchedulerClientOptions,
+  type SharedBotOptions,
 } from 'tg-scheduler';
 
 // API sketch: these functions type-check, but operations currently reject as unimplemented.
@@ -39,10 +40,7 @@ export async function submitAndInspect(options: SchedulerClientOptions) {
   await client.close();
 }
 
-export function configureWorker(
-  options: SchedulerClientOptions,
-  resolveBotToken: BotTokenResolver,
-) {
+export function configureWorker(options: SharedBotOptions, resolveBotToken: BotTokenResolver) {
   const worker = createSchedulerWorker({
     ...options,
     resolveBotToken,

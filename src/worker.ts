@@ -1,9 +1,9 @@
-import type { SchedulerClientOptions } from './client.ts';
 import type { BotPolicy } from './core/coordinator.ts';
-import type { BotTokenResolver } from './transport/grammy.ts';
+import type { SharedBotOptions } from './shared-bot-options.ts';
+import type { BotTokenResolver } from './transport/telegram-transport.ts';
 import { UnimplementedError } from './unimplemented-error.ts';
 
-export interface SchedulerWorkerOptions extends SchedulerClientOptions {
+export interface SchedulerWorkerOptions extends SharedBotOptions {
   resolveBotToken: BotTokenResolver;
   policy?: BotPolicy;
 }
