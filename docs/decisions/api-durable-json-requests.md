@@ -16,6 +16,9 @@ getter or setter properties, arrays or objects with a callable or accessor `toJS
 non-enumerable or inherited one) and circular references. A `toJSON` field holding a plain JSON
 value is an ordinary property. Validation reads property descriptors, so it runs no caller code.
 
+Proxies are not supported payload values. JavaScript cannot reliably detect them, so validation does
+not reject them; a proxy may be rejected or may serialize differently from what was validated.
+
 Method names must look like Bot API methods and exclude inbound methods. They are not checked
 against the full method list, and per-method fields are left to Telegram.
 
@@ -26,6 +29,7 @@ New-file upload persistence is outside the first slice.
 Another process sends the request after the submitter may have exited, so callbacks, closures,
 process-local streams and temporary files cannot be replayed reliably and are rejected at submission
 rather than accepted unreliably. Getters and `toJSON` hooks run code when the payload is serialized,
-so the stored payload could differ from the validated one. Checking names against the full method
+so the stored payload could differ from the validated one. A proxy can answer every property read
+differently, so no inspection of it guarantees what serialization will encode. Checking names against the full method
 list would duplicate grammY's types at runtime; Telegram rejects an unknown method with a definite
 404, which is reported as `failed`.
