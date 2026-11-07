@@ -65,8 +65,8 @@ These findings support the [BullMQ and Valkey backend](decisions/backend-bullmq-
 capacity, activation, and settlement primitives, with additional coordination required for
 monotonic cooldowns and original-rank admission/requeue. The disabled-replay setting supports the
 [no-retransmission policy](decisions/uncertainty-no-automatic-retransmission.md); the library's full
-crash-recovery acceptance tests remain pending. The experiments do not establish Valkey persistence
-across restart, recurrence, urgent-lane policy, Telegram error
+crash-recovery acceptance tests remain pending. The archived experiments do not establish Valkey
+persistence across restart, full recurrence integration, urgent-lane policy, Telegram error
 classification or retry-delay validation, or the complete scheduler acceptance criteria.
 
 ## Native scheduler recovery probe
