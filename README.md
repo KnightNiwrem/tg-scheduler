@@ -11,6 +11,11 @@ The library currently supports the basic delivery path for immediate and one-tim
 - `getJob` reports the job as `queued`, `in-flight`, `succeeded`, or `failed`, with the Telegram
   result or error.
 
+New terminal outcomes use
+[BullMQ's corresponding native states](docs/decisions/backend-native-job-outcomes.md).
+Finished-job storage follows the [retention policy](docs/decisions/backend-finished-job-retention.md);
+the scheduler API does not yet expose cleanup limits.
+
 Network failures and Telegram server errors are reported as `failed` with their errors and are never
 retransmitted automatically. A failed job does not prove that Telegram did not perform the call.
 A worker that stops mid-attempt leaves its job `in-flight` until a running worker's stalled-job
@@ -110,8 +115,9 @@ the Deno test command uses the installed local packages without creating a separ
 The suite covers option and payload validation, caller-owned connection handling, and
 grammY outcome classification against a fake Bot API. Set `VALKEY_TEST_URL` to also run the
 client and worker against real Valkey with a fake Telegram transport: immediate and delayed
-delivery, visible outcomes, shared concurrency across workers, graceful worker shutdown, and
-BullMQ connection cleanup while supplied clients stay usable. Each test uses a unique key prefix
+delivery, native success/failure states with preserved errors, default retention, shared concurrency
+across workers, graceful worker shutdown, and BullMQ connection cleanup while supplied clients stay
+usable. Each test uses a unique key prefix
 and deletes its own data; use a local test instance. Without this variable, backend integration
 tests are skipped. CI starts Valkey and
 enables them for every runtime.

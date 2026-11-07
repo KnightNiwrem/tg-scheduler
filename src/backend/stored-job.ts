@@ -1,7 +1,7 @@
 import type { Job, JobState, Queue } from 'bullmq';
 import { z } from 'zod';
 import { toError } from '../error-handler.ts';
-import type { JobOutcome, JobSnapshot, SettledJobOutcome } from '../jobs.ts';
+import type { JobError, JobOutcome, JobSnapshot, SettledJobOutcome } from '../jobs.ts';
 import { parseTelegramMethod, type TelegramRequest } from '../telegram.ts';
 
 /** Job data persisted in BullMQ. Jobs are read back by later processes, so reads revalidate it. */
@@ -12,8 +12,8 @@ export interface StoredJobData {
 }
 
 /**
- * A stored job holds its Telegram request and, once the coordinator settles it, its outcome as the
- * BullMQ return value.
+ * Successful outcomes use BullMQ's return value. Terminal errors use its failure reason;
+ * previously completed failure outcomes remain readable through the return value.
  */
 export type BotJob = Job<StoredJobData, SettledJobOutcome>;
 export type BotQueue = Queue<StoredJobData, SettledJobOutcome>;
@@ -48,6 +48,34 @@ const jobErrorSchema = z.object({
   message: z.string(),
   telegramErrorCode: z.int().optional(),
 });
+
+const storedFailurePrefix = 'tg-scheduler:failure:';
+const storedFailureSchema = z.object({ version: z.literal(1), error: jobErrorSchema });
+
+/** Encode error metadata in the reason BullMQ writes atomically when moving a job to failed. */
+export function encodeJobFailure(error: JobError): string {
+  return storedFailurePrefix + JSON.stringify({ version: 1, error });
+}
+
+function decodeJobFailure(reason: string): JobError {
+  if (!reason.startsWith(storedFailurePrefix)) {
+    // Native stalled failures and unexpected processor errors have no structured outcome.
+    return {
+      message: `Processing was interrupted after admission; the request may have reached Telegram (${reason})`,
+    };
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(reason.slice(storedFailurePrefix.length));
+  } catch {
+    throw new TypeError('Invalid stored job failure: expected JSON');
+  }
+  const parsed = storedFailureSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new TypeError(`Invalid stored job failure: ${z.prettifyError(parsed.error)}`);
+  }
+  return parsed.data.error;
+}
 
 const settledJobOutcomeSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('succeeded'), result: z.json() }),
@@ -147,14 +175,6 @@ function jobOutcome(engineState: JobState, job: BotJob): JobOutcome {
     case 'completed':
       return decodeSettledJobOutcome(job.returnvalue);
     case 'failed':
-      // The coordinator settles every attempt it completes, so BullMQ records a failure only when
-      // processing was interrupted: a lost lock with stalled recovery disabled, or a processor
-      // error. Either can follow a transmitted request.
-      return {
-        state: 'failed',
-        error: {
-          message: `Processing was interrupted after admission; the request may have reached Telegram (${job.failedReason})`,
-        },
-      };
+      return { state: 'failed', error: decodeJobFailure(job.failedReason) };
   }
 }

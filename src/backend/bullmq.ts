@@ -1,9 +1,9 @@
-import { isRedisInstance, Queue, Worker } from 'bullmq';
+import { isRedisInstance, Queue, UnrecoverableError, Worker } from 'bullmq';
 import type { Cluster, Redis } from 'ioredis';
 import { z } from 'zod';
 import { type ErrorHandler, toError } from '../error-handler.ts';
 import type { SettledJobOutcome } from '../jobs.ts';
-import type { BotJob, BotQueue, StoredJobData } from './stored-job.ts';
+import { type BotJob, type BotQueue, encodeJobFailure, type StoredJobData } from './stored-job.ts';
 
 export interface BullMqBackendOptions {
   /** Caller-owned ioredis instance, passed to BullMQ. Closing the scheduler leaves it open. */
@@ -139,14 +139,20 @@ export async function startBotJobProcessor(
     worker = new Worker<StoredJobData, SettledJobOutcome>(
       config.ordinaryQueueName,
       async (job) => {
+        let outcome: SettledJobOutcome;
         try {
-          return await options.processJob(job);
+          outcome = await options.processJob(job);
         } catch (error) {
           options.onError(toError(error));
           // BullMQ stores this message as the job's failure reason, which job snapshots expose;
           // the original error may carry details that do not belong in stored job data.
           throw new Error('Unexpected processing error, reported to the worker error handler');
         }
+        if (outcome.state === 'failed') {
+          // A terminal Telegram failure must reach the native failed set without retransmission.
+          throw new UnrecoverableError(encodeJobFailure(outcome.error));
+        }
+        return outcome;
       },
       {
         autorun: false,

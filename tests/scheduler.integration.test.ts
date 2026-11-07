@@ -142,6 +142,17 @@ async function settledJob(client: SchedulerClient, jobId: string): Promise<JobSn
   return job;
 }
 
+async function expectNativeFinishedState(
+  jobId: string,
+  state: 'completed' | 'failed',
+): Promise<void> {
+  const queueKey = `${queuePrefix}:${botId}.ordinary`;
+  expect(await inspector.zscore(`${queueKey}:${state}`, jobId)).not.toBeNull();
+  const otherState = state === 'completed' ? 'failed' : 'completed';
+  expect(await inspector.zscore(`${queueKey}:${otherState}`, jobId)).toBeNull();
+  expect(Number(await inspector.hget(`${queueKey}:${jobId}`, 'finishedOn'))).toBeGreaterThan(0);
+}
+
 integrationTest(
   'accepted work runs after the producer exits and its result is retrievable',
   async () => {
@@ -172,6 +183,7 @@ integrationTest(
     expect(telegram.attempts.map((attempt) => attempt.request)).toEqual([
       { method: 'sendMessage', payload: { chat_id: 1, text: 'hello' } },
     ]);
+    await expectNativeFinishedState(handle.id, 'completed');
   },
 );
 
@@ -199,8 +211,9 @@ integrationTest.each([
   const telegram = new FakeTelegram();
   await openWorker(telegram).start();
   await expect
-    .poll(async () => inspector.hget(jobKey, 'returnvalue'), { timeout: 5_000 })
-    .toMatch(/"state":"failed".*Invalid stored job data.*no request was sent/);
+    .poll(async () => inspector.hget(jobKey, 'failedReason'), { timeout: 5_000 })
+    .toMatch(/Invalid stored job data.*no request was sent/);
+  await expectNativeFinishedState(handle.id, 'failed');
   expect(telegram.attempts).toEqual([]);
   await expect(client.getJob(handle.id)).rejects.toThrow(/^Invalid stored job data/);
 });
@@ -292,12 +305,15 @@ integrationTest(
       'retry after',
     );
     expect(telegram.attempts).toHaveLength(4);
+    for (const handle of [rejected, ambiguous, rateLimited, invalidDelay]) {
+      await expectNativeFinishedState(handle.id, 'failed');
+    }
   },
 );
 
-integrationTest(
-  'stored uncertain outcomes are read as failed with their errors preserved',
-  async () => {
+integrationTest.each(['failed', 'uncertain'])(
+  'legacy completed %s outcomes are read as failed with their errors preserved',
+  async (state) => {
     const client = openClient();
     const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
     const telegram = new FakeTelegram();
@@ -308,13 +324,31 @@ integrationTest(
     await inspector.hset(
       `${queuePrefix}:${botId}.ordinary:${handle.id}`,
       'returnvalue',
-      JSON.stringify({ state: 'uncertain', error }),
+      JSON.stringify({ state, error }),
     );
 
     expect(await client.getJob(handle.id)).toMatchObject({ state: 'failed', error });
+    await expectNativeFinishedState(handle.id, 'completed');
     expect(telegram.attempts).toHaveLength(1);
   },
 );
+
+integrationTest('a terminal Telegram failure ignores a larger stored retry budget', async () => {
+  const client = openClient();
+  const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+  const jobKey = `${queuePrefix}:${botId}.ordinary:${handle.id}`;
+  await inspector.hset(jobKey, 'opts', JSON.stringify({ attempts: 4 }));
+  const error = { message: 'Forbidden: "chat" is unavailable\nNo access', telegramErrorCode: 403 };
+  const telegram = new FakeTelegram(() => ({ kind: 'failed', error }));
+  const worker = openWorker(telegram);
+  await worker.start();
+
+  expect(await settledJob(client, handle.id)).toMatchObject({ state: 'failed', error });
+  await expectNativeFinishedState(handle.id, 'failed');
+  await worker.close();
+  expect(telegram.attempts).toHaveLength(1);
+  expect(await inspector.hget(jobKey, 'atm')).toBe('1');
+});
 
 integrationTest(
   'a lost response after an accepted call fails once and releases capacity',
@@ -341,7 +375,8 @@ integrationTest(
     });
     expect(
       await inspector.hget(`${queuePrefix}:${botId}.ordinary:${lostResponse.id}`, 'returnvalue'),
-    ).toContain('"state":"failed"');
+    ).toBeNull();
+    await expectNativeFinishedState(lostResponse.id, 'failed');
     expect(await settledJob(client, unrelated.id)).toMatchObject({
       state: 'succeeded',
       result: true,
@@ -370,6 +405,7 @@ integrationTest(
     const message = job.state === 'failed' ? job.error.message : '';
     expect(message).toContain('Unexpected processing error');
     expect(message).not.toContain('secret details');
+    await expectNativeFinishedState(handle.id, 'failed');
     expect((await settledJob(client, unrelated.id)).state).toBe('succeeded');
     expect(telegram.attempts).toHaveLength(2);
     expect(backendErrors.splice(0).map((error) => error.message)).toEqual([
@@ -377,6 +413,59 @@ integrationTest(
     ]);
   },
 );
+
+integrationTest.each(['succeeded', 'failed'] as const)(
+  'default retention preserves old %s jobs after further jobs finish',
+  async (state) => {
+    const telegram = new FakeTelegram(() =>
+      state === 'succeeded'
+        ? { kind: 'succeeded', result: true }
+        : { kind: 'failed', error: { message: 'Bad Request', telegramErrorCode: 400 } },
+    );
+    await openWorker(telegram).start();
+    const client = openClient();
+    const first = await client.submit('sendChatAction', { chat_id: 1, action: 'typing' });
+    const snapshot = await settledJob(client, first.id);
+    expect(snapshot.state).toBe(state);
+    const nativeState = state === 'succeeded' ? 'completed' : 'failed';
+    await expectNativeFinishedState(first.id, nativeState);
+
+    const queueKey = `${queuePrefix}:${botId}.ordinary`;
+    const oldFinishedOnMs = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    await inspector.hset(`${queueKey}:${first.id}`, 'finishedOn', oldFinishedOnMs);
+    await inspector.zadd(`${queueKey}:${nativeState}`, oldFinishedOnMs, first.id);
+    const next = await client.submit('sendChatAction', { chat_id: 2, action: 'typing' });
+    expect((await settledJob(client, next.id)).state).toBe(state);
+
+    expect(await client.getJob(first.id)).toEqual(snapshot);
+    expect(await inspector.ttl(`${queueKey}:${first.id}`)).toBe(-1);
+    await expectNativeFinishedState(first.id, nativeState);
+    expect(telegram.attempts).toHaveLength(2);
+  },
+);
+
+integrationTest.each([
+  ['invalid JSON', '{'],
+  ['an unsupported version', JSON.stringify({ version: 2, error: { message: 'rejected' } })],
+  ['an invalid error', JSON.stringify({ version: 1, error: { message: 42 } })],
+])('reading a stored failure with %s rejects', async (_case, encodedFailure) => {
+  const telegram = new FakeTelegram(() => ({
+    kind: 'failed',
+    error: { message: 'Forbidden', telegramErrorCode: 403 },
+  }));
+  await openWorker(telegram).start();
+  const client = openClient();
+  const handle = await client.submit('sendChatAction', { chat_id: 1, action: 'typing' });
+  expect((await settledJob(client, handle.id)).state).toBe('failed');
+  await inspector.hset(
+    `${queuePrefix}:${botId}.ordinary:${handle.id}`,
+    'failedReason',
+    `tg-scheduler:failure:${encodedFailure}`,
+  );
+
+  await expect(client.getJob(handle.id)).rejects.toThrow(/^Invalid stored job failure/);
+  expect(telegram.attempts).toHaveLength(1);
+});
 
 integrationTest(
   'a claimed job is in flight, and closing the worker waits for it to settle',
