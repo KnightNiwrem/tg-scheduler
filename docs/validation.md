@@ -1,8 +1,9 @@
 # First-slice validation
 
 These are acceptance criteria for the planned [architecture](architecture.md), not a record of
-passing tests. The current suite covers the local Compose bootstrap and basic queue/worker behavior;
-the Telegram queue/scheduler implementation and full acceptance checks remain pending.
+passing tests. The current suite covers Valkey connection validation and BullMQ compatibility of the
+backend's producer and worker connections; the Telegram queue/scheduler implementation and full
+acceptance checks remain pending.
 [Library research](library-research.md#selected-version-native-behavior) records verified native
 behavior, integration gaps, and policies still awaiting validation.
 
@@ -18,8 +19,9 @@ dependency versions selected for it.
 
 ## Validation coverage
 
-The [repository checks](../README.md#commands) cover environment and diagnostic payload validation,
-basic queue operations, delayed activation, and lifecycle cleanup through the project's code.
+The [repository checks](../README.md#commands) cover Valkey URL validation, the producer and worker
+connection settings, a BullMQ job run on those connections, and release of every client after
+cleanup.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
 not establish the full queue/scheduler acceptance criteria below. The shared suite uses

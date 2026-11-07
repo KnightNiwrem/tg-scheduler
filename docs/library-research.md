@@ -3,14 +3,18 @@
 The source findings below date to 2 November 2026; the native behavior experiments were run on
 6 November 2026 against the pinned dependencies. The
 [architecture](architecture.md) defines selected choices, and [validation](validation.md) defines
-acceptance criteria. The bootstrap pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; its integration
+acceptance criteria. The project pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; current integration
 coverage is described in the [testing guide](../README.md#testing). Default-branch source links can
 change; the observations below apply to the tested versions.
 
 ## Runtime compatibility
 
-The integration suite exercises BullMQ/ioredis enqueue, claim, delayed activation, result retrieval,
-connection cleanup, and graceful shutdown on Bun, Node.js, and Deno. Separate one-off experiments
+The integration suite runs a BullMQ queue and worker on the backend's ioredis connections and checks
+connection cleanup on Bun, Node.js, and Deno. A diagnostic bootstrap, removed after
+[commit `2748c31`](https://github.com/KnightNiwrem/tg-scheduler/tree/2748c319dbad3c85fb8eb5fadc8343895a8796d4),
+also verified enqueue, claim, delayed activation, result retrieval, graceful shutdown, and Valkey AOF
+recovery on those versions; [PR #2](https://github.com/KnightNiwrem/tg-scheduler/pull/2) records
+that validation. Separate one-off experiments
 verified native admission, ordering, cooldown, and stalled-recovery behavior on all three.
 This project's full queue/scheduler acceptance tests remain pending; the experiments expose
 integration gaps rather than establishing the scheduler's required policies.
@@ -66,7 +70,7 @@ classification or retry-delay validation, or the complete scheduler acceptance c
 BullMQ with Valkey is fixed; actual ioredis is the provisional initial driver. BullMQ's [connection
 documentation](https://docs.bullmq.io/guide/connections) describes raw ioredis compatibility and
 `IRedisClient` adapters, including an adapter for Bun's built-in Redis client. Ioredis is the initial
-driver used by the verified bootstrap. Other clients need the
+driver used by the backend's connection factory. Other clients need the
 full selected-version contract: commands, lifecycle/events, duplication, Lua scripts and pipelines.
 Valkey is the server, independent of the JavaScript client choice. The
 [architecture](architecture.md#1-scope-and-ownership) records the required ioredis worker connection

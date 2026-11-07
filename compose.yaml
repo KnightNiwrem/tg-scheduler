@@ -20,17 +20,5 @@ services:
       retries: 15
     stop_grace_period: 30s
 
-  worker:
-    build: .
-    environment:
-      VALKEY_URL: redis://valkey:6379/0
-      QUEUE_NAME: ${QUEUE_NAME:-tg-scheduler-bootstrap}
-      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
-    depends_on:
-      valkey:
-        condition: service_healthy
-    init: true
-    stop_grace_period: 30s
-
 volumes:
   valkey-data:
