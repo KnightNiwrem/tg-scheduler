@@ -75,8 +75,10 @@ not belong there. Each file uses this structure:
   or safer approach, explain consequential changes, and update affected code, tests, and docs
   together. It is not a question awaiting approval.
 - When your work introduces, changes, or exposes such a constraint, record it as provisional with
-  `Human-confirmed: no` and continue; confirmation can come later. Add it to the decision whose
-  scope it falls in, or create a new file when none fits. Only a human sets
+  `Human-confirmed: no` and continue; confirmation can come later. Add it to the provisional
+  decision whose scope it falls in, or create a new file when none fits. A constraint within an
+  invariant decision's scope goes in its own provisional file; if it would change the invariant,
+  ask a human first. Only a human sets
   `Human-confirmed: yes`. Changing a decision's substance or status resets it to `no`; call out any
   revision of a confirmed decision in your report.
 - A decision file contains only the current decision. Edit it in place when the decision changes and

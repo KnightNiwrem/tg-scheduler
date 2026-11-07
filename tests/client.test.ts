@@ -98,6 +98,15 @@ test.each([
     },
     'payload.reply_markup.inline_keyboard',
   ],
+  [
+    'an array whose keys method hides an element',
+    {
+      chat_id: 1,
+      text: 'x',
+      entities: Object.assign([undefined], { keys: () => [][Symbol.iterator]() }),
+    },
+    'payload.entities[0]',
+  ],
   ['a circular reference', { chat_id: 1, nested: circular }, 'payload.nested.self'],
 ])('submit rejects a payload with %s', async (_case, payload, path) => {
   const client = openClient();

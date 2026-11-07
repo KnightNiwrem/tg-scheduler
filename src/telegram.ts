@@ -112,8 +112,11 @@ function jsonContents(
   if (definesToJsonHook(container)) {
     return { problem: `${path} must not define a toJSON hook` };
   }
-  // `keys()` includes array holes; `Object.keys` lists the object properties JSON encodes.
-  const keys = isArray ? Array.from(container.keys(), String) : Object.keys(container);
+  // Array indices come from the non-configurable `length`, so a caller-defined `keys` method
+  // cannot skip elements; `Object.keys` lists the object properties JSON encodes.
+  const keys = isArray
+    ? Array.from({ length: container.length }, (_, index) => String(index))
+    : Object.keys(container);
   const items: [string, unknown][] = [];
   for (const key of keys) {
     const itemPath = isArray ? `${path}[${key}]` : `${path}.${key}`;

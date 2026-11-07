@@ -10,7 +10,8 @@ Any job that BullMQ records as failed is reported as `uncertain`. A worker that 
 leaves its job `in-flight` until a running worker's stalled check finds it after the 30-second lock
 expires. BullMQ then marks the job for a deferred failure and returns it to the wait list, where it
 is reported as `queued` even though the request may already have reached Telegram, until a worker
-fetches it and records the failure. Processing errors are reported to `onError` in full, and BullMQ
+fetches it and records the failure; that fetch waits for free capacity, so on a busy queue the job
+can stay `queued` for some time. Processing errors are reported to `onError` in full, and BullMQ
 stores only a generic failure reason, so error details never reach job snapshots.
 
 ## Context

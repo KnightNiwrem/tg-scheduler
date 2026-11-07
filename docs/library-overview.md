@@ -85,8 +85,9 @@ fields.
 
 Job states and their meanings are defined in [visible job
 states](decisions/api-visible-job-states.md). A worker that stops mid-attempt leaves its job
-`in-flight`, then briefly `queued`, until a running worker [records it as
-`uncertain`](decisions/recovery-stalled-replay-disabled.md). Clients and workers report asynchronous
+`in-flight`, then `queued`, until a running worker [records it as
+`uncertain`](decisions/recovery-stalled-replay-disabled.md), so `queued` does not prove that a
+request was never sent. Clients and workers report asynchronous
 errors that no operation awaits [to `onError`](decisions/api-unawaited-error-reporting.md).
 
 ## Coordination contract
