@@ -9,7 +9,7 @@ New successful Telegram jobs enter BullMQ's `completed` set. Terminal Telegram r
 transport errors and unexpected processor errors enter BullMQ's `failed` set. Terminal failures
 preserve the error exposed by `getJob` and do not trigger automatic retransmission.
 
-Definite 429 responses follow the [cooldown and retry policy](rate-limit-429-requeue-preserves-rank.md);
+Definite 429 responses follow the [cooldown and retry policy](rate-limit-native-429-requeue.md);
 until it is implemented, the [interim failure](rate-limit-interim-429-failure.md) uses the failed set.
 
 ## Context

@@ -14,7 +14,8 @@ completion-time anchoring. Missed-occurrence recovery follows BullMQ's native be
   library adds no latest-missed occurrence, catch-up backlog, or custom recurrence recovery loop.
 - Occurrence creation and schedule advancement use BullMQ's native scheduler coordination.
 - Disabling a schedule stops future occurrences and leaves materialized jobs intact.
-- Occurrences use the ordinary lane.
+- Occurrences inherit the schedule's selected [job priority](admission-job-priorities.md). Once
+  created, they enter the shared ready queue through [due-job activation](ordering-eligible-fifo.md).
 
 Calendar cron expressions, time zones and alternative missed-occurrence policies are outside the
 first slice. Interrupted Telegram attempts still follow the

@@ -5,19 +5,19 @@
 
 ## Decision
 
-`worker.start()` calls BullMQ's `setGlobalConcurrency` on the bot's ordinary queue once the worker's
+`worker.start()` calls BullMQ's `setGlobalConcurrency` on the bot's dispatch queue once the worker's
 connection is ready and before it claims jobs. The latest successful write to that queue sets the
-ordinary concurrency shared across all workers for the bot.
+dispatch concurrency shared across all workers and priorities for the bot.
 
 Workers with different settings overwrite each other's limit when they start. BullMQ does not reject
 the mismatch or order writes by application version. A worker shutting down or failing after the
 write does not restore the previous limit; a later worker startup writes its configured limit again.
 
-Lowering the limit follows the [ordinary admission policy](admission-ordinary-concurrency.md):
+Lowering the limit follows the [bot concurrency policy](admission-bot-concurrency.md):
 already-active jobs continue, and the new limit gates subsequent claims.
 
 ## Context
 
-Each bot has its [own ordinary queue](backend-queue-per-lane.md), so BullMQ's global concurrency
+Each bot has its [own dispatch queue](backend-single-dispatch-queue.md), so BullMQ's global concurrency
 applies independently to each bot. Consistent settings across replicas keep the shared limit stable;
 mixed settings during a rolling deployment or rollback follow the same latest-write behavior.

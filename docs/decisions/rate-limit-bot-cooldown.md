@@ -1,19 +1,21 @@
-# Monotonic lane cooldowns
+# Monotonic per-bot cooldown
 
 - **Status:** provisional
 - **Human-confirmed:** no
 
 ## Decision
 
-Each lane has a durable blocked-until time. The ordinary cooldown applies to all ordinary work for
-the bot, and the urgent cooldown applies to the whole urgent lane independently.
+Each bot has one durable blocked-until time for its dispatch queue. The cooldown gates both normal
+and urgent priority; priority does not bypass the pause. Other bots remain independent.
 
-- A 429 atomically updates its lane with
+- A definite 429 at either priority atomically updates the bot's cooldown with
   `blockedUntilMs = max(blockedUntilMs, nowMs + retryDelayMs)`, so a cooldown is never shortened.
-- No new work is admitted to a paused lane. Attempts admitted before the pause may still reach
+- No new work is dispatched for a paused bot. Attempts admitted before the pause may still reach
   Telegram, complete or extend the cooldown.
 - The chosen expiry is persisted together with a durable wakeup, so resuming work depends neither
   on another submission nor on a worker-local timer.
+- Delayed-job activation can continue during the cooldown according to
+  [ready-entry ordering](ordering-eligible-fifo.md); becoming ready does not admit an API attempt.
 
 ## Context
 

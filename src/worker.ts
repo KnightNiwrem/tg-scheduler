@@ -24,7 +24,7 @@ export interface SchedulerWorkerOptions extends SharedBotOptions {
 export interface SchedulerWorker {
   /**
    * Configure the bot's shared capacity and start claiming due jobs. Connection behavior follows
-   * the supplied client. A failed start may be retried. Recurrence and the urgent lane are not
+   * the supplied client. A failed start may be retried. Recurrence and job priorities are not
    * implemented yet.
    */
   start(): Promise<void>;

@@ -1,14 +1,14 @@
-# Ordinary concurrency
+# Shared per-bot dispatch concurrency
 
 - **Status:** provisional
 - **Human-confirmed:** yes
 
 ## Decision
 
-Ordinary concurrency C, set through the worker policy's `ordinaryConcurrency`, defaults to 3 and is
-configurable. It gates new ordinary reservations for the whole bot, across all workers, using
-BullMQ's queue-wide global concurrency rather than worker-local concurrency. A worker may claim a
-job only when the number of active ordinary jobs is below C.
+Dispatch concurrency C defaults to 3 and is configurable. It gates new reservations for the whole
+bot, across all workers and both priorities, using BullMQ's queue-wide global concurrency rather
+than worker-local concurrency. A worker may claim a job only when the number of active jobs for the
+bot is below C. Urgent priority does not add capacity.
 
 Lowering C does not interrupt jobs already active. The active count may temporarily exceed the new
 limit while those jobs settle; further claims wait until the active count falls below C.
@@ -26,6 +26,6 @@ simultaneous reservations rather than requests per second; throughput depends on
 describes about 30 messages per second for free bulk notifications and permits short bursts above
 the per-chat one-message-per-second guidance. These are workload-specific limits, not a universal
 safe rate for every method. Applications tune concurrency for their workloads and respect
-[lane cooldowns](rate-limit-lane-cooldowns.md) after 429 responses.
+[bot cooldowns](rate-limit-bot-cooldown.md) after 429 responses.
 
 How the limit is written is the [worker start](admission-concurrency-set-by-worker-start.md) decision.

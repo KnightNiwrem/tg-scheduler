@@ -1,7 +1,8 @@
 # Supporting library research
 
 The source findings below date to 2 November 2026; the native behavior experiments were run on
-6 November 2026, with a scheduler recovery probe on 7 November 2026, against the pinned dependencies.
+6 November 2026, with scheduler recovery and busy-worker promotion probes on 7 November 2026,
+against the pinned dependencies.
 The [decisions](decisions/) record the selected choices, and [validation](validation.md) defines
 acceptance criteria. The project pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; current integration
 coverage is described in the [testing guide](../README.md#testing). Default-branch source links can
@@ -40,8 +41,8 @@ Biome lint, and formatting checks also passed.
 | Shared cooldown              | With a configured limiter, `queue.rateLimit()` blocks other workers while admitted jobs can settle. Separate queue identities remain independent.                                                                                   | Native gating is reusable, but requires limiter configuration. Setting an expiry alone does not gate claims. |
 | Monotonic cooldown           | A later shorter `rateLimit()` replaces a longer expiry.                                                                                                                                                                             | Extend the expiry atomically by maximum; the native setter alone violates this requirement.                  |
 | Activation after replacement | A replacement worker processes queued work after the stored cooldown expires, with no new submission or application wakeup timer.                                                                                                   | Reuse the native activation machinery after establishing the correct durable gate.                           |
-| Eligible ordinary ordering   | Ready jobs retain submission FIFO and future jobs do not block. An older-due delayed job is promoted behind a newer ready backlog.                                                                                                  | Native ready-list FIFO does not implement ordering by original due time across all eligible work.            |
-| Concurrent 429 retries       | Returning two admitted jobs through `RateLimitError` retries the last-returned job first. Responses in admission order reverse their original rank; reverse responses happen to preserve it. The order survives worker replacement. | Preserve original rank explicitly across retries; native manual requeue is insufficient.                     |
+| Ready-entry ordering         | Ready jobs retain submission FIFO and future jobs do not block. An older-due delayed job is promoted behind a newer ready backlog.                                                                                                  | Keep native ready-entry insertion; activate due work independently of dispatch capacity.                     |
+| Concurrent 429 retries       | Returning two admitted jobs through `RateLimitError` retries the last-returned job first. Responses in admission order reverse their original rank; reverse responses happen to preserve it. The order survives worker replacement. | Accept native retry ordering; no original-rank restoration is required.                                      |
 | Ambiguous effect recovery    | Killing a worker after the simulated service accepted its effect causes default stalled recovery to repeat the effect with a new token.                                                                                             | Default replay violates the no-retransmission policy.                                                        |
 | Disabled stalled replay      | With `maxStalledCount: 0`, stalled jobs return to the wait list with a deferred failure. A later fetch records `failed` without invoking the processor. Both recovery configurations release capacity and allow unrelated work.     | Snapshots show `queued` until that fetch, which waits for capacity; Telegram may have acted.                 |
 | Stale settlement             | An old token cannot complete or fail a job owned by a replacement, or overwrite its completed result.                                                                                                                               | Native fencing protects job settlement; it cannot revoke an already transmitted external request.            |
@@ -62,12 +63,30 @@ To reproduce the experiments, use a checkout of that commit with the
 The recorded verification used isolated host port `16379`.
 
 These findings support the [BullMQ and Valkey backend](decisions/backend-bullmq-valkey.md). They establish reusable claim,
-capacity, activation, and settlement primitives, with additional coordination required for
-monotonic cooldowns and original-rank admission/requeue. The disabled-replay setting supports the
+capacity, activation, and settlement primitives. The selected design accepts native retry ordering;
+additional coordination is required for monotonic cooldowns and activation independent of dispatch
+capacity. The disabled-replay setting supports the
 [no-retransmission policy](decisions/uncertainty-no-automatic-retransmission.md); the library's full
 crash-recovery acceptance tests remain pending. The archived experiments do not establish Valkey
-persistence across restart, full recurrence integration, urgent-lane policy, Telegram error
+persistence across restart, full recurrence integration, job-priority policy, Telegram error
 classification or retry-delay validation, or the complete scheduler acceptance criteria.
+
+## Busy-worker delayed-promotion probe
+
+On 7 November 2026, a separate probe ran the library's client and worker together on Bun **1.4.4**,
+using BullMQ **6.7.1**, ioredis **6.0.0**, and the local Valkey **9.0.7** backend. A fake transport
+held all three default dispatch slots open. Through `submit`, the probe added a delayed job A,
+waited past its due time, then added immediate job B at the same priority while the worker remained
+running. A was still `delayed` and B was `waiting`; after releasing the transport, B dispatched
+before A. The probe passed and removed its isolated queue afterward. It made no Telegram calls
+and was not run on Node.js or Deno.
+
+This demonstrates delayed promotion waiting for dispatch capacity within one running library,
+without independently stopped components. The pinned worker fetches while its local concurrency
+has room; the claim and next-job scripts perform due-job promotion. A producer can still accept
+submissions while every dispatch slot is occupied. The selected
+[ready-entry policy](decisions/ordering-eligible-fifo.md) therefore needs independent activation;
+the probe does not establish that the library implements it.
 
 ## Native scheduler recovery probe
 
@@ -89,8 +108,8 @@ native recovery behavior.
 
 This probe used temporary queues outside the active suite and removed its data afterward. It did
 not implement the scheduler API, simulate a process crash or backend restart, or establish atomic
-occurrence uniqueness, disable behavior, or interaction with lane cooldowns and original-rank
-ordering. Those library integration checks remain pending.
+occurrence uniqueness, disable behavior, or interaction with the shared cooldown, job priorities
+and independent due-job activation. Those library integration checks remain pending.
 
 ## BullMQ integration findings
 
@@ -107,15 +126,33 @@ remains unverified:
 - **Cooldown extension:** the inspected Redis-compatible backend replaces the rate-limit expiry
   rather than taking the later expiry. The library requires atomic maximum-expiry updates. [Backend
   source](https://github.com/taskforcesh/bullmq/blob/master/src/classes/redis-queue-backend.ts)
-- **Retry ordering:** manual rate-limit requeue puts ordinary FIFO jobs back at the front;
-  prioritized jobs have a separate reinsertion path. Ordinary failure/backoff retries differ. Check
-  original-rank preservation under concurrent failures. [Manual
+- **Retry ordering:** manual rate-limit requeue puts unprioritized FIFO jobs back at the front;
+  prioritized jobs are reinserted ahead of other waiting jobs in the same priority group. In the
+  pinned source, `pushBackJobWithPriority` resets the priority counter component to zero; concurrent
+  returns at one priority share a score, leaving ties to
+  [lexicographical job ID order](https://valkey.io/commands/zrange/#common-behavior-and-options)
+  rather than original rank.
+  The library accepts this [native 429 ordering](decisions/rate-limit-native-429-requeue.md).
+  BullMQ's [manual rate-limit documentation](https://docs.bullmq.io/guide/rate-limiting#manual-rate-limit)
+  uses `RateLimitError` to return the job to waiting. Ordinary
+  [failure/backoff retries](https://docs.bullmq.io/guide/retrying-failing-jobs#custom-back-off-strategies)
+  use a different path and do not generally insert at the front. [Manual
   requeue](https://github.com/taskforcesh/bullmq/blob/master/src/commands/moveJobFromActiveToWait-9.lua),
   [priority
   reinsertion](https://github.com/taskforcesh/bullmq/blob/master/src/commands/includes/pushBackJobWithPriority.lua)
+- **Priority assignment:** BullMQ processes jobs with omitted priority or priority zero before
+  jobs with positive priority values. Both normal and urgent classes must be mapped consistently
+  when implementing the selected policy. Current enqueues omit priority, so implementation must
+  also account for existing jobs rather than silently mixing incompatible defaults.
+  [Priorities](https://docs.bullmq.io/guide/jobs/prioritized)
+- **Due-job activation:** delayed promotion normally runs when a worker fetches work. The
+  busy-worker probe above shows why this is insufficient for independent activation. In the pinned
+  backend, `Queue.promoteJobs()` uses an unbounded timestamp and promotes all delayed jobs, including
+  future ones; it is not a due-only scheduling loop. An activation mechanism still needs to be
+  selected and validated against the project's ordering and recovery criteria.
 - **Recurrence:** the library still needs to integrate native Job Schedulers and verify planned-time
-  anchoring, occurrence uniqueness, disable behavior, and interaction with lane cooldowns and
-  original-rank ordering. [Job
+  anchoring, occurrence uniqueness, disable behavior, and interaction with the shared cooldown,
+  priorities and independent activation. [Job
   schedulers](https://docs.bullmq.io/guide/job-schedulers/)
 - **Recovery:** automatic stalled-job replay can repeat an ambiguous Telegram effect. The
   [disabled-replay setting](decisions/recovery-stalled-replay-disabled.md) implements the
@@ -143,7 +180,7 @@ none exists.
 - **@gramio/broadcast:** closest Telegram-specific candidate. Uses jobify/BullMQ and queue-wide
   retry_after handling, but its processor discards returned action results, treats 403 as
   completion, uses GramIO-specific errors and a fixed queue name, and lacks the selected controlled
-  urgent-lane and no-retransmission policies. Direct BullMQ reuse avoids adapting this wrapper.
+  priority and no-retransmission policies. Direct BullMQ reuse avoids adapting this wrapper.
   [Source](https://github.com/gramiojs/broadcast/blob/main/src/index.ts)
 - **grammY transformer-throttler/Bottleneck:** useful throttling and bypass mechanisms, but Redis
   clustering shares limiter state rather than durable queued requests; pending jobs remain

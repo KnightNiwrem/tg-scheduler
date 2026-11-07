@@ -5,7 +5,7 @@ export type DeliveryLane = 'ordinary' | 'urgent';
 export interface SubmitOptions {
   /** Earliest execution time in Unix epoch milliseconds; omission means immediate work. */
   runAtMs?: number;
-  /** Defaults to ordinary. Urgent work requires enabled bypass and an allowlisted method. */
+  /** Defaults to ordinary. Urgent submissions currently reject as unimplemented. */
   lane?: DeliveryLane;
 }
 

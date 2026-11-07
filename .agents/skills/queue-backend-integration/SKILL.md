@@ -29,14 +29,18 @@ when a replacement client qualifies. Validate a replacement before updating that
   the edges of the shared library.
 - Check client lifecycle and worker startup, including blocking connection duplication and the
   selected driver's required retry settings recorded in the driver decision.
-- Verify native engine semantics before relying on them for eligible FIFO, original-rank 429
-  requeue, monotonic lane cooldowns, planned-time recurrence, and native missed-occurrence recovery.
-  Reuse native machinery where it satisfies the selected behavior.
+- Verify native engine semantics against the selected
+  [ready-entry ordering](../../../docs/decisions/ordering-eligible-fifo.md),
+  [native 429 requeue](../../../docs/decisions/rate-limit-native-429-requeue.md),
+  [bot cooldown](../../../docs/decisions/rate-limit-bot-cooldown.md), and
+  [recurrence](../../../docs/decisions/recurrence-planned-time-anchored.md) decisions. Check due-job
+  activation while dispatch capacity is full and during cooldowns. Reuse native machinery where
+  it satisfies the selected behavior.
 - Exercise interrupted and stalled workers against the uncertainty policy. Native recovery must
   not silently retransmit an ambiguous Telegram effect or allow stale attempts to overwrite state.
 - Use deterministic fake Telegram responses and a controllable clock where practical. Cover valid
-  retry delays, the documented missing/invalid-delay fallback, both lanes, and durable reactivation
-  after restart. Simulate 429s instead of deliberately provoking production flood limits. For live
+  retry delays, the documented missing/invalid-delay fallback, both job priorities, and durable
+  reactivation after restart. Simulate 429s instead of deliberately provoking production flood limits. For live
   checks included in the requested scope, use a dedicated test bot/chat and narrowly scoped calls.
 
 Use the acceptance criteria for detailed cases relevant to the requested change. Distinguish

@@ -7,10 +7,10 @@
 
 `submit` rejects unknown option keys. `runAtMs` must be a non-negative integer in
 [Unix epoch milliseconds](time-unix-epoch-milliseconds.md); omitting it requests immediate work. A
-`runAtMs` in the past runs immediately and keeps the past value as its original due time, so it is
-admitted ahead of eligible ordinary work with later due times, including work submitted earlier.
+`runAtMs` in the past requests immediate ready-queue entry and keeps the past value as its original
+due time in job snapshots. It does not reserve a position ahead of existing ready work.
 
 ## Context
 
 Rejecting unknown keys keeps a misspelled option from silently changing how work is scheduled. The
-stored due time determines the job's [admission rank](ordering-eligible-fifo.md).
+ready-entry time determines new-job [FIFO position within a priority](ordering-eligible-fifo.md).

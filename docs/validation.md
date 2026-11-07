@@ -23,7 +23,7 @@ visible errors without retries, native terminal states, indefinite default reten
 accepted-effect/lost-response failures, stored-outcome compatibility, shared ordinary capacity
 across workers, graceful shutdown, caller-connection reuse and option
 preservation, startup failure cleanup, and release of BullMQ's blocking connection.
-Stalled-worker recovery, Valkey restart, and the 429, ordering, urgent-lane, and recurrence criteria
+Stalled-worker recovery, Valkey restart, and the 429, priority, independent activation, and recurrence criteria
 are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
@@ -35,7 +35,8 @@ the same library tests on each runtime.
 
 The first slice covers durable immediate jobs, one-time delayed jobs and fixed-interval UTC
 recurrence for each bot, with status/result retrieval and disabling of future recurrence. Its
-behavior is defined by the [decisions linked from the architecture](architecture.md#decisions-by-area).
+normal and urgent priorities share one dispatch queue. Behavior is defined by the
+[decisions linked from the architecture](architecture.md#decisions-by-area).
 Store-level persistence and recovery guarantees follow the operator's configuration. Local
 acceptance validates the documented Compose configuration and its recovery limits.
 
@@ -65,26 +66,35 @@ acceptance validates the documented Compose configuration and its recovery limit
 - Accepted work survives producer exit and the documented worker/backend recovery conditions. The
   recovery guarantees identify the components responsible for retaining work, activating due jobs,
   and recovering abandoned claims.
-- Concurrent submissions do not lose accepted jobs. New claims respect configured capacity,
-  including the [transition when ordinary capacity decreases](decisions/admission-ordinary-concurrency.md).
+- Concurrent submissions do not lose accepted jobs. New claims respect configured capacity across
+  both priorities, including the [transition when capacity decreases](decisions/admission-bot-concurrency.md).
   The documented failover limitation still applies to already-sent physical HTTP requests.
-- Producers for one bot share ordinary cooldown state; other bots remain independent.
-- A later shorter 429 cannot shorten either lane's longer existing cooldown.
+- All workers and both priorities for one bot share one concurrency limit and cooldown state;
+  other bots remain independent. Urgent priority adds no capacity and cannot bypass the cooldown.
+- A later shorter 429 at either priority cannot shorten the bot's longer existing cooldown.
 - Application timestamps use Unix epoch milliseconds and durations use milliseconds. A valid
-  `retry_after` in seconds is converted exactly once before computing the lane cooldown expiry.
+  `retry_after` in seconds is converted exactly once before computing the bot cooldown expiry.
 - A 429 with missing `parameters`, missing `retry_after`, or an invalid, nonpositive or
   unrepresentable value uses the
-  [60-second fallback](decisions/rate-limit-retry-after-fallback.md). Both lanes retain the job,
+  [60-second fallback](decisions/rate-limit-retry-after-fallback.md). Both priorities retain the job,
   preserve any longer cooldown and retry through a durable wakeup, including after restart. A valid
   server delay longer than the fallback is honored in full.
-- No new ordinary admission occurs during an ordinary pause; already admitted attempts remain
-  accounted for.
-- Urgent bypass is disabled by default, restricted to the allowlist when enabled, and bounded by its
-  additional single slot. Total normally admitted capacity is C + U.
-- An urgent 429 gates new urgent jobs and retries through the shared urgent-lane cooldown.
-- Future work does not block ready work. Eligible ordinary jobs follow original due time then
-  submission sequence; manual 429 requeue preserves rank. C > 1 does not claim completion-order
-  guarantees.
+- No new dispatch occurs during a bot cooldown; already admitted attempts remain accounted for.
+- Normal is the default priority. Any supported method can request urgent priority for immediate,
+  delayed or recurring work, without an allowlist or bypass enablement flag. Occurrences inherit
+  their schedule's priority.
+- Eligible urgent jobs precede normal jobs. New ready jobs enter the back of their selected
+  priority; future jobs do not block ready work, and already-admitted jobs are not interrupted.
+- Due-job activation progresses while all C dispatch slots are occupied and while a bot cooldown
+  is active. Within one priority, an immediate job ready before a scheduled job's activation stays
+  ahead, and an immediate job ready after activation stays behind. Verify the same order after
+  freeing dispatch capacity or allowing the cooldown to expire.
+- A past `runAtMs` or late activation does not retroactively move a job ahead of existing ready
+  work. Pending activation recovers after interruption without another submission.
+- Definite 429 requeue retains the job and its priority and follows
+  [BullMQ's native front insertion within that priority](decisions/rate-limit-native-429-requeue.md).
+  Concurrent retries need not preserve their original relative admission order. Urgent priority
+  still precedes a normal retry, and C > 1 does not promise completion order.
 - Accepted immediate, delayed and recurring work resumes without needing another submission,
   including recovery after an interruption immediately following claim.
 - Duplicate wakes cannot create competing current claims for the same job. Retry/recovery attempts
@@ -111,7 +121,7 @@ acceptance validates the documented Compose configuration and its recovery limit
 
 ## Deferred, not blocking this slice
 
-General priorities, calendar cron/timezones, richer missed-occurrence policies, generic job
+Additional priority levels, calendar cron/timezones, richer missed-occurrence policies, generic job
 cancellation, custom deadlines, bounded waiting, transparent awaiting transformers, caller-supplied
 submission deduplication, new-file upload persistence, additional backends and hypothetical-scale
 optimizations are deferred. Internal occurrence uniqueness and safe claims remain core checks, not

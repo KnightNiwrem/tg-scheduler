@@ -50,7 +50,7 @@ const submitOptionsSchema = z
 /**
  * Construction validates options but performs no I/O; BullMQ is initialized on first use.
  * The caller owns the supplied connection and controls its connection behavior.
- * Schedules and the urgent lane are not implemented yet and reject with `UnimplementedError`.
+ * Schedules and urgent priority are not implemented yet and reject with `UnimplementedError`.
  *
  * @throws {TypeError} when the bot identity or backend options are invalid.
  */
