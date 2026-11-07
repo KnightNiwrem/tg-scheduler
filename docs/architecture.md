@@ -1,8 +1,8 @@
 # Outbound queue and scheduler architecture
 
-This document describes how the scheduler's components fit together. Each technical choice is
-recorded once in the [decisions folder](decisions/) with its status and context; this document
-links to those decisions instead of restating them. The [project overview](../README.md) describes
+This document describes the target design: how the scheduler's components fit together. Each
+active technical constraint is recorded once in the [decisions folder](decisions/) with its status
+and context; this document links to those decisions instead of restating them. The [project overview](../README.md) describes
 current capabilities, and the [library overview](library-overview.md) maps source modules to these
 components and lists operations that still reject as unimplemented. [Validation](validation.md)
 defines acceptance criteria, and [library research](library-research.md) records supporting

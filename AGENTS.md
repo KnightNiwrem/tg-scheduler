@@ -45,8 +45,12 @@ data disposable.
 
 ## Technical decisions
 
-`docs/decisions/` holds one file per current technical decision: architecture, behavior,
-interfaces, data, dependencies, and tooling. Product priorities, task plans, and process rules do
+`docs/decisions/` records the active technical constraints that shape the project and its scope:
+architecture, behavior, interfaces, data, dependencies, and tooling. Together with the
+[architecture](docs/architecture.md), they select the target implementation out of every possible
+one. A constraint belongs there when it is meaningful for future work, whatever its origin: a
+deliberate choice, a consequence of implementation, a review fix, or existing behavior that nobody
+chose but that constrains the project. Product priorities, task plans, process rules, and history do
 not belong there. Each file uses this structure:
 
 ```markdown
@@ -70,10 +74,11 @@ not belong there. Each file uses this structure:
 - **Provisional:** implement the selected working choice. Revise it when evidence supports a simpler
   or safer approach, explain consequential changes, and update affected code, tests, and docs
   together. It is not a question awaiting approval.
-- When you make a technical decision that future work must follow or would otherwise revisit,
-  record it as a provisional file with `Human-confirmed: no` and continue; confirmation can come
-  later. Only a human sets `Human-confirmed: yes`. Changing a decision's substance or status resets
-  it to `no`; call out any revision of a confirmed decision in your report.
+- When your work introduces, changes, or exposes such a constraint, record it as provisional with
+  `Human-confirmed: no` and continue; confirmation can come later. Add it to the decision whose
+  scope it falls in, or create a new file when none fits. Only a human sets
+  `Human-confirmed: yes`. Changing a decision's substance or status resets it to `no`; call out any
+  revision of a confirmed decision in your report.
 - A decision file contains only the current decision. Edit it in place when the decision changes and
   delete it when the decision no longer applies; do not keep superseded versions or history
   sections. Git history and the commit or PR that changes a decision record its history.
@@ -92,6 +97,9 @@ names, and appropriate validation are completion requirements. Resolve concrete 
 scope without waiting for another request. Stop when these requirements are met or a specific
 blocker needs user input; continue independent, authorized work when only part of the task is
 blocked.
+
+Before handing back, check whether the work introduced, changed, invalidated, or exposed a
+technical constraint, and bring `docs/decisions/` up to date with the result.
 
 Rerun checks whose results may have changed. Broaden validation when the change's impact or a
 remaining uncertainty warrants it. Once relevant checks pass and the completion requirements are
