@@ -19,9 +19,9 @@ dependency versions selected for it.
 
 ## Validation coverage
 
-The [repository checks](../README.md#commands) cover Valkey URL validation, the producer and worker
-connection settings, a BullMQ job run on those connections, and release of every client after
-cleanup.
+The [repository checks](../README.md#commands) cover Valkey URL validation and the producer and
+worker connection settings. With `VALKEY_TEST_URL` set, as in CI, they also run a BullMQ job on
+those connections and verify that every client is released after cleanup.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
 not establish the full queue/scheduler acceptance criteria below. The shared suite uses

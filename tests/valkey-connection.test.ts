@@ -69,6 +69,19 @@ test.each([
   expect(String(rejectionOf(valkeyUrl))).not.toContain('private-password');
 });
 
+test.each([
+  ['producer', 1],
+  ['worker', null],
+] as const)('%s connections use maxRetriesPerRequest %s', (role, maxRetriesPerRequest) => {
+  const connection = createValkeyConnection(connectionOptions({ role }));
+  try {
+    // The architecture requires null for workers; a producer retries once, then fails.
+    expect(connection.options.maxRetriesPerRequest).toBe(maxRetriesPerRequest);
+  } finally {
+    connection.disconnect();
+  }
+});
+
 test('producer commands fail promptly instead of waiting for a connection', async () => {
   const connection = createValkeyConnection(
     connectionOptions({ valkeyUrl: unreachableValkeyUrl, role: 'producer' }),

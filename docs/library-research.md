@@ -10,11 +10,12 @@ change; the observations below apply to the tested versions.
 ## Runtime compatibility
 
 The integration suite runs a BullMQ queue and worker on the backend's ioredis connections and checks
-connection cleanup on Bun, Node.js, and Deno. A diagnostic bootstrap, removed after
+connection cleanup on Bun, Node.js, and Deno. The tests of a diagnostic bootstrap, removed after
 [commit `2748c31`](https://github.com/KnightNiwrem/tg-scheduler/tree/2748c319dbad3c85fb8eb5fadc8343895a8796d4),
-also verified enqueue, claim, delayed activation, result retrieval, graceful shutdown, and Valkey AOF
-recovery on those versions; [PR #2](https://github.com/KnightNiwrem/tg-scheduler/pull/2) records
-that validation. Separate one-off experiments
+also verified enqueue, claim, delayed activation, result retrieval, and graceful shutdown on those
+versions. A manual Compose check recorded in [PR #2](https://github.com/KnightNiwrem/tg-scheduler/pull/2)
+confirmed that jobs acknowledged by `WAITAOF` survived a Valkey `SIGKILL` and container recreation;
+it does not establish zero-loss durability for other writes under `appendfsync everysec`. Separate one-off experiments
 verified native admission, ordering, cooldown, and stalled-recovery behavior on all three.
 This project's full queue/scheduler acceptance tests remain pending; the experiments expose
 integration gaps rather than establishing the scheduler's required policies.
