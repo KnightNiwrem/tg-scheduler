@@ -58,8 +58,6 @@ export async function coordinateJob(
       return { state: 'succeeded', result: outcome.result };
     case 'failed':
       return { state: 'failed', error: outcome.error };
-    case 'uncertain':
-      return { state: 'uncertain', error: outcome.error };
     case 'rate-limited': {
       // Lane cooldowns are not implemented, and retrying without a pause would add to the flood
       // wait, so a definite 429 currently settles the job as failed. A valid server delay is kept
@@ -85,7 +83,7 @@ export async function materializeDueOccurrences(_queues: BotQueues, _nowMs: numb
   throw new UnimplementedError('materializeDueOccurrences');
 }
 
-/** Fence stale attempts and expose ambiguous sends as uncertain without retransmitting them. */
+/** Fence stale attempts and record interrupted failures without retransmitting them. */
 export async function recoverAbandonedAttempts(_queues: BotQueues, _nowMs: number): Promise<void> {
   throw new UnimplementedError('recoverAbandonedAttempts');
 }

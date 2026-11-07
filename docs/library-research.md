@@ -41,8 +41,8 @@ Biome lint, and formatting checks also passed.
 | Activation after replacement | A replacement worker processes queued work after the stored cooldown expires, with no new submission or application wakeup timer.                                                                                                   | Reuse the native activation machinery after establishing the correct durable gate.                           |
 | Eligible ordinary ordering   | Ready jobs retain submission FIFO and future jobs do not block. An older-due delayed job is promoted behind a newer ready backlog.                                                                                                  | Native ready-list FIFO does not implement ordering by original due time across all eligible work.            |
 | Concurrent 429 retries       | Returning two admitted jobs through `RateLimitError` retries the last-returned job first. Responses in admission order reverse their original rank; reverse responses happen to preserve it. The order survives worker replacement. | Preserve original rank explicitly across retries; native manual requeue is insufficient.                     |
-| Ambiguous effect recovery    | Killing a worker after the simulated service accepted its effect causes default stalled recovery to repeat the effect with a new token.                                                                                             | Default recovery violates the no-retransmission uncertainty policy.                                          |
-| Disabled stalled replay      | `maxStalledCount: 0` skips another processor invocation but records `failed`, not `uncertain`. Both recovery configurations release capacity and allow unrelated work.                                                              | This setting can prevent replay, but still needs durable attempt records and explicit uncertainty reporting. |
+| Ambiguous effect recovery    | Killing a worker after the simulated service accepted its effect causes default stalled recovery to repeat the effect with a new token.                                                                                             | Default replay violates the no-retransmission policy.                                                        |
+| Disabled stalled replay      | With `maxStalledCount: 0`, stalled jobs return to the wait list with a deferred failure. A later fetch records `failed` without invoking the processor. Both recovery configurations release capacity and allow unrelated work.     | Snapshots show `queued` until that fetch, which waits for capacity; Telegram may have acted.                 |
 | Stale settlement             | An old token cannot complete or fail a job owned by a replacement, or overwrite its completed result.                                                                                                                               | Native fencing protects job settlement; it cannot revoke an already transmitted external request.            |
 
 The exploratory checks are archived in [commit `60bf973`](https://github.com/KnightNiwrem/tg-scheduler/commit/60bf9735513a98f2226879c106bf5f17be3df099):
@@ -62,8 +62,10 @@ The recorded verification used isolated host port `16379`.
 
 These findings support the [BullMQ and Valkey backend](decisions/backend-bullmq-valkey.md). They establish reusable claim,
 capacity, activation, and settlement primitives, with additional coordination required for
-monotonic cooldowns, original-rank admission/requeue, and uncertainty. They do not establish
-Valkey persistence across restart, recurrence/coalescing, urgent-lane policy, Telegram error
+monotonic cooldowns and original-rank admission/requeue. The disabled-replay setting supports the
+[no-retransmission policy](decisions/uncertainty-no-automatic-retransmission.md); the library's full
+crash-recovery acceptance tests remain pending. The experiments do not establish Valkey persistence
+across restart, recurrence/coalescing, urgent-lane policy, Telegram error
 classification or retry-delay validation, or the complete scheduler acceptance criteria.
 
 ## BullMQ integration findings
@@ -89,8 +91,9 @@ selected version. Recurrence/coalescing remains unverified:
 - **Recurrence:** native scheduler behaviour must match planned-time anchoring, occurrence
   uniqueness and coalescing of missed unmaterialized work. [Job
   schedulers](https://docs.bullmq.io/guide/job-schedulers/)
-- **Recovery:** automatic stalled-job replay can repeat an ambiguous Telegram effect. The selected
-  policy requires persisted, visible uncertainty without automatic retransmission.
+- **Recovery:** automatic stalled-job replay can repeat an ambiguous Telegram effect. The
+  [disabled-replay setting](decisions/recovery-stalled-replay-disabled.md) implements the
+  [no-retransmission policy](decisions/uncertainty-no-automatic-retransmission.md).
 - **Shared limits:** validate that all workers/producers for each bot share the selected capacity
   and cooldown state. [Global concurrency](https://docs.bullmq.io/guide/queues/global-concurrency),
   [rate limiting](https://docs.bullmq.io/guide/rate-limiting)
@@ -114,7 +117,7 @@ none exists.
 - **@gramio/broadcast:** closest Telegram-specific candidate. Uses jobify/BullMQ and queue-wide
   retry_after handling, but its processor discards returned action results, treats 403 as
   completion, uses GramIO-specific errors and a fixed queue name, and lacks the selected controlled
-  urgent/uncertainty policy. Direct BullMQ reuse avoids adapting this wrapper.
+  urgent-lane and no-retransmission policies. Direct BullMQ reuse avoids adapting this wrapper.
   [Source](https://github.com/gramiojs/broadcast/blob/main/src/index.ts)
 - **grammY transformer-throttler/Bottleneck:** useful throttling and bypass mechanisms, but Redis
   clustering shares limiter state rather than durable queued requests; pending jobs remain

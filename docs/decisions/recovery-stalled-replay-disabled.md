@@ -1,4 +1,4 @@
-# Stalled jobs are reported as uncertain, not replayed
+# Stalled jobs fail without replay
 
 - **Status:** provisional
 - **Human-confirmed:** no
@@ -6,7 +6,7 @@
 ## Decision
 
 The BullMQ worker runs with `maxStalledCount: 0`, so BullMQ never runs an abandoned attempt again.
-Any job that BullMQ records as failed is reported as `uncertain`. A worker that stops mid-attempt
+Any job that BullMQ records as failed is reported as `failed`. A worker that stops mid-attempt
 leaves its job `in-flight` until a running worker's stalled check finds it after the 30-second lock
 expires. BullMQ then marks the job for a deferred failure and returns it to the wait list, where it
 is reported as `queued` even though the request may already have reached Telegram, until a worker
@@ -19,6 +19,5 @@ stores only a generic failure reason, so error details never reach job snapshots
 The coordinator settles every attempt it completes, so BullMQ fails a job only when processing was
 interrupted by a lost lock or a processor error, either of which can follow a transmitted request.
 Without attempt records, an interruption before sending cannot be told apart from one after it, so
-both are conservatively reported as `uncertain`. This implements the
-[uncertainty policy](uncertainty-no-automatic-retransmission.md) until durable attempt records
-exist.
+both are reported as `failed` without claiming Telegram did nothing. This implements the
+[no-retransmission policy](uncertainty-no-automatic-retransmission.md).

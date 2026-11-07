@@ -19,9 +19,10 @@ The [repository checks](../README.md#commands) cover option and durable-payload 
 producer and worker connection settings, and grammY outcome classification against a fake Bot API.
 With `VALKEY_TEST_URL` set, as in CI, they also run the client and worker against Valkey with a
 fake Telegram transport. Those tests cover immediate delivery after producer exit, delayed activation,
-visible failed and uncertain outcomes without retries, shared ordinary capacity across workers,
-graceful worker shutdown, and connection release. Stalled-worker recovery, Valkey restart, and
-the 429, ordering, urgent-lane, and recurrence criteria are not yet covered.
+visible errors without retries, accepted-effect/lost-response failures, stored-outcome compatibility,
+shared ordinary capacity across workers, graceful worker shutdown, and connection release.
+Stalled-worker recovery, Valkey restart, and the 429, ordering, urgent-lane, and recurrence criteria
+are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
 not establish the full queue/scheduler acceptance criteria below. The shared suite uses
@@ -82,9 +83,9 @@ recovery limits.
   including recovery after an interruption immediately following claim.
 - Duplicate wakes cannot create competing current claims for the same job. Retry/recovery attempts
   have new identities, and stale attempts cannot overwrite current state.
-- An accepted-send/lost-response simulation records uncertainty, does not automatically retransmit,
-  releases the current reservation and allows unrelated work to continue. Engine stalled-job
-  recovery must not silently violate this policy.
+- An accepted-send/lost-response simulation records `failed` with its error, does not automatically
+  retransmit, releases the current reservation and allows unrelated work to continue. Engine
+  stalled-job recovery must not silently violate this policy.
 - A definite 429 retries after the relevant pause; permanent API errors and eventual successes
   remain visible to callers.
 - Recurrence stays anchored to planned times. Missed, not-yet-created occurrences coalesce to the

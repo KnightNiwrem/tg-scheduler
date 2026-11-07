@@ -109,7 +109,7 @@ export function openBotQueues(
 export interface BotJobProcessorOptions {
   /** Shared across every worker for the bot, not only this process. */
   ordinaryConcurrency: number;
-  /** Settle one claimed job. A rejection is treated as an interrupted, uncertain attempt. */
+  /** Settle one claimed job. A rejection is recorded as an interrupted failure. */
   processJob(job: BotJob): Promise<SettledJobOutcome>;
   onError: ErrorHandler;
 }
@@ -168,8 +168,7 @@ export async function startBotJobProcessor(
         prefix: config.queuePrefix,
         concurrency: options.ordinaryConcurrency,
         // Default stalled recovery would run an abandoned attempt again and could retransmit a
-        // request Telegram already accepted. With zero, BullMQ fails the job instead, which job
-        // snapshots report as uncertain.
+        // request Telegram already accepted. With zero, BullMQ fails the job without replay.
         maxStalledCount: 0,
       },
     );

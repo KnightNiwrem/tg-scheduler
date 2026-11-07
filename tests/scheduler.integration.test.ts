@@ -7,6 +7,7 @@ import {
   type SchedulerClient,
 } from '../src/index.ts';
 import type { TelegramRequest } from '../src/telegram.ts';
+import { createGrammyTransport } from '../src/transport/grammy.ts';
 import type {
   TelegramAttemptOutcome,
   TelegramTransport,
@@ -114,7 +115,7 @@ function deferred(): { promise: Promise<void>; resolve(): void } {
 async function settledJob(client: SchedulerClient, jobId: string): Promise<JobSnapshot> {
   await expect
     .poll(async () => (await client.getJob(jobId))?.state, { timeout: 5_000 })
-    .toMatch(/^(succeeded|failed|uncertain)$/);
+    .toMatch(/^(succeeded|failed)$/);
   const job = await client.getJob(jobId);
   if (!job) throw new Error(`Job ${jobId} disappeared`);
   return job;
@@ -221,7 +222,7 @@ integrationTest('delayed work stays queued until its run time', async () => {
 });
 
 integrationTest(
-  'failed, uncertain, and rate-limited attempts stay visible and are not retried',
+  'Telegram rejections, transport errors, and rate limits stay visible without retries',
   async () => {
     const telegram = new FakeTelegram((request) => {
       const text = request.method === 'sendMessage' ? request.payload.text : '';
@@ -232,7 +233,7 @@ integrationTest(
             error: { message: 'Bad Request: chat not found', telegramErrorCode: 400 },
           };
         case 'ambiguous':
-          return { kind: 'uncertain', error: { message: 'Network request failed' } };
+          return { kind: 'failed', error: { message: 'Network request failed' } };
         case 'flooded without a valid delay':
           return { kind: 'rate-limited', retryAfterSeconds: 'soon' };
         default:
@@ -254,7 +255,7 @@ integrationTest(
       error: { message: 'Bad Request: chat not found', telegramErrorCode: 400 },
     });
     expect(await settledJob(client, ambiguous.id)).toMatchObject({
-      state: 'uncertain',
+      state: 'failed',
       error: { message: 'Network request failed' },
     });
     const rateLimitedJob = await settledJob(client, rateLimited.id);
@@ -272,22 +273,82 @@ integrationTest(
 );
 
 integrationTest(
-  'an attempt interrupted by a processing error is uncertain, reported, and not retried',
+  'stored uncertain outcomes are read as failed with their errors preserved',
   async () => {
-    const telegram = new FakeTelegram(() => {
-      throw new Error('transport broke its contract with secret details');
-    });
-    await openWorker(telegram).start();
     const client = openClient();
     const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+    const telegram = new FakeTelegram();
+    await openWorker(telegram).start();
+    await settledJob(client, handle.id);
+
+    const error = { message: 'Bad Gateway', telegramErrorCode: 502 };
+    await inspector.hset(
+      `${queuePrefix}:${botId}.ordinary:${handle.id}`,
+      'returnvalue',
+      JSON.stringify({ state: 'uncertain', error }),
+    );
+
+    expect(await client.getJob(handle.id)).toMatchObject({ state: 'failed', error });
+    expect(telegram.attempts).toHaveLength(1);
+  },
+);
+
+integrationTest(
+  'a lost response after an accepted call fails once and releases capacity',
+  async () => {
+    let acceptedCalls = 0;
+    const transport = createGrammyTransport(botId, () => '123456:test-token', {
+      fetch: async () => {
+        acceptedCalls++;
+        if (acceptedCalls === 1) throw new Error('Connection dropped after acceptance');
+        return new Response(JSON.stringify({ ok: true, result: true }), {
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+    await openWorker(transport, { ordinaryConcurrency: 1 }).start();
+    const client = openClient();
+    const lostResponse = await client.submit('sendChatAction', { chat_id: 1, action: 'typing' });
+    const unrelated = await client.submit('sendChatAction', { chat_id: 2, action: 'typing' });
+
+    expect(await settledJob(client, lostResponse.id)).toMatchObject({
+      state: 'failed',
+      // grammY wraps the dropped connection in an HttpError with its own message.
+      error: { message: "Network request for 'sendChatAction' failed!" },
+    });
+    expect(
+      await inspector.hget(`${queuePrefix}:${botId}.ordinary:${lostResponse.id}`, 'returnvalue'),
+    ).toContain('"state":"failed"');
+    expect(await settledJob(client, unrelated.id)).toMatchObject({
+      state: 'succeeded',
+      result: true,
+    });
+    expect(acceptedCalls).toBe(2);
+  },
+);
+
+integrationTest(
+  'an interrupted processor fails once, reports its error, and releases capacity',
+  async () => {
+    const telegram = new FakeTelegram((request) => {
+      if (request.method === 'sendMessage') {
+        throw new Error('transport broke its contract with secret details');
+      }
+      return { kind: 'succeeded', result: true };
+    });
+    await openWorker(telegram, { ordinaryConcurrency: 1 }).start();
+    const client = openClient();
+    const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+    const unrelated = await client.submit('sendChatAction', { chat_id: 2, action: 'typing' });
 
     const job = await settledJob(client, handle.id);
-    expect(job.state).toBe('uncertain');
+    expect(job.state).toBe('failed');
     // The stored reason is generic; the original error goes only to the worker's handler.
-    const message = job.state === 'uncertain' ? job.error.message : '';
+    const message = job.state === 'failed' ? job.error.message : '';
     expect(message).toContain('Unexpected processing error');
     expect(message).not.toContain('secret details');
-    expect(telegram.attempts).toHaveLength(1);
+    expect((await settledJob(client, unrelated.id)).state).toBe('succeeded');
+    expect(telegram.attempts).toHaveLength(2);
     expect(backendErrors.splice(0).map((error) => error.message)).toEqual([
       'transport broke its contract with secret details',
     ]);

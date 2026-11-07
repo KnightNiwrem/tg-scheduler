@@ -1,4 +1,4 @@
-import { Api, type ApiClientOptions, GrammyError, HttpError } from 'grammy';
+import { Api, type ApiClientOptions, GrammyError } from 'grammy';
 import type { JobError } from '../jobs.ts';
 import type { TelegramMethod, TelegramRequest, TelegramResult } from '../telegram.ts';
 import type {
@@ -76,16 +76,10 @@ function classifyAttemptError(error: unknown, token: string): TelegramAttemptOut
     if (error.error_code === 429) {
       return { kind: 'rate-limited', retryAfterSeconds: error.parameters?.retry_after };
     }
-    // A Telegram server error does not prove that the call had no effect.
-    const kind = error.error_code >= 500 ? 'uncertain' : 'failed';
-    return { kind, error: describe(error.description, error.error_code) };
-  }
-  if (error instanceof HttpError) {
-    // The request may have reached Telegram before the connection failed or timed out.
-    return { kind: 'uncertain', error: describe(error.message) };
+    return { kind: 'failed', error: describe(error.description, error.error_code) };
   }
   return {
-    kind: 'uncertain',
+    kind: 'failed',
     error: describe(error instanceof Error ? error.message : 'Unknown transport error'),
   };
 }
