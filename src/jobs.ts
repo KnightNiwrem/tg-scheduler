@@ -26,7 +26,7 @@ export type SettledJobOutcome<Method extends TelegramMethod = TelegramMethod> =
   | { state: 'failed'; error: JobError }
   | { state: 'uncertain'; error: JobError };
 
-type JobOutcome<Method extends TelegramMethod> =
+export type JobOutcome<Method extends TelegramMethod = TelegramMethod> =
   | { state: 'queued' }
   | { state: 'in-flight' }
   | SettledJobOutcome<Method>;

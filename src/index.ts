@@ -5,6 +5,7 @@ export {
   type SchedulerClientOptions,
 } from './client.ts';
 export type { BotPolicy } from './core/coordinator.ts';
+export type { ErrorHandler } from './error-handler.ts';
 export type { DeliveryLane, JobError, JobHandle, JobSnapshot, SubmitOptions } from './jobs.ts';
 export type { ScheduleHandle, ScheduleOptions } from './schedules.ts';
 export type { SharedBotOptions } from './shared-bot-options.ts';

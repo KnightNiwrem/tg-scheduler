@@ -6,7 +6,8 @@ import {
   type SharedBotOptions,
 } from 'tg-scheduler';
 
-// API sketch: these functions type-check, but operations currently reject as unimplemented.
+// Usage sketch: submission, retrieval, and the worker run; schedule calls reject until recurrence
+// is implemented.
 export async function submitAndInspect(options: SchedulerClientOptions) {
   const client = createSchedulerClient(options);
   try {
