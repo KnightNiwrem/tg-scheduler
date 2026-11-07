@@ -121,7 +121,7 @@ async function settledJob(client: SchedulerClient, jobId: string): Promise<JobSn
 integrationTest(
   'accepted work runs after the producer exits and its result is retrievable',
   async () => {
-    const producer = createSchedulerClient(sharedOptions());
+    const producer = openClient();
     const beforeSubmitMs = Date.now();
     const handle = await producer.submit('sendMessage', { chat_id: 1, text: 'hello' });
     const afterSubmitMs = Date.now();
@@ -150,16 +150,17 @@ integrationTest(
 );
 
 integrationTest('delayed work stays queued until its run time', async () => {
-  const telegram = new FakeTelegram();
-  await openWorker(telegram).start();
   const client = openClient();
   const runAtMs = Date.now() + 500;
   const handle = await client.submit('sendMessage', { chat_id: 1, text: 'later' }, { runAtMs });
-
+  // Asserted before any worker runs, so the check cannot race the delayed claim.
   expect(await client.getJob(handle.id)).toMatchObject({
     state: 'queued',
     originalDueAtMs: runAtMs,
   });
+
+  const telegram = new FakeTelegram();
+  await openWorker(telegram).start();
   expect((await settledJob(client, handle.id)).state).toBe('succeeded');
   expect(telegram.attempts).toHaveLength(1);
   expect(telegram.attempts[0]?.startedAtMs).toBeGreaterThanOrEqual(runAtMs);
@@ -178,6 +179,8 @@ integrationTest(
           };
         case 'ambiguous':
           return { kind: 'uncertain', error: { message: 'Network request failed' } };
+        case 'flooded without a valid delay':
+          return { kind: 'rate-limited', retryAfterSeconds: 'soon' };
         default:
           return { kind: 'rate-limited', retryAfterSeconds: 5 };
       }
@@ -187,6 +190,10 @@ integrationTest(
     const rejected = await client.submit('sendMessage', { chat_id: 1, text: 'rejected' });
     const ambiguous = await client.submit('sendMessage', { chat_id: 1, text: 'ambiguous' });
     const rateLimited = await client.submit('sendMessage', { chat_id: 1, text: 'flooded' });
+    const invalidDelay = await client.submit('sendMessage', {
+      chat_id: 1,
+      text: 'flooded without a valid delay',
+    });
 
     expect(await settledJob(client, rejected.id)).toMatchObject({
       state: 'failed',
@@ -196,11 +203,17 @@ integrationTest(
       state: 'uncertain',
       error: { message: 'Network request failed' },
     });
-    expect(await settledJob(client, rateLimited.id)).toMatchObject({
-      state: 'failed',
-      error: { telegramErrorCode: 429 },
-    });
-    expect(telegram.attempts).toHaveLength(3);
+    const rateLimitedJob = await settledJob(client, rateLimited.id);
+    expect(rateLimitedJob).toMatchObject({ state: 'failed', error: { telegramErrorCode: 429 } });
+    expect(rateLimitedJob.state === 'failed' && rateLimitedJob.error.message).toContain(
+      'retry after 5 seconds',
+    );
+    const invalidDelayJob = await settledJob(client, invalidDelay.id);
+    expect(invalidDelayJob).toMatchObject({ state: 'failed', error: { telegramErrorCode: 429 } });
+    expect(invalidDelayJob.state === 'failed' && invalidDelayJob.error.message).not.toContain(
+      'retry after',
+    );
+    expect(telegram.attempts).toHaveLength(4);
   },
 );
 
@@ -208,7 +221,7 @@ integrationTest(
   'an attempt interrupted by a processing error is uncertain, reported, and not retried',
   async () => {
     const telegram = new FakeTelegram(() => {
-      throw new Error('transport broke its contract');
+      throw new Error('transport broke its contract with secret details');
     });
     await openWorker(telegram).start();
     const client = openClient();
@@ -216,12 +229,13 @@ integrationTest(
 
     const job = await settledJob(client, handle.id);
     expect(job.state).toBe('uncertain');
-    expect(job.state === 'uncertain' && job.error.message).toContain(
-      'transport broke its contract',
-    );
+    // The stored reason is generic; the original error goes only to the worker's handler.
+    const message = job.state === 'uncertain' ? job.error.message : '';
+    expect(message).toContain('Unexpected processing error');
+    expect(message).not.toContain('secret details');
     expect(telegram.attempts).toHaveLength(1);
     expect(backendErrors.splice(0).map((error) => error.message)).toEqual([
-      'transport broke its contract',
+      'transport broke its contract with secret details',
     ]);
   },
 );

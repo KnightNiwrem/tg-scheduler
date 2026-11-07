@@ -6,8 +6,8 @@ import {
   type SharedBotOptions,
 } from 'tg-scheduler';
 
-// Usage sketch: submission, retrieval, and the worker run; schedule calls reject until recurrence
-// is implemented.
+// Usage sketch: submission and retrieval, plus a worker that is configured but not started here.
+// Schedule calls reject until recurrence is implemented, so they run after retrieval.
 export async function submitAndInspect(options: SchedulerClientOptions) {
   const client = createSchedulerClient(options);
   try {
@@ -17,16 +17,16 @@ export async function submitAndInspect(options: SchedulerClientOptions) {
       { chat_id: 123, text: 'Later' },
       { runAtMs: Date.now() + 60_000 },
     );
-    const schedule = await client.createSchedule(
-      'sendMessage',
-      { chat_id: 123, text: 'Recurring' },
-      { intervalMs: 3_600_000, anchorAtMs: Date.now() + 3_600_000 },
-    );
     const job = await client.getJob(immediate.id);
     if (job?.state === 'succeeded' && job.method === 'sendMessage') {
       // Narrowing the stored method gives the corresponding grammY result type.
       console.log(job.result.message_id);
     }
+    const schedule = await client.createSchedule(
+      'sendMessage',
+      { chat_id: 123, text: 'Recurring' },
+      { intervalMs: 3_600_000, anchorAtMs: Date.now() + 3_600_000 },
+    );
     await client.disableSchedule(schedule.id);
   } catch (operationError) {
     await client.close().catch((cleanupError: unknown) => {

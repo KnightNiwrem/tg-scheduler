@@ -312,22 +312,24 @@ preservation or an explicit migration.
 
 **Provisional, made by Claude, pending human review.** These choices were made while implementing
 the basic delivery path. They are in effect in the code and tests, but a maintainer has not
-accepted them. When one is accepted, move it into the relevant section above as **Provisional**;
-when one is rejected, change the code, tests and this list together.
+accepted them.
 
 ### Interim behavior until later policies land
 
 - **A definite 429 settles as `failed`** with `telegramErrorCode: 429` and is not retried. Retrying
   without the [lane cooldown](#4-admission-and-429-handling) would add traffic during a flood wait.
-  This intentionally differs from the selected 429 policy and is replaced when cooldowns are
-  implemented.
+  A valid positive integer `retry_after` is included in the error message so callers know when
+  resubmitting is reasonable. This intentionally differs from the selected 429 policy and is
+  replaced when cooldowns are implemented.
 - **Stalled-job recovery is disabled** (`maxStalledCount: 0`), so BullMQ never runs an abandoned
   attempt again. Any job BullMQ records as failed is reported as `uncertain`, because the
   coordinator settles every attempt it completes and BullMQ fails a job only when processing was
   interrupted (lost lock or processor error). A worker that stops mid-attempt leaves its job
   `in-flight` until a running worker's stalled check after the 30-second lock expires. This
   conservatively reports `uncertain` even when the interruption came before sending, because no
-  attempt records exist yet to tell the cases apart.
+  attempt records exist yet to tell the cases apart. A processor error is reported to `onError`
+  in full, while BullMQ stores only a generic failure reason, so error details never reach job
+  snapshots.
 - **Urgent submission and `urgentBypassEnabled: true` reject with `UnimplementedError`** instead
   of falling back to the ordinary lane.
 
@@ -351,8 +353,10 @@ when one is rejected, change the code, tests and this list together.
   numeric bot IDs satisfy the rule. Encoding arbitrary IDs instead would lift the restriction
   at the cost of less readable keys.
 - **`queuePrefix` defaults to `tg-scheduler`** and must be 1–100 non-whitespace characters.
-- **Shared ordinary concurrency** is BullMQ's queue-wide limit, set by `worker.start()`. Workers
-  started with different policies overwrite each other; the last one started wins.
+- **Shared ordinary concurrency** is BullMQ's queue-wide limit, set by `worker.start()` once the
+  worker's connection is ready and before it claims jobs, so a worker that fails to start leaves
+  the limit unchanged. Workers started with different policies overwrite each other; the last one
+  started wins.
 - **`onError` on the client and worker options** receives errors no operation awaits, such as
   Valkey reconnection failures and unexpected processing errors, defaulting to `console.error`.
 
@@ -361,9 +365,11 @@ when one is rejected, change the code, tests and this list together.
 - **Durable payload rules:** the payload must be a plain object of JSON values. Strings, booleans,
   finite numbers, `null`, arrays and plain objects are accepted. Object properties set to
   `undefined` are omitted like absent options. `InputFile` uploads, other class instances, dates,
-  functions, bigints, symbols, non-finite numbers, undefined or missing array elements and circular
-  references are rejected with `TypeError` naming the path. Method names must look like Bot API
-  methods and exclude inbound methods; per-method fields are left to Telegram.
+  functions, bigints, symbols, non-finite numbers, undefined or missing array elements, arrays
+  with a `toJSON` hook and circular references are rejected with `TypeError` naming the path. Method names must look like Bot API
+  methods and exclude inbound methods. Names are not checked against the full method list, which
+  would duplicate grammY's types at runtime; Telegram rejects an unknown method with a definite
+  404, reported as `failed`. Per-method fields are likewise left to Telegram.
 - **Submit options are strict:** unknown keys and fractional or negative `runAtMs` are rejected.
   A past `runAtMs` runs immediately and keeps the past value as its original due time.
 - **Stored job data** is `{ request, originalDueAtMs }`, with the due time stored explicitly

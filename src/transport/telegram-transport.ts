@@ -6,7 +6,8 @@ export type BotTokenResolver = (botId: string) => string | Promise<string>;
 
 export type TelegramAttemptOutcome =
   | { kind: 'succeeded'; result: TelegramResult<TelegramMethod> }
-  // The coordinator validates this external value and converts seconds to milliseconds once.
+  // Telegram's raw `retry_after`, in seconds. Lane cooldowns will validate it and convert it to
+  // milliseconds once; until then the coordinator only reports a valid value to callers.
   | { kind: 'rate-limited'; retryAfterSeconds?: unknown }
   // Telegram definitely did not perform the call.
   | { kind: 'failed'; error: JobError }

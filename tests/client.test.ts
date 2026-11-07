@@ -70,6 +70,11 @@ test.each([
   ],
   // biome-ignore lint/suspicious/noSparseArray: the hole is the case under test.
   ['a sparse array', { chat_id: 1, text: 'x', entities: [, {}] }, 'payload.entities[0]'],
+  [
+    'an array with a toJSON hook',
+    { chat_id: 1, text: 'x', entities: Object.assign([], { toJSON: () => 'replaced' }) },
+    'payload.entities',
+  ],
   ['a circular reference', { chat_id: 1, nested: circular }, 'payload.nested.self'],
 ])('submit rejects a payload with %s', async (_case, payload, path) => {
   const client = openClient();

@@ -120,7 +120,9 @@ export interface BotJobProcessor {
 }
 
 /**
- * Configure queue-wide capacity and start claiming the bot's ordinary jobs.
+ * Configure queue-wide capacity and start claiming the bot's ordinary jobs. Capacity changes only
+ * after the worker's connection is ready, so a worker that cannot start leaves it unchanged, and
+ * claiming begins only after the capacity is set.
  *
  * @throws when Valkey is unreachable or rejects the capacity update; opened resources are released.
  */
@@ -147,8 +149,6 @@ export async function startBotJobProcessor(
   }
 
   try {
-    // Worker-local concurrency alone lets several workers exceed the bot's shared capacity.
-    await queues.ordinary.setGlobalConcurrency(options.ordinaryConcurrency);
     worker = new Worker<StoredJobData, SettledJobOutcome>(
       config.ordinaryQueueName,
       async (job) => {
@@ -156,10 +156,13 @@ export async function startBotJobProcessor(
           return await options.processJob(job);
         } catch (error) {
           options.onError(toError(error));
-          throw error;
+          // BullMQ stores this message as the job's failure reason, which job snapshots expose;
+          // the original error may carry details that do not belong in stored job data.
+          throw new Error('Unexpected processing error, reported to the worker error handler');
         }
       },
       {
+        autorun: false,
         connection: workerConnection,
         prefix: config.queuePrefix,
         concurrency: options.ordinaryConcurrency,
@@ -171,6 +174,10 @@ export async function startBotJobProcessor(
     );
     worker.on('error', options.onError);
     await worker.waitUntilReady();
+    // Worker-local concurrency alone lets several workers exceed the bot's shared capacity.
+    await queues.ordinary.setGlobalConcurrency(options.ordinaryConcurrency);
+    // run() settles only when the worker closes; claim-loop failures are emitted as `error`.
+    worker.run().catch((error: unknown) => options.onError(toError(error)));
   } catch (error) {
     await close().catch((cleanupError: unknown) => options.onError(toError(cleanupError)));
     throw error;

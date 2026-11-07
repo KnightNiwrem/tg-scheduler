@@ -13,8 +13,8 @@ their options at construction, which performs no I/O. The client connects on fir
 connects in `start()`.
 
 A definite 429 currently settles the job as `failed`, because lane cooldowns are not implemented.
-Schedules, the urgent lane, original-rank ordering, and the coordinator's recurrence and recovery
-functions reject with `UnimplementedError`.
+Schedules, the urgent lane, and the coordinator's recurrence and recovery functions reject with
+`UnimplementedError`. Original-rank ordering is not implemented yet.
 
 ## Intended flow
 

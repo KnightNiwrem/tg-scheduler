@@ -40,9 +40,14 @@ test('urgent bypass is not implemented yet', async () => {
   await worker.close();
 });
 
-test('start rejects promptly when Valkey is unreachable and can be retried', async () => {
+test('start rejects when Valkey is unreachable and can be retried', async () => {
   const worker = createSchedulerWorker(workerOptions());
-  await expect(worker.start()).rejects.toThrow();
-  await expect(worker.start()).rejects.not.toThrow('already started');
+  const firstFailure = await worker.start().then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  expect(firstFailure).toBeInstanceOf(Error);
+  // A retry reaches the backend again and fails the same way, not as an already-started worker.
+  await expect(worker.start()).rejects.toThrow((firstFailure as Error).message);
   await worker.close();
 });

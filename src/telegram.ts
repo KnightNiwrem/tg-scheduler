@@ -101,6 +101,10 @@ function jsonContents(
   path: string,
 ): { items: [string, unknown][] } | { problem: string } {
   if (Array.isArray(container)) {
+    // JSON.stringify would encode the hook's return value instead of the elements checked here.
+    if ('toJSON' in container) {
+      return { problem: `${path} must not define a toJSON hook` };
+    }
     // JSON encodes holes and undefined elements as null. `map` and `indexOf` skip holes.
     // biome-ignore lint/complexity/useIndexOf: findIndex visits holes, which must be rejected.
     const undefinedIndex = container.findIndex((item) => item === undefined);

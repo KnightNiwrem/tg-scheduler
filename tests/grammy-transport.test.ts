@@ -144,3 +144,16 @@ test('the token is resolved for each attempt, so rotation takes effect', async (
     '/bot1:second/sendMessage',
   ]);
 });
+
+test('an unknown method is sent once and its 404 is a definite failure', async () => {
+  const { outcome, calls } = await attemptWith(
+    () => telegramResponse({ ok: false, error_code: 404, description: 'Not Found' }, 404),
+    // Untyped callers can submit a misspelled method; only its name format is checked.
+    { method: 'sendMesage', payload: { chat_id: 1 } } as unknown as TelegramRequest,
+  );
+  expect(outcome).toEqual({
+    kind: 'failed',
+    error: { message: 'Not Found', telegramErrorCode: 404 },
+  });
+  expect(calls.map((call) => new URL(call.url).pathname)).toEqual([`/bot${token}/sendMesage`]);
+});

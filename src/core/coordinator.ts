@@ -19,7 +19,7 @@ const botPolicySchema = z
     ordinaryConcurrency: z.int().positive().default(1),
     urgentBypassEnabled: z.boolean().default(false),
   })
-  .default({ ordinaryConcurrency: 1, urgentBypassEnabled: false });
+  .prefault({});
 
 /** @throws {TypeError} when the policy has unknown or invalid settings. */
 export function parseBotPolicy(policy: unknown): Required<BotPolicy> {
@@ -60,16 +60,23 @@ export async function coordinateJob(
       return { state: 'failed', error: outcome.error };
     case 'uncertain':
       return { state: 'uncertain', error: outcome.error };
-    case 'rate-limited':
+    case 'rate-limited': {
       // Lane cooldowns are not implemented, and retrying without a pause would add to the flood
-      // wait, so a definite 429 currently settles the job as failed.
+      // wait, so a definite 429 currently settles the job as failed. A valid server delay is kept
+      // in the message so callers know when resubmitting is reasonable.
+      const { retryAfterSeconds } = outcome;
+      const retryHint =
+        Number.isSafeInteger(retryAfterSeconds) && Number(retryAfterSeconds) > 0
+          ? `; Telegram asked to retry after ${retryAfterSeconds} seconds`
+          : '';
       return {
         state: 'failed',
         error: {
-          message: 'Telegram rate-limited the call (429); automatic 429 retry is not implemented',
+          message: `Telegram rate-limited the call (429); automatic 429 retry is not implemented${retryHint}`,
           telegramErrorCode: 429,
         },
       };
+    }
   }
 }
 
