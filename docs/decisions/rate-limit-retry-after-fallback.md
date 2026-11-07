@@ -13,9 +13,9 @@ validates and converts it once:
 - If `parameters` or `retry_after` is absent, or the value is invalid, nonpositive or
   unrepresentable, `retryDelayMs = 60_000`.
 
-The fallback applies to both lanes and to every such 429. It never causes an immediate retry, never
-shortens a longer existing cooldown and never caps a valid server-specified delay. An integer too
-large to satisfy the bound, which would exceed 285,000 years, is treated as invalid.
+The fallback applies at either job priority and to every such 429. It never causes an immediate
+retry, never shortens a longer existing cooldown and never caps a valid server-specified delay. An
+integer too large to satisfy the bound, which would exceed 285,000 years, is treated as invalid.
 
 ## Context
 

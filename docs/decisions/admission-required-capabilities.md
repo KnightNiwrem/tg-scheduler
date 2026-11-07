@@ -1,17 +1,17 @@
 # Required admission capabilities
 
 - **Status:** invariant
-- **Human-confirmed:** no
+- **Human-confirmed:** yes
 
 ## Decision
 
-The scheduler provides configurable ordinary concurrency, a pause of ordinary admission after a
-Telegram 429, and an opt-in exception that lets time-sensitive calls proceed during that pause.
+The scheduler provides configurable per-bot concurrency, a shared pause of queued dispatch after a
+definite Telegram 429, and caller-selected normal or urgent priority for immediate, delayed and
+recurring jobs.
 
 ## Context
 
-The maintainer has observed that Telegram commonly permits callback and pre-checkout answers during
-ordinary flood waits, while traffic that ignores waits can worsen flood limiting. This observation
-does not guarantee that an urgent request will succeed or that a given concurrency is always safe.
-The provisional policies are [ordinary concurrency](admission-ordinary-concurrency.md),
-[lane cooldowns](rate-limit-lane-cooldowns.md) and the [urgent lane](admission-urgent-lane.md).
+Priority expresses which queued work should run next. Applications that need to send outside the
+scheduler's capacity and cooldown controls can call Telegram directly; those calls are outside the
+scheduler's guarantees. The policies are [bot concurrency](admission-bot-concurrency.md),
+[bot cooldown](rate-limit-bot-cooldown.md) and [job priorities](admission-job-priorities.md).

@@ -14,26 +14,33 @@ the worker initializes it in `start()`. Connections are
 [created and owned by the caller](decisions/backend-ioredis-driver.md).
 
 A definite 429 currently [settles the job as `failed`](decisions/rate-limit-interim-429-failure.md),
-because lane cooldowns are not implemented.
-Schedules, the urgent lane, and the coordinator's recovery function reject with
-`UnimplementedError`. Original-rank ordering is not implemented yet.
+because the bot cooldown is not implemented.
+Schedules, urgent-priority requests, and the coordinator's recovery function reject with
+`UnimplementedError`. Priority selection and due-job activation independent of dispatch capacity
+are not implemented yet; delayed promotion currently runs through BullMQ worker fetching.
 
 ## Intended flow
 
 ```mermaid
 flowchart LR
+  subgraph Library[Scheduler library]
+    Client[Client] -->|immediate jobs| Ready[Per-bot prioritized ready queue]
+    Client -->|delayed jobs / schedules| Scheduling[Durable scheduling]
+    Scheduling -->|due-job activation| Ready
+    Ready --> Admission[Shared capacity / cooldown]
+    Admission --> Worker[Worker / coordinator]
+    Worker -->|one admitted attempt| Transport[grammY dispatcher]
+    Transport -->|success / 429 / failure| Worker
+    Worker -->|definite 429: native requeue| Ready
+    Worker -->|succeeded / failed| Outcomes[Stored terminal outcomes]
+  end
   Application -->|submit / getJob / schedules| Client
-  Client --> Backend["BullMQ + Valkey"]
-  Backend -->|due jobs / recurrence / recovery| Worker
-  Worker --> Coordinator
-  Coordinator -->|admission / outcomes / cooldowns| Backend
-  Coordinator -->|one admitted attempt| Transport[grammY transport]
   Transport --> Telegram[Telegram Bot API]
-  Transport -->|success / 429 / failure| Coordinator
 ```
 
-The arrows describe the intended integration. Admission currently relies on BullMQ's queue-wide
-concurrency; cooldowns, recurrence, and recovery records are not connected yet.
+The arrows describe the intended integration; BullMQ and Valkey persist the queues and scheduling
+state. Admission currently relies on BullMQ's queue-wide concurrency; priorities, independent
+activation, cooldowns, recurrence, and recovery records are not connected yet.
 The producer may exit after acceptance; the operated worker supplies future execution opportunities.
 All participants for one bot must use the same backend namespace and stable bot identity.
 
@@ -70,7 +77,8 @@ until recurrence is implemented.
 
 - `submit(method, payload, options?)` returns a durable job handle after acceptance.
 - `getJob(jobId)` retrieves a stored snapshot or `undefined` when the job does not exist.
-- `createSchedule(method, payload, options)` returns a handle for an ordinary-lane recurring schedule.
+- `createSchedule(method, payload, options)` is scaffolded for fixed-interval recurrence and currently
+  rejects as unimplemented.
 - `disableSchedule(scheduleId)` stops future occurrences while preserving accepted jobs.
 - `client.close()` releases its BullMQ resources while leaving the supplied connection open;
   later operations reject.
@@ -93,8 +101,11 @@ errors that no operation awaits [to `onError`](decisions/api-unawaited-error-rep
 
 ## Coordination contract
 
-Workers configure [shared ordinary concurrency for their bot](decisions/admission-concurrency-set-by-worker-start.md)
-during startup. The urgent lane, lane cooldowns, 429 requeue, FIFO
-ordering by original due time, recurrence and recovery records are not implemented yet. The
+Workers configure [shared concurrency for their bot](decisions/admission-concurrency-set-by-worker-start.md)
+during startup. The current scaffold still names the capacity option `ordinaryConcurrency`, the
+submission selector `lane`, and a rejected worker placeholder `urgentBypassEnabled`; these do not
+implement the selected [job priorities](decisions/admission-job-priorities.md).
+Priorities, independent activation, the bot cooldown, 429 requeue, recurrence and recovery records
+are not implemented yet. The
 [architecture](architecture.md#decisions-by-area) links the decisions that define them, and
 [validation](validation.md) defines the evidence needed to claim they work.

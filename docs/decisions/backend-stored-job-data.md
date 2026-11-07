@@ -30,8 +30,9 @@ JSON. Data that fails the check settles the job as `failed` without sending a re
 ## Context
 
 Jobs are read by processes other than the one that wrote them, so reads cannot trust stored data.
-Admission ordering needs the [original due time](ordering-eligible-fifo.md). An unsettled attempt
-may already have reached Telegram, so BullMQ must never retry it on its own: `attempts: 1` prevents
+The original due time preserves the requested time exposed by job snapshots; it does not determine
+[ready-entry order](ordering-eligible-fifo.md). An unsettled attempt may already have reached
+Telegram, so BullMQ must never retry it on its own: `attempts: 1` prevents
 failed-job retries, and `UnrecoverableError` also suppresses them regardless of a job's attempt
 budget. [Stalled replay](recovery-stalled-replay-disabled.md) is disabled separately. Encoding the
 error in the native failure reason avoids a separate write that could outlive a lost claim.

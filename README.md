@@ -23,10 +23,10 @@ check after BullMQ's 30-second lock expires. The job then shows as `queued` unti
 it and records it as `failed`, which can take longer when the queue is busy. A `queued` state
 therefore does not prove that a request was never sent.
 
-A Telegram 429 currently settles the job as `failed`; durable 429 retry with lane cooldowns is not
-implemented yet, so the worker is not ready for production traffic. Recurring schedules and the
-urgent lane reject with `UnimplementedError`. Ordering by original due time and a runnable worker
-executable are also not implemented yet.
+A Telegram 429 currently settles the job as `failed`; durable 429 retry with a bot cooldown is not
+implemented yet, so the worker is not ready for production traffic. Recurring schedules and
+urgent-priority requests reject with `UnimplementedError`. Priority selection, due-job activation
+independent of dispatch capacity, and a runnable worker executable are also not implemented yet.
 
 See the [library overview](docs/library-overview.md) for the component flow and source map, and the
 [usage sketch](examples/library.ts) for the intended API.
@@ -38,10 +38,14 @@ The rest of the first implementation will add fixed-interval recurring schedules
 retrieval like other jobs. Disabling recurrence will stop future occurrences while preserving jobs
 already created.
 
-Producers and workers for a bot will pause ordinary admission on Telegram 429 responses and retry
-the affected job after the cooldown, keeping eligible jobs in original due-time order. An opt-in,
-bounded urgent lane will support time-sensitive callback and pre-checkout answers. A worker
-executable and Compose service will run the worker as a long-lived process.
+Immediate, delayed and recurring work will support normal or urgent
+[priority](docs/decisions/admission-job-priorities.md) through a
+[single dispatch queue per bot](docs/decisions/backend-single-dispatch-queue.md). Due jobs will join
+that queue while dispatch is busy, following [ready-entry ordering](docs/decisions/ordering-eligible-fifo.md).
+Telegram 429 responses will return the affected job to the queue using
+[native retry insertion](docs/decisions/rate-limit-native-429-requeue.md). The bot cooldown will pause
+claims for both priorities until it expires. A worker executable and Compose service will run the
+worker as a long-lived process.
 
 Durable new-file sending is a candidate for v1; its storage and API design remain open. The
 [current request contract](docs/decisions/api-durable-json-requests.md) covers the first slice.

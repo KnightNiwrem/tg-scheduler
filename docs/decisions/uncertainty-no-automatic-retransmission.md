@@ -11,7 +11,7 @@ continues. A caller may submit the call again explicitly, accepting the risk of 
 crash and stalled-job recovery must preserve this policy.
 
 Other terminal errors are also reported as `failed` without automatic retry. Definite 429 responses
-follow the separate [cooldown and retry policy](rate-limit-429-requeue-preserves-rank.md). A
+follow the separate [cooldown and retry policy](rate-limit-native-429-requeue.md). A
 configurable automatic retry mode for ambiguous attempts is outside the first slice.
 
 ## Context

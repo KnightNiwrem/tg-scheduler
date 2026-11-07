@@ -10,7 +10,7 @@ import { UnimplementedError } from '../unimplemented-error.ts';
 export interface BotPolicy {
   /** Shared ordinary capacity across workers; defaults to three. */
   ordinaryConcurrency?: number;
-  /** Defaults to false. The urgent lane adds at most one reservation. */
+  /** Legacy placeholder; enabling it currently rejects with UnimplementedError. */
   urgentBypassEnabled?: boolean;
 }
 
