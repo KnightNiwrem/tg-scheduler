@@ -1,5 +1,6 @@
 import { InputFile } from 'grammy';
-import { afterEach, expect, test } from 'vitest';
+import { Cluster, Redis } from 'ioredis';
+import { afterAll, afterEach, expect, test } from 'vitest';
 import {
   createSchedulerClient,
   type SchedulerClient,
@@ -8,12 +9,18 @@ import {
 } from '../src/index.ts';
 
 // Nothing listens on port 1. Validation failures must reject before any command is sent.
-const unreachableBackend = { valkeyUrl: 'redis://127.0.0.1:1' };
+const connection = new Redis('redis://127.0.0.1:1', {
+  lazyConnect: true,
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 1,
+});
+const unreachableBackend = { connection };
 const openClients: SchedulerClient[] = [];
 
 afterEach(async () => {
   await Promise.all(openClients.splice(0).map((client) => client.close()));
 });
+afterAll(() => connection.disconnect());
 
 function openClient(overrides: Partial<SchedulerClientOptions> = {}): SchedulerClient {
   const client = createSchedulerClient({
@@ -35,17 +42,39 @@ test.each([
     { backend: { ...unreachableBackend, queuePrefix: '' } },
     'Invalid queuePrefix',
   ],
-  ['an invalid Valkey URL', { backend: { valkeyUrl: 'https://valkey' } }, 'Invalid valkeyUrl'],
+  ['a missing connection', { backend: { connection: undefined as never } }, 'Invalid connection'],
+  [
+    'connection options instead of an instance',
+    { backend: { connection: { host: 'localhost' } as never } },
+    'Invalid connection',
+  ],
 ])('construction rejects %s', (_case, overrides, message) => {
   expect(() => openClient(overrides)).toThrow(new RegExp(`^${message}`));
 });
 
 test('construction and close perform no backend I/O', async () => {
   const errors: Error[] = [];
+  const originalOptions = { ...connection.options };
   const client = openClient({ onError: (error) => errors.push(error) });
   await client.close();
   await client.close();
   expect(errors).toEqual([]);
+  expect(connection.status).toBe('wait');
+  expect(connection.options).toEqual(originalOptions);
+});
+
+test('a caller-owned lazy cluster is accepted without opening it', async () => {
+  const cluster = new Cluster([{ host: '127.0.0.1', port: 1 }], {
+    lazyConnect: true,
+    redisOptions: { maxRetriesPerRequest: null },
+  });
+  try {
+    const client = openClient({ backend: { connection: cluster } });
+    await client.close();
+    expect(cluster.status).toBe('wait');
+  } finally {
+    cluster.disconnect();
+  }
 });
 
 class Upload {}

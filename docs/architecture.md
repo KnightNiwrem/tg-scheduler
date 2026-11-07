@@ -14,6 +14,8 @@ The scheduler queues [outgoing Bot API calls only](decisions/scope-outgoing-bot-
 Immediate, delayed and recurring work for a bot share
 [one coordination authority](decisions/scope-one-coordination-authority-per-bot.md).
 
+Clients and workers [borrow caller-owned ioredis connections](decisions/backend-ioredis-driver.md).
+
 | Component                        | Owns                                                                                                                 |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Client                           | Submit jobs/schedules, retrieve status/results, disable future recurrence                                            |
@@ -39,8 +41,7 @@ Immediate, delayed and recurring work for a bot share
   [Docker Compose with Valkey](decisions/local-docker-compose-valkey.md),
   [local Valkey persistence](decisions/local-valkey-persistence.md).
 - **Backend:** [BullMQ backed by Valkey](decisions/backend-bullmq-valkey.md),
-  [ioredis driver](decisions/backend-ioredis-driver.md),
-  [connection roles](decisions/backend-valkey-connection-roles.md),
+  [caller-owned ioredis connections](decisions/backend-ioredis-driver.md),
   [native primitives](decisions/backend-native-primitives.md),
   [logical state records](decisions/backend-logical-state-records.md),
   [queue per lane](decisions/backend-queue-per-lane.md),
@@ -51,7 +52,6 @@ Immediate, delayed and recurring work for a bot share
   [construction without I/O](decisions/api-construction-without-io.md),
   [unawaited error reporting](decisions/api-unawaited-error-reporting.md),
   [submit options](decisions/api-submit-options.md),
-  [submission acknowledgement](decisions/api-submit-acknowledgement.md),
   [durable JSON requests](decisions/api-durable-json-requests.md),
   [bot token handling](decisions/credentials-bot-token-handling.md),
   [visible job states](decisions/api-visible-job-states.md),

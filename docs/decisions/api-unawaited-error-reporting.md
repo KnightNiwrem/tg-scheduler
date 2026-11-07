@@ -6,8 +6,10 @@
 ## Decision
 
 Client and worker options accept `onError`, which receives errors that no operation awaits, such as
-Valkey reconnection failures and unexpected job processing errors. It defaults to `console.error`.
+BullMQ connection failures and unexpected job processing errors. It defaults to `console.error`.
 Processing errors reach `onError` in full, while the failure reason stored with the job is generic.
+The caller handles errors emitted directly by its supplied connection, including before BullMQ
+resources are initialized and after they close.
 
 ## Context
 

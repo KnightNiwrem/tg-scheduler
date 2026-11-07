@@ -1,21 +1,13 @@
-import { Queue, Worker } from 'bullmq';
+import { isRedisInstance, Queue, Worker } from 'bullmq';
+import type { Cluster, Redis } from 'ioredis';
 import { z } from 'zod';
 import { type ErrorHandler, toError } from '../error-handler.ts';
 import type { SettledJobOutcome } from '../jobs.ts';
 import type { BotJob, BotQueue, StoredJobData } from './stored-job.ts';
-import {
-  createValkeyConnection,
-  parseValkeyUrl,
-  type ValkeyConnectionRole,
-  type ValkeyUrl,
-} from './valkey-connection.ts';
 
 export interface BullMqBackendOptions {
-  /**
-   * `redis://` or `rediss://` URL with optional credentials and database number. Query parameters
-   * and fragments are rejected because ioredis would apply them as connection options.
-   */
-  valkeyUrl: string;
+  /** Caller-owned ioredis instance, passed to BullMQ. Closing the scheduler leaves it open. */
+  connection: Redis | Cluster;
   /**
    * Shared key namespace for producers and workers; bot identity supplies per-bot isolation.
    * Defaults to `tg-scheduler`.
@@ -29,11 +21,15 @@ const botIdSchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{1,64}$/, 'Expected 1-64 letters, digits, underscores, or hyphens');
 const queuePrefixSchema = z.string().regex(/^\S{1,100}$/, 'Expected 1-100 non-space characters');
+const connectionSchema = z.custom<Redis | Cluster>(
+  isRedisInstance,
+  'Expected an ioredis connection accepted by BullMQ',
+);
 
-/** Validated identity of one bot's queues; every producer and worker for the bot must match. */
+/** Validated queue identity and the caller-owned connection used to access one bot's queues. */
 export interface BotBackendConfig {
   botId: string;
-  valkeyUrl: ValkeyUrl;
+  connection: Redis | Cluster;
   queuePrefix: string;
   /** BullMQ queue names cannot contain `:`; bot IDs cannot contain `.`, so names stay distinct. */
   ordinaryQueueName: string;
@@ -42,7 +38,7 @@ export interface BotBackendConfig {
 /**
  * Validate backend options and derive the bot's queue identity without connecting.
  *
- * @throws {TypeError} when an option is invalid. Messages omit the Valkey URL and credentials.
+ * @throws {TypeError} when an option is invalid. Messages omit connection details and credentials.
  */
 export function resolveBotBackendConfig(
   botId: unknown,
@@ -56,52 +52,37 @@ export function resolveBotBackendConfig(
   if (!parsedPrefix.success) {
     throw new TypeError(`Invalid queuePrefix: ${z.prettifyError(parsedPrefix.error)}`);
   }
+  const parsedConnection = connectionSchema.safeParse(backend.connection);
+  if (!parsedConnection.success) {
+    throw new TypeError('Invalid connection: expected an ioredis instance accepted by BullMQ');
+  }
   return {
     botId: parsedBotId.data,
-    valkeyUrl: parseValkeyUrl(backend.valkeyUrl),
+    connection: parsedConnection.data,
     queuePrefix: parsedPrefix.data,
     ordinaryQueueName: `${parsedBotId.data}.ordinary`,
   };
 }
 
-function connectionName(config: BotBackendConfig, purpose: string): string {
-  return `${config.queuePrefix}:${config.botId}:${purpose}`;
-}
-
-/** Native BullMQ queues backed by Valkey, with the connection this module owns. */
+/** Native BullMQ queues borrowing the caller's connection. */
 export interface BotQueues {
   ordinary: BotQueue;
   close(): Promise<void>;
 }
 
 /**
- * Open the bot's queues on a dedicated connection. BullMQ begins connecting immediately; commands
- * report connection failures according to the connection role.
+ * Open the bot's queues using the caller's connection and its configured connection behavior.
  */
-export function openBotQueues(
-  config: BotBackendConfig,
-  role: ValkeyConnectionRole,
-  onError: ErrorHandler,
-): BotQueues {
-  const connection = createValkeyConnection({
-    valkeyUrl: config.valkeyUrl,
-    role,
-    connectionName: connectionName(config, `${role}-queue`),
-    onError,
-  });
+export function openBotQueues(config: BotBackendConfig, onError: ErrorHandler): BotQueues {
   const ordinary: BotQueue = new Queue<StoredJobData, SettledJobOutcome>(config.ordinaryQueueName, {
-    connection,
+    connection: config.connection,
     prefix: config.queuePrefix,
   });
   ordinary.on('error', onError);
   return {
     ordinary,
     async close() {
-      try {
-        await ordinary.close();
-      } finally {
-        connection.disconnect();
-      }
+      await ordinary.close();
     },
   };
 }
@@ -120,31 +101,36 @@ export interface BotJobProcessor {
   close(): Promise<void>;
 }
 
+function isClusterConnection(connection: Redis | Cluster): connection is Cluster {
+  return connection.isCluster;
+}
+
 /**
  * Configure queue-wide capacity and start claiming the bot's ordinary jobs. Capacity changes only
  * after the worker's connection is ready, so a worker that cannot start leaves it unchanged, and
  * claiming begins only after the capacity is set.
  *
- * @throws when Valkey is unreachable or rejects the capacity update; opened resources are released.
+ * @throws when BullMQ cannot start or configure capacity; owned resources are released.
  */
 export async function startBotJobProcessor(
   config: BotBackendConfig,
   options: BotJobProcessorOptions,
 ): Promise<BotJobProcessor> {
-  const queues = openBotQueues(config, 'producer', options.onError);
+  // BullMQ creates a blocking duplicate before rejecting an invalid retry setting. Check the
+  // same requirement first so a failed constructor cannot leave that duplicate behind.
+  const connectionOptions = isClusterConnection(config.connection)
+    ? config.connection.options.redisOptions
+    : config.connection.options;
+  if (connectionOptions?.maxRetriesPerRequest) {
+    throw new TypeError('Invalid worker connection: BullMQ requires maxRetriesPerRequest: null');
+  }
+  const queues = openBotQueues(config, options.onError);
   let worker: Worker<StoredJobData, SettledJobOutcome> | undefined;
-  const workerConnection = createValkeyConnection({
-    valkeyUrl: config.valkeyUrl,
-    role: 'worker',
-    connectionName: connectionName(config, 'worker'),
-    onError: options.onError,
-  });
 
   async function close(): Promise<void> {
     try {
       await worker?.close();
     } finally {
-      workerConnection.disconnect();
       await queues.close();
     }
   }
@@ -164,7 +150,7 @@ export async function startBotJobProcessor(
       },
       {
         autorun: false,
-        connection: workerConnection,
+        connection: config.connection,
         prefix: config.queuePrefix,
         concurrency: options.ordinaryConcurrency,
         // Default stalled recovery would run an abandoned attempt again and could retransmit a

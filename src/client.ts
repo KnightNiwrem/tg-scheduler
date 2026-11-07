@@ -15,7 +15,8 @@ export interface SchedulerClientOptions extends SharedBotOptions {
 
 export interface SchedulerClient {
   /**
-   * Durably accept immediate or delayed work. Resolves once Valkey has stored the job.
+   * Queue immediate or delayed work. Resolves once BullMQ acknowledges submission.
+   * Crash durability depends on the configured store.
    *
    * @throws {TypeError} when the method, payload, or options cannot be stored for later replay.
    */
@@ -32,7 +33,10 @@ export interface SchedulerClient {
   ): Promise<ScheduleHandle>;
   /** Stop future occurrence creation while preserving jobs already materialized. */
   disableSchedule(scheduleId: string): Promise<void>;
-  /** Release the client's backend connection. Later operations reject. */
+  /**
+   * Close this client's queue resources, leaving the caller's connection open.
+   * Later operations reject.
+   */
   close(): Promise<void>;
 }
 
@@ -44,7 +48,8 @@ const submitOptionsSchema = z
   .optional();
 
 /**
- * Construction validates options but performs no I/O; the backend connection opens on first use.
+ * Construction validates options but performs no I/O; BullMQ is initialized on first use.
+ * The caller owns the supplied connection and controls its connection behavior.
  * Schedules and the urgent lane are not implemented yet and reject with `UnimplementedError`.
  *
  * @throws {TypeError} when the bot identity or backend options are invalid.
@@ -57,7 +62,7 @@ export function createSchedulerClient(options: SchedulerClientOptions): Schedule
 
   function openedQueues(): BotQueues {
     if (closing !== undefined) throw new Error('SchedulerClient is closed');
-    queues ??= openBotQueues(config, 'producer', onError);
+    queues ??= openBotQueues(config, onError);
     return queues;
   }
 

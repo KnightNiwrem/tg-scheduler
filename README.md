@@ -68,8 +68,17 @@ an abrupt crash can still lose roughly one second of writes, and volume deletion
 removes the data. See [Valkey persistence](https://valkey.io/topics/persistence/) for the persistence
 tradeoffs. This configuration is for local testing.
 
+Job durability depends on the store's persistence, replication, and recovery configuration.
+
+Create and configure an ioredis instance in the application, then pass it as `backend.connection`
+to each client or worker. Connections may be shared or separate. Callers own their settings and
+lifetime; closing scheduler resources leaves the supplied connection open. Worker connections must
+satisfy [BullMQ's connection requirements](https://docs.bullmq.io/guide/connections), including
+`maxRetriesPerRequest: null`. See the [connection decision](docs/decisions/backend-ioredis-driver.md)
+and [usage sketch](examples/library.ts).
+
 For deployments beyond local testing, operators configure Valkey authentication and network
-restrictions, and include the credentials in `backend.valkeyUrl` for every client and worker.
+restrictions, and supply credentials through their ioredis connection configuration.
 Prefer `rediss://` with a trusted server certificate, or an equivalent encrypted transport, to
 protect credentials and job data in transit. See [Valkey security](https://valkey.io/topics/security/).
 Backend access permits reading and modifying jobs in the accessible namespace.
@@ -98,12 +107,13 @@ available without a separate assertion or mocking library. Bun remains the defau
 
 `bun run test:all` requires all three runtimes to be installed. All dependencies come from `bun.lock`;
 the Deno test command uses the installed local packages without creating a separate Deno lockfile.
-The suite covers option and payload validation, the producer and worker connection settings, and
+The suite covers option and payload validation, caller-owned connection handling, and
 grammY outcome classification against a fake Bot API. Set `VALKEY_TEST_URL` to also run the
 client and worker against real Valkey with a fake Telegram transport: immediate and delayed
 delivery, visible outcomes, shared concurrency across workers, graceful worker shutdown, and
-connection release. Each test uses a unique key prefix and deletes its own data; use a local test
-instance. Without this variable, backend integration tests are skipped. CI starts Valkey and
+BullMQ connection cleanup while supplied clients stay usable. Each test uses a unique key prefix
+and deletes its own data; use a local test instance. Without this variable, backend integration
+tests are skipped. CI starts Valkey and
 enables them for every runtime.
 
 ```sh
