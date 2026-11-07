@@ -107,6 +107,11 @@ test.each([
     },
     'payload.entities[0]',
   ],
+  [
+    'a maximum-length sparse array',
+    { chat_id: 1, text: 'x', entities: new Array(2 ** 32 - 1) },
+    'payload.entities[0]',
+  ],
   ['a circular reference', { chat_id: 1, nested: circular }, 'payload.nested.self'],
 ])('submit rejects a payload with %s', async (_case, payload, path) => {
   const client = openClient();

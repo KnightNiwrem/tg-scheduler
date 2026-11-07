@@ -112,13 +112,8 @@ function jsonContents(
   if (definesToJsonHook(container)) {
     return { problem: `${path} must not define a toJSON hook` };
   }
-  // Array indices come from the non-configurable `length`, so a caller-defined `keys` method
-  // cannot skip elements; `Object.keys` lists the object properties JSON encodes.
-  const keys = isArray
-    ? Array.from({ length: container.length }, (_, index) => String(index))
-    : Object.keys(container);
   const items: [string, unknown][] = [];
-  for (const key of keys) {
+  for (const key of jsonKeys(container)) {
     const itemPath = isArray ? `${path}[${key}]` : `${path}.${key}`;
     const descriptor = Object.getOwnPropertyDescriptor(container, key);
     // JSON encodes holes and undefined elements as null.
@@ -133,6 +128,20 @@ function jsonContents(
     items.push([itemPath, descriptor.value]);
   }
   return { items };
+}
+
+/**
+ * Yield the keys JSON encodes, one at a time so an invalid element of a large sparse array is
+ * rejected without first listing every index. Array indices come from the non-configurable
+ * `length`, so a caller-defined `keys` method cannot skip elements.
+ */
+function* jsonKeys(container: object): Generator<string> {
+  if (!Array.isArray(container)) {
+    yield* Object.keys(container);
+    return;
+  }
+  const { length } = container;
+  for (let index = 0; index < length; index++) yield String(index);
 }
 
 /**
