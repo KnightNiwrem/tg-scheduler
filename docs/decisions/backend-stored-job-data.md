@@ -7,8 +7,10 @@
 
 BullMQ job data is `{ request, originalDueAtMs }`. The original due time is stored explicitly rather
 than derived from BullMQ's timestamp and delay. A settled outcome is stored as the BullMQ return
-value. Job data and outcomes are revalidated when read back. Jobs use BullMQ's sequential IDs and
-`attempts: 1`.
+value. Job data and outcomes are checked against their stored shape when read back; the payload is
+checked to be a JSON object but is not parsed again as a submission, because BullMQ has already
+parsed it from JSON. Data that fails the check settles the job as `failed` without sending a request,
+and `getJob` rejects with a `TypeError`. Jobs use BullMQ's sequential IDs and `attempts: 1`.
 
 ## Context
 

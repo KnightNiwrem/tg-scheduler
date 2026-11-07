@@ -16,13 +16,16 @@ timeout and a connection name that appears in `CLIENT LIST`.
 - **Worker connections** keep reconnecting and queue commands offline: `maxRetriesPerRequest: null`
   and the offline queue enabled.
 
-A Valkey URL must use `redis://` or `rediss://`, include a host, and may include a database number.
-URLs with query strings or fragments are rejected, and validation messages omit the URL and its
-credentials.
+A Valkey URL must use `redis://` or `rediss://`, include a host, and may include a path holding a
+decimal database number. URLs with query strings or fragments are rejected, and validation messages
+omit the URL and its credentials. The URL is validated once, when the client or worker resolves its
+backend options; connection code accepts only the validated `ValkeyUrl` type. Database-number
+ranges are left to Valkey.
 
 ## Context
 
 Producers serve callers that are awaiting `submit`, while BullMQ requires the worker settings for
 blocking worker connections. ioredis applies URL query parameters as client options, so a query
-such as `?maxRetriesPerRequest=0` could silently override the role settings. Connection names let
-operators attribute connections.
+such as `?maxRetriesPerRequest=0` could silently override the role settings. ioredis reads the
+database number with `parseInt` and skips `SELECT` when the result is not a number, so a path such
+as `/foo` would silently use database 0. Connection names let operators attribute connections.

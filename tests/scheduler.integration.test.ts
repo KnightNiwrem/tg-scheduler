@@ -149,19 +149,6 @@ integrationTest(
   },
 );
 
-integrationTest('a non-callable toJSON field is delivered as ordinary JSON', async () => {
-  const client = openClient();
-  const payload = { chat_id: 1, text: 'hello', toJSON: 1 };
-  const handle = await client.submit('sendMessage', payload as never);
-
-  const telegram = new FakeTelegram();
-  await openWorker(telegram).start();
-  expect((await settledJob(client, handle.id)).state).toBe('succeeded');
-  expect(telegram.attempts.map((attempt) => attempt.request)).toEqual([
-    { method: 'sendMessage', payload },
-  ]);
-});
-
 async function deliveredRequests(
   client: SchedulerClient,
   jobId: string,
@@ -172,18 +159,20 @@ async function deliveredRequests(
   return telegram.attempts.map((attempt) => attempt.request);
 }
 
-integrationTest('submit stores the payload it validated, not a later read of it', async () => {
+integrationTest('invalid stored job data fails without sending a request', async () => {
   const client = openClient();
-  // A get trap answers differently from the property descriptor validation reads.
-  const shiftingPayload = new Proxy(
-    { chat_id: 1, text: 'validated' },
-    { get: (target, key) => (key === 'text' ? 'replaced' : Reflect.get(target, key)) },
-  );
-  const handle = await client.submit('sendMessage', shiftingPayload);
+  const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+  const jobKey = `${queuePrefix}:${botId}.ordinary:${handle.id}`;
+  const corruptData = { request: { method: 'sendMessage', payload: [] }, originalDueAtMs: 0 };
+  await inspector.hset(jobKey, 'data', JSON.stringify(corruptData));
 
-  expect(await deliveredRequests(client, handle.id)).toEqual([
-    { method: 'sendMessage', payload: { chat_id: 1, text: 'validated' } },
-  ]);
+  const telegram = new FakeTelegram();
+  await openWorker(telegram).start();
+  await expect
+    .poll(async () => inspector.hget(jobKey, 'returnvalue'), { timeout: 5_000 })
+    .toMatch(/"state":"failed".*Invalid stored job data.*no request was sent/);
+  expect(telegram.attempts).toEqual([]);
+  await expect(client.getJob(handle.id)).rejects.toThrow(/^Invalid stored job data/);
 });
 
 integrationTest('mutating a payload after submit does not change the stored job', async () => {

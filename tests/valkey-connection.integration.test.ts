@@ -1,7 +1,7 @@
 import { Queue, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import { expect, test } from 'vitest';
-import { createValkeyConnection } from '../src/backend/valkey-connection.ts';
+import { createValkeyConnection, parseValkeyUrl } from '../src/backend/valkey-connection.ts';
 
 const valkeyTestUrl = process.env.VALKEY_TEST_URL;
 const integrationTest = test.runIf(Boolean(valkeyTestUrl));
@@ -30,13 +30,13 @@ integrationTest(
     const inspector = new Redis(valkeyTestUrl, { maxRetriesPerRequest: 1 });
     inspector.on('error', onError);
     const producerConnection = createValkeyConnection({
-      valkeyUrl: valkeyTestUrl,
+      valkeyUrl: parseValkeyUrl(valkeyTestUrl),
       role: 'producer',
       connectionName: `${queueName}-producer`,
       onError,
     });
     const workerConnection = createValkeyConnection({
-      valkeyUrl: valkeyTestUrl,
+      valkeyUrl: parseValkeyUrl(valkeyTestUrl),
       role: 'worker',
       connectionName: `${queueName}-worker`,
       onError,

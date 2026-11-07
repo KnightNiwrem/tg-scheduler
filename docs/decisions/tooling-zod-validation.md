@@ -8,11 +8,13 @@
 Zod schemas parse structured input at the [trust boundaries](validation-trust-boundaries.md):
 `botId`, `queuePrefix`, Valkey URLs, submit options, the worker policy, and job data and outcomes
 read back from Valkey. Function options such as `resolveBotToken` are checked with `typeof` where
-they are required. Payloads use the hand-written
-[durable JSON request](api-durable-json-requests.md) parser instead of Zod.
+they are required. Submitted payloads use the hand-written
+[durable JSON request](api-durable-json-requests.md) parser instead of Zod, and a payload read back
+from Valkey is checked in place with `z.custom` rather than rebuilt by an object or record schema.
 
 ## Context
 
-Zod covers fixed-shape input concisely and reports every problem in one message. Zod schemas read
-property values, which runs getters. The payload parser instead reads property descriptors and
-checks for `toJSON` hooks, which value-based schemas do not detect.
+Zod covers fixed-shape input concisely and reports every problem in one message. The payload parser
+names the first unsupported value by its path, such as `payload.photo` for an `InputFile`, which is
+the error a caller needs. Zod object, record and JSON schemas rebuild objects and drop own
+`__proto__` keys, which would alter a payload Telegram should receive as submitted.
