@@ -47,6 +47,7 @@ Clients and workers [borrow caller-owned ioredis connections](decisions/backend-
   [queue per lane](decisions/backend-queue-per-lane.md),
   [bot identity and key namespace](decisions/backend-bot-id-and-key-namespace.md),
   [stored job data](decisions/backend-stored-job-data.md),
+  [native terminal outcomes](decisions/backend-native-job-outcomes.md),
   [finished-job retention](decisions/backend-finished-job-retention.md).
 - **Public API:**
   [construction without I/O](decisions/api-construction-without-io.md),

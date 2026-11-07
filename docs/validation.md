@@ -19,8 +19,9 @@ The [repository checks](../README.md#commands) cover option and durable-payload 
 caller-owned connection handling, and grammY outcome classification against a fake Bot API.
 With `VALKEY_TEST_URL` set, as in CI, they also run the client and worker against Valkey with a
 fake Telegram transport. Those tests cover immediate delivery after producer exit, delayed activation,
-visible errors without retries, accepted-effect/lost-response failures, stored-outcome compatibility,
-shared ordinary capacity across workers, graceful shutdown, caller-connection reuse and option
+visible errors without retries, native terminal states, indefinite default retention,
+accepted-effect/lost-response failures, stored-outcome compatibility, shared ordinary capacity
+across workers, graceful shutdown, caller-connection reuse and option
 preservation, startup failure cleanup, and release of BullMQ's blocking connection.
 Stalled-worker recovery, Valkey restart, and the 429, ordering, urgent-lane, and recurrence criteria
 are not yet covered.
@@ -92,6 +93,11 @@ acceptance validates the documented Compose configuration and its recovery limit
   stalled-job recovery must not silently violate this policy.
 - A definite 429 retries after the relevant pause; permanent API errors and eventual successes
   remain visible to callers.
+- New terminal successes enter BullMQ's completed set and terminal failures enter its failed set,
+  with structured Telegram errors preserved through `getJob` and no automatic retransmission.
+  Completed failure outcomes from existing storage remain readable. Default retention keeps both
+  terminal states without automatic removal. Configured age/count cleanup follows the
+  [native lazy policy](decisions/backend-finished-job-retention.md).
 - Recurrence stays anchored to planned times. Missed, not-yet-created occurrences coalesce to the
   latest one; occurrence creation is unique and advances atomically to the next future time.
 - Coalescing does not discard accepted queued jobs. Disabling recurrence stops future creation
