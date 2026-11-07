@@ -84,6 +84,20 @@ test.each([
     },
     'payload.reply_markup',
   ],
+  [
+    'a getter, without running it',
+    {
+      chat_id: 1,
+      text: 'x',
+      reply_markup: Object.defineProperty({}, 'inline_keyboard', {
+        enumerable: true,
+        get() {
+          throw new Error('getter ran');
+        },
+      }),
+    },
+    'payload.reply_markup.inline_keyboard',
+  ],
   ['a circular reference', { chat_id: 1, nested: circular }, 'payload.nested.self'],
 ])('submit rejects a payload with %s', async (_case, payload, path) => {
   const client = openClient();

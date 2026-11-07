@@ -13,5 +13,6 @@
 
 ## Context
 
-BullMQ rejects `:` in queue names. Excluding `.` from bot IDs keeps per-lane queue names distinct. Telegram's numeric bot IDs satisfy the rule. Encoding arbitrary IDs would lift the
-restriction at the cost of less readable keys.
+BullMQ rejects `:` in queue names. Excluding `.` from bot IDs keeps per-lane queue names distinct.
+Telegram's numeric bot IDs satisfy the rule. Encoding arbitrary IDs would lift the restriction at
+the cost of less readable keys.

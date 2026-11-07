@@ -1,12 +1,12 @@
 # Outbound queue and scheduler architecture
 
-This document describes the target design: how the scheduler's components fit together. Each
-active technical constraint is recorded once in the [decisions folder](decisions/) with its status
-and context; this document links to those decisions instead of restating them. The [project overview](../README.md) describes
-current capabilities, and the [library overview](library-overview.md) maps source modules to these
-components and lists operations that still reject as unimplemented. [Validation](validation.md)
-defines acceptance criteria, and [library research](library-research.md) records supporting
-dependency findings.
+This document describes the target design: how the scheduler's components fit together. Each active
+technical constraint is recorded once in the [decisions folder](decisions/) with its status and
+context; this document links to those decisions instead of restating them. The [project
+overview](../README.md) describes current capabilities, and the [library
+overview](library-overview.md) maps source modules to these components and lists operations that
+still reject as unimplemented. [Validation](validation.md) defines acceptance criteria, and [library
+research](library-research.md) records supporting dependency findings.
 
 ## Scope and ownership
 
@@ -33,7 +33,8 @@ Immediate, delayed and recurring work for a bot share
   [Zod validation](decisions/tooling-zod-validation.md).
 - **Testing:** [Vitest on every runtime](decisions/testing-vitest-cross-runtime.md),
   [opt-in Valkey integration tests](decisions/testing-valkey-integration-opt-in.md).
-- **Deployment and local stack:** [operated Bun workers](decisions/deployment-operated-bun-worker.md),
+- **Deployment and local stack:**
+  [operated Bun workers](decisions/deployment-operated-bun-worker.md),
   [Docker Compose with Valkey](decisions/local-docker-compose-valkey.md),
   [local Valkey persistence](decisions/local-valkey-persistence.md).
 - **Backend:** [BullMQ backed by Valkey](decisions/backend-bullmq-valkey.md),
@@ -45,7 +46,8 @@ Immediate, delayed and recurring work for a bot share
   [bot identity and key namespace](decisions/backend-bot-id-and-key-namespace.md),
   [stored job data](decisions/backend-stored-job-data.md),
   [finished-job retention](decisions/backend-finished-job-retention.md).
-- **Public API:** [job and schedule operations](decisions/api-explicit-job-and-schedule-operations.md),
+- **Public API:**
+  [job and schedule operations](decisions/api-explicit-job-and-schedule-operations.md),
   [direct producer connections](decisions/api-producer-direct-backend-connection.md),
   [construction without I/O](decisions/api-construction-without-io.md),
   [unawaited error reporting](decisions/api-unawaited-error-reporting.md),

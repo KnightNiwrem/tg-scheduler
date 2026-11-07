@@ -9,8 +9,10 @@ Producers and workers create unconnected ioredis clients (`lazyConnect`) with a 
 timeout and a connection name that appears in `CLIENT LIST`.
 
 - **Producer connections** fail commands promptly when the connection is down:
-  `maxRetriesPerRequest: 1` and no offline queue. There is no command timeout, so a command sent on
-  an open connection that stops responding waits until ioredis detects the disconnection.
+  `maxRetriesPerRequest: 1` and no offline queue. There is no command timeout. ioredis's default
+  TCP keepalive (after 30 seconds idle) lets the operating system eventually detect a dead peer, but
+  a command sent to a Valkey server that stops responding while its TCP connection stays alive
+  waits without bound.
 - **Worker connections** keep reconnecting and queue commands offline: `maxRetriesPerRequest: null`
   and the offline queue enabled.
 

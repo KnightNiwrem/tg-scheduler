@@ -95,32 +95,54 @@ function findNonDurableValue(
   }
 }
 
-/** List the values JSON would encode inside an array or plain object, keyed by their paths. */
+/**
+ * List the values JSON would encode inside an array or plain object, keyed by their paths. Values
+ * are read from property descriptors, so no getter or hook runs during validation.
+ */
 function jsonContents(
   container: object,
   path: string,
 ): { items: [string, unknown][] } | { problem: string } {
-  // JSON.stringify calls a toJSON hook even when it is non-enumerable or inherited, and would
-  // encode its return value instead of the contents checked here.
-  if ('toJSON' in container) {
-    return { problem: `${path} must not define a toJSON hook` };
-  }
-  if (Array.isArray(container)) {
-    // JSON encodes holes and undefined elements as null. `map` and `indexOf` skip holes.
-    // biome-ignore lint/complexity/useIndexOf: findIndex visits holes, which must be rejected.
-    const undefinedIndex = container.findIndex((item) => item === undefined);
-    if (undefinedIndex !== -1)
-      return { problem: `${path}[${undefinedIndex}] must not be undefined` };
-    return { items: container.map((item, index) => [`${path}[${index}]`, item]) };
-  }
-  if (!isPlainObject(container)) {
+  const isArray = Array.isArray(container);
+  if (!isArray && !isPlainObject(container)) {
     return {
       problem: `${path} must be plain JSON; InputFile uploads and other class instances are not supported`,
     };
   }
-  return {
-    items: Object.entries(container)
-      .filter(([, item]) => item !== undefined)
-      .map(([key, item]) => [`${path}.${key}`, item]),
-  };
+  if (definesToJsonHook(container)) {
+    return { problem: `${path} must not define a toJSON hook` };
+  }
+  // `keys()` includes array holes; `Object.keys` lists the object properties JSON encodes.
+  const keys = isArray ? Array.from(container.keys(), String) : Object.keys(container);
+  const items: [string, unknown][] = [];
+  for (const key of keys) {
+    const itemPath = isArray ? `${path}[${key}]` : `${path}.${key}`;
+    const descriptor = Object.getOwnPropertyDescriptor(container, key);
+    // JSON encodes holes and undefined elements as null.
+    if (descriptor === undefined) return { problem: `${itemPath} must not be undefined` };
+    if (!('value' in descriptor)) {
+      return { problem: `${itemPath} must be a data property, not a getter or setter` };
+    }
+    if (descriptor.value === undefined) {
+      if (isArray) return { problem: `${itemPath} must not be undefined` };
+      continue;
+    }
+    items.push([itemPath, descriptor.value]);
+  }
+  return { items };
+}
+
+/**
+ * JSON.stringify calls a callable `toJSON`, even a non-enumerable or inherited one, and encodes its
+ * result instead of the contents checked here. An accessor counts as a hook because reading it runs
+ * code; a non-callable data value is encoded like any other property.
+ */
+function definesToJsonHook(container: object): boolean {
+  for (let owner: object | null = container; owner !== null; owner = Object.getPrototypeOf(owner)) {
+    const descriptor = Object.getOwnPropertyDescriptor(owner, 'toJSON');
+    if (descriptor !== undefined) {
+      return !('value' in descriptor) || typeof descriptor.value === 'function';
+    }
+  }
+  return false;
 }
