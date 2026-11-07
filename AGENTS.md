@@ -7,8 +7,9 @@
   behavior. Human readability is a top priority. Names also carry semantics that LLMs use to infer
   intent and relationships, so treat them as contracts. Use consistent vocabulary, include units or
   state when relevant, and rename identifiers when their meaning changes.
-- Make types, invariants, side effects, and error handling explicit. Validate external input at
-  boundaries; do not hide problems with unchecked assertions or suppressions.
+- Make types, invariants, side effects, and error handling explicit. Parse external input at the
+  [trust boundaries](docs/decisions/validation-trust-boundaries.md); do not hide problems with
+  unchecked assertions or suppressions.
 - Keep changes scoped to the task and preserve unrelated work. Test observable behavior and relevant
   edge cases, and update documentation when behavior or workflows change.
 - Test behavior promised by project code through its interfaces. Keep standalone dependency

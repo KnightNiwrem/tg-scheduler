@@ -5,7 +5,7 @@ with grammY, BullMQ, and Valkey. Bun is the primary development and worker runti
 
 The library currently supports the basic delivery path for immediate and one-time delayed jobs:
 
-- `submit` validates that a payload is durable JSON and stores it in Valkey through BullMQ.
+- `submit` parses a payload as durable JSON and stores the parsed copy in Valkey through BullMQ.
 - A library worker claims due jobs within an ordinary concurrency shared by every worker for the
   bot, and makes one grammY call per job.
 - `getJob` reports the job as `queued`, `in-flight`, `succeeded`, `failed`, or `uncertain`, with

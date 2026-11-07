@@ -162,6 +162,52 @@ integrationTest('a non-callable toJSON field is delivered as ordinary JSON', asy
   ]);
 });
 
+async function deliveredRequests(
+  client: SchedulerClient,
+  jobId: string,
+): Promise<TelegramRequest[]> {
+  const telegram = new FakeTelegram();
+  await openWorker(telegram).start();
+  expect((await settledJob(client, jobId)).state).toBe('succeeded');
+  return telegram.attempts.map((attempt) => attempt.request);
+}
+
+integrationTest('submit stores the payload it validated, not a later read of it', async () => {
+  const client = openClient();
+  // A get trap answers differently from the property descriptor validation reads.
+  const shiftingPayload = new Proxy(
+    { chat_id: 1, text: 'validated' },
+    { get: (target, key) => (key === 'text' ? 'replaced' : Reflect.get(target, key)) },
+  );
+  const handle = await client.submit('sendMessage', shiftingPayload);
+
+  expect(await deliveredRequests(client, handle.id)).toEqual([
+    { method: 'sendMessage', payload: { chat_id: 1, text: 'validated' } },
+  ]);
+});
+
+integrationTest('mutating a payload after submit does not change the stored job', async () => {
+  const client = openClient();
+  const payload = { chat_id: 1, text: 'submitted' };
+  const pendingHandle = client.submit('sendMessage', payload);
+  payload.text = 'mutated';
+  const handle = await pendingHandle;
+
+  expect(await deliveredRequests(client, handle.id)).toEqual([
+    { method: 'sendMessage', payload: { chat_id: 1, text: 'submitted' } },
+  ]);
+});
+
+integrationTest('an own __proto__ property is delivered as ordinary JSON', async () => {
+  const client = openClient();
+  const payloadJson = '{"chat_id":1,"text":"hello","__proto__":{"nested":true}}';
+  const handle = await client.submit('sendMessage', JSON.parse(payloadJson));
+
+  const [delivered] = await deliveredRequests(client, handle.id);
+  expect(JSON.stringify(delivered?.payload)).toBe(payloadJson);
+  expect(Object.getPrototypeOf(delivered?.payload)).toBe(Object.prototype);
+});
+
 integrationTest('delayed work stays queued until its run time', async () => {
   const client = openClient();
   const runAtMs = Date.now() + 500;
