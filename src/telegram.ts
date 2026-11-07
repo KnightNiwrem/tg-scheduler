@@ -95,31 +95,66 @@ function findNonDurableValue(
   }
 }
 
-/** List the values JSON would encode inside an array or plain object, keyed by their paths. */
+/**
+ * List the values JSON would encode inside an array or plain object, keyed by their paths. Values
+ * are read from property descriptors, so no getter or hook runs during validation.
+ */
 function jsonContents(
   container: object,
   path: string,
 ): { items: [string, unknown][] } | { problem: string } {
-  if (Array.isArray(container)) {
-    // JSON.stringify would encode the hook's return value instead of the elements checked here.
-    if ('toJSON' in container) {
-      return { problem: `${path} must not define a toJSON hook` };
-    }
-    // JSON encodes holes and undefined elements as null. `map` and `indexOf` skip holes.
-    // biome-ignore lint/complexity/useIndexOf: findIndex visits holes, which must be rejected.
-    const undefinedIndex = container.findIndex((item) => item === undefined);
-    if (undefinedIndex !== -1)
-      return { problem: `${path}[${undefinedIndex}] must not be undefined` };
-    return { items: container.map((item, index) => [`${path}[${index}]`, item]) };
-  }
-  if (!isPlainObject(container)) {
+  const isArray = Array.isArray(container);
+  if (!isArray && !isPlainObject(container)) {
     return {
       problem: `${path} must be plain JSON; InputFile uploads and other class instances are not supported`,
     };
   }
-  return {
-    items: Object.entries(container)
-      .filter(([, item]) => item !== undefined)
-      .map(([key, item]) => [`${path}.${key}`, item]),
-  };
+  if (definesToJsonHook(container)) {
+    return { problem: `${path} must not define a toJSON hook` };
+  }
+  const items: [string, unknown][] = [];
+  for (const key of jsonKeys(container)) {
+    const itemPath = isArray ? `${path}[${key}]` : `${path}.${key}`;
+    const descriptor = Object.getOwnPropertyDescriptor(container, key);
+    // JSON encodes holes and undefined elements as null.
+    if (descriptor === undefined) return { problem: `${itemPath} must not be undefined` };
+    if (!('value' in descriptor)) {
+      return { problem: `${itemPath} must be a data property, not a getter or setter` };
+    }
+    if (descriptor.value === undefined) {
+      if (isArray) return { problem: `${itemPath} must not be undefined` };
+      continue;
+    }
+    items.push([itemPath, descriptor.value]);
+  }
+  return { items };
+}
+
+/**
+ * Yield the keys JSON encodes, one at a time so an invalid element of a large sparse array is
+ * rejected without first listing every index. Array indices come from the non-configurable
+ * `length`, so a caller-defined `keys` method cannot skip elements.
+ */
+function* jsonKeys(container: object): Generator<string> {
+  if (!Array.isArray(container)) {
+    yield* Object.keys(container);
+    return;
+  }
+  const { length } = container;
+  for (let index = 0; index < length; index++) yield String(index);
+}
+
+/**
+ * JSON.stringify calls a callable `toJSON`, even a non-enumerable or inherited one, and encodes its
+ * result instead of the contents checked here. An accessor counts as a hook because reading it runs
+ * code; a non-callable data value is encoded like any other property.
+ */
+function definesToJsonHook(container: object): boolean {
+  for (let owner: object | null = container; owner !== null; owner = Object.getPrototypeOf(owner)) {
+    const descriptor = Object.getOwnPropertyDescriptor(owner, 'toJSON');
+    if (descriptor !== undefined) {
+      return !('value' in descriptor) || typeof descriptor.value === 'function';
+    }
+  }
+  return false;
 }

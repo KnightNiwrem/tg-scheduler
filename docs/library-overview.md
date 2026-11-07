@@ -12,7 +12,8 @@ basic delivery path for immediate and one-time delayed jobs. Client and worker f
 their options at construction, which performs no I/O. The client connects on first use; the worker
 connects in `start()`.
 
-A definite 429 currently settles the job as `failed`, because lane cooldowns are not implemented.
+A definite 429 currently [settles the job as `failed`](decisions/rate-limit-interim-429-failure.md),
+because lane cooldowns are not implemented.
 Schedules, the urgent lane, and the coordinator's recurrence and recovery functions reject with
 `UnimplementedError`. Original-rank ordering is not implemented yet.
 
@@ -57,7 +58,8 @@ All participants for one bot must use the same backend namespace and stable bot 
 
 These are modules within the selected BullMQ implementation. Storage transitions and native worker
 wiring remain provisional until selected-version integration establishes the required semantics.
-Environment access, runtime permissions, process signals, and process exit belong in executables.
+Environment access, runtime permissions, process signals, and process exit
+[belong in executables](decisions/runtime-bun-primary-node-deno-compatible.md).
 
 ## Consumer API
 
@@ -76,41 +78,23 @@ until recurrence is implemented.
 
 Public payload and result types come from grammY. The Telegram Bot API lifecycle methods `logOut`
 and `close` remain part of the method surface; update polling and webhook management are excluded.
-File IDs remain supported string references. Submission rejects payloads that JSON storage would
-drop or alter, including `InputFile` uploads, class instances, dates, functions, bigints, and
-non-finite numbers; object properties set to `undefined` are omitted like absent options. A job
-snapshot pairs each method with its result type: checking
-`state === 'succeeded'` and `method === 'sendMessage'` exposes the returned message's fields.
+Submission accepts only [durable JSON requests](decisions/api-durable-json-requests.md), which
+include file IDs but not new uploads. A job snapshot pairs each method with its result type:
+checking `state === 'succeeded'` and `method === 'sendMessage'` exposes the returned message's
+fields.
 
-Job states are `queued`, `in-flight`, `succeeded`, `failed`, and `uncertain`. `failed` means
-Telegram definitely did not perform the call. Network failures, Telegram server errors, and
-attempts interrupted after admission remain visible as `uncertain`, without automatic
-retransmission. A worker that stops mid-attempt leaves its job `in-flight` until a running worker's
-stalled-job check, after BullMQ's 30-second lock expires, records it as `uncertain`. The selected
-design keeps a definite 429 queued for durable retry after the relevant cooldown; until cooldowns
-are implemented, it settles as `failed` with error code 429.
-
-Clients and workers report asynchronous errors that no operation awaits, such as Valkey reconnection
-failures, to `onError`, which defaults to `console.error`.
+Job states and their meanings are defined in [visible job
+states](decisions/api-visible-job-states.md). A worker that stops mid-attempt leaves its job
+`in-flight`, then `queued`, until a running worker [records it as
+`uncertain`](decisions/recovery-stalled-replay-disabled.md), so `queued` does not prove that a
+request was never sent. Clients and workers report asynchronous
+errors that no operation awaits [to `onError`](decisions/api-unawaited-error-reporting.md).
 
 ## Coordination contract
 
-Ordinary concurrency defaults to one and is shared across workers for a bot. Urgent bypass defaults
-to disabled; when enabled it adds one slot, restricted to callback and pre-checkout answers. Each
-lane owns a separate cooldown that can only extend. Eligible ordinary jobs retain their original
-due-time and submission rank across 429 retries.
-
-All application timestamps use Unix epoch milliseconds; durations use milliseconds. The transport
-reports Telegram's external `retry_after` value in seconds for the coordinator to validate and
-convert once. Missing or invalid delays use the selected thirty-second fallback.
-
-Recurrence stays anchored to planned times. After downtime, missed occurrences that were never
-materialized coalesce to the latest one. Already accepted jobs remain intact, including when their
-schedule is disabled. Recovery fences stale attempts and preserves uncertainty instead of silently
-replaying ambiguous sends.
-
-Shared ordinary concurrency is implemented through BullMQ's queue-wide limit; every worker for a bot
-must use the same policy because the last worker started sets it. The remaining behaviors in this
-section are not implemented yet. The [architecture](architecture.md) defines their full semantics,
-and [validation](validation.md) defines the evidence needed to claim they work. Bun is the primary
-runtime; Node.js and Deno remain library compatibility targets.
+Shared ordinary concurrency is implemented through BullMQ's queue-wide limit, which
+[the last worker started sets](decisions/admission-concurrency-set-by-worker-start.md), so every
+worker for a bot must use the same policy. The urgent lane, lane cooldowns, 429 requeue, FIFO
+ordering by original due time, recurrence and recovery records are not implemented yet. The
+[architecture](architecture.md#decisions-by-area) links the decisions that define them, and
+[validation](validation.md) defines the evidence needed to claim they work.

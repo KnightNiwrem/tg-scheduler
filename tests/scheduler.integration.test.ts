@@ -149,6 +149,19 @@ integrationTest(
   },
 );
 
+integrationTest('a non-callable toJSON field is delivered as ordinary JSON', async () => {
+  const client = openClient();
+  const payload = { chat_id: 1, text: 'hello', toJSON: 1 };
+  const handle = await client.submit('sendMessage', payload as never);
+
+  const telegram = new FakeTelegram();
+  await openWorker(telegram).start();
+  expect((await settledJob(client, handle.id)).state).toBe('succeeded');
+  expect(telegram.attempts.map((attempt) => attempt.request)).toEqual([
+    { method: 'sendMessage', payload },
+  ]);
+});
+
 integrationTest('delayed work stays queued until its run time', async () => {
   const client = openClient();
   const runAtMs = Date.now() + 500;

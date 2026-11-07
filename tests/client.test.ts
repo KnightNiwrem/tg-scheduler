@@ -75,6 +75,43 @@ test.each([
     { chat_id: 1, text: 'x', entities: Object.assign([], { toJSON: () => 'replaced' }) },
     'payload.entities',
   ],
+  [
+    'an object with a non-enumerable toJSON hook',
+    {
+      chat_id: 1,
+      text: 'x',
+      reply_markup: Object.defineProperty({}, 'toJSON', { value: () => 'replaced' }),
+    },
+    'payload.reply_markup',
+  ],
+  [
+    'a getter, without running it',
+    {
+      chat_id: 1,
+      text: 'x',
+      reply_markup: Object.defineProperty({}, 'inline_keyboard', {
+        enumerable: true,
+        get() {
+          throw new Error('getter ran');
+        },
+      }),
+    },
+    'payload.reply_markup.inline_keyboard',
+  ],
+  [
+    'an array whose keys method hides an element',
+    {
+      chat_id: 1,
+      text: 'x',
+      entities: Object.assign([undefined], { keys: () => [][Symbol.iterator]() }),
+    },
+    'payload.entities[0]',
+  ],
+  [
+    'a maximum-length sparse array',
+    { chat_id: 1, text: 'x', entities: new Array(2 ** 32 - 1) },
+    'payload.entities[0]',
+  ],
   ['a circular reference', { chat_id: 1, nested: circular }, 'payload.nested.self'],
 ])('submit rejects a payload with %s', async (_case, payload, path) => {
   const client = openClient();
