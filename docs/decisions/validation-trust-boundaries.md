@@ -5,11 +5,20 @@
 
 ## Decision
 
-A value from outside the library is parsed where it enters, into a new value the library owns. Code
-after that point uses the parsed value, never the original. Values that the library's own modules
-produce carry their invariants in their types and are not revalidated when passed between modules.
+A value from outside the library is validated once, where it enters. A value the calling
+application supplies is parsed into a new value the library owns, and code after that point uses
+the parsed value, never the original. Data read back from Valkey has just been parsed from JSON by
+BullMQ and is referenced by no other code, so it is checked in place without another copy. Values
+that the library's own modules produce carry their invariants in their types and are not
+revalidated when passed between modules.
 
-Untrusted values enter at these boundaries:
+Validation rejects input that would be lost, altered or misapplied, such as a payload that JSON
+storage cannot replay or a URL whose query would override connection settings. It does not treat
+the calling application, which runs in the same process, as hostile, so it does not defend against
+values built to defeat it, such as proxies, getters or `toJSON` hooks; those behave as ordinary
+reads.
+
+Values from outside the library enter at these boundaries:
 
 - client and worker options, at construction;
 - `submit` and `getJob` arguments, including the payload, which is copied as described in
@@ -25,8 +34,9 @@ Invalid input is reported as a `TypeError` whose message omits credentials. The
 
 ## Context
 
-A value that is checked but then passed on unchanged stays under the caller's control. Getters,
-`toJSON` hooks, proxies and later mutation can all make the value the library uses differ from the
-value it checked. Parsing into a new value closes all of these paths together instead of one
-finding at a time. Valkey is a boundary too: other processes, and possibly other library versions,
-write the data read back from it.
+A value that is checked but then passed on unchanged stays under the caller's control, and later
+mutation can make the value the library uses differ from the one it checked. Copying a
+caller-supplied value closes that gap with one copy. The caller writes the code that builds its own
+values, so guarding against values built to defeat the parser adds code and tests without protecting
+a real security boundary. Valkey is a boundary too: other processes, and possibly other library
+versions, write the data read back from it.

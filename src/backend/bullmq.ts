@@ -7,6 +7,7 @@ import {
   createValkeyConnection,
   parseValkeyUrl,
   type ValkeyConnectionRole,
+  type ValkeyUrl,
 } from './valkey-connection.ts';
 
 export interface BullMqBackendOptions {
@@ -32,7 +33,7 @@ const queuePrefixSchema = z.string().regex(/^\S{1,100}$/, 'Expected 1-100 non-sp
 /** Validated identity of one bot's queues; every producer and worker for the bot must match. */
 export interface BotBackendConfig {
   botId: string;
-  valkeyUrl: string;
+  valkeyUrl: ValkeyUrl;
   queuePrefix: string;
   /** BullMQ queue names cannot contain `:`; bot IDs cannot contain `.`, so names stay distinct. */
   ordinaryQueueName: string;
