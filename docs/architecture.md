@@ -48,7 +48,6 @@ Immediate, delayed and recurring work for a bot share
   [stored job data](decisions/backend-stored-job-data.md),
   [finished-job retention](decisions/backend-finished-job-retention.md).
 - **Public API:**
-  [job and schedule operations](decisions/api-explicit-job-and-schedule-operations.md),
   [construction without I/O](decisions/api-construction-without-io.md),
   [unawaited error reporting](decisions/api-unawaited-error-reporting.md),
   [submit options](decisions/api-submit-options.md),
