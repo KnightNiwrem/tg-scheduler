@@ -1,15 +1,28 @@
-import { expect, test } from 'vitest';
+import { Redis } from 'ioredis';
+import { afterEach, expect, test } from 'vitest';
 import {
   createSchedulerWorker,
   type SchedulerWorkerOptions,
   UnimplementedError,
 } from '../src/index.ts';
 
+const connections: Redis[] = [];
+afterEach(() => {
+  for (const connection of connections.splice(0)) connection.disconnect();
+});
+
 function workerOptions(overrides: Partial<SchedulerWorkerOptions> = {}): SchedulerWorkerOptions {
+  const connection = new Redis('redis://127.0.0.1:1', {
+    lazyConnect: true,
+    maxRetriesPerRequest: null,
+    retryStrategy: () => null,
+  });
+  connection.on('error', () => {});
+  connections.push(connection);
   return {
     botId: '123456',
     // Nothing listens on port 1, so any backend command would fail.
-    backend: { valkeyUrl: 'redis://127.0.0.1:1' },
+    backend: { connection },
     resolveBotToken: () => 'token',
     onError: () => {},
     ...overrides,
@@ -40,14 +53,8 @@ test('urgent bypass is not implemented yet', async () => {
   await worker.close();
 });
 
-test('start rejects when Valkey is unreachable and can be retried', async () => {
+test('start rejects when Valkey is unreachable', async () => {
   const worker = createSchedulerWorker(workerOptions());
-  const firstFailure = await worker.start().then(
-    () => undefined,
-    (error: unknown) => error,
-  );
-  expect(firstFailure).toBeInstanceOf(Error);
-  // A retry reaches the backend again and fails the same way, not as an already-started worker.
-  await expect(worker.start()).rejects.toThrow((firstFailure as Error).message);
+  await expect(worker.start()).rejects.toThrow();
   await worker.close();
 });

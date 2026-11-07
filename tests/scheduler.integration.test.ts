@@ -1,4 +1,4 @@
-import { Redis } from 'ioredis';
+import { Redis, type RedisOptions } from 'ioredis';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import {
   type BotPolicy,
@@ -22,6 +22,7 @@ let queuePrefix: string;
 let inspector: Redis;
 let backendErrors: Error[];
 const ownedResources: { close(): Promise<void> }[] = [];
+const connections: Redis[] = [];
 
 beforeEach(() => {
   if (!valkeyTestUrl) return;
@@ -38,6 +39,7 @@ afterEach(async () => {
     await deleteKeys(`${queuePrefix}:*`);
     expect(backendErrors).toEqual([]);
   } finally {
+    for (const connection of connections.splice(0)) connection.disconnect();
     inspector.disconnect();
   }
 });
@@ -51,23 +53,42 @@ async function deleteKeys(pattern: string): Promise<void> {
   } while (cursor !== '0');
 }
 
-function sharedOptions() {
+function openConnection(options: RedisOptions = {}): Redis {
   if (!valkeyTestUrl) throw new Error('VALKEY_TEST_URL is required');
+  const connection = new Redis(valkeyTestUrl, {
+    lazyConnect: true,
+    maxRetriesPerRequest: null,
+    connectionName: `${queuePrefix}:caller:${connections.length}`,
+    ...options,
+  });
+  connection.on('error', (error: Error) => backendErrors.push(error));
+  connections.push(connection);
+  return connection;
+}
+
+function sharedOptions(connection: Redis) {
   return {
     botId,
-    backend: { valkeyUrl: valkeyTestUrl, queuePrefix },
+    backend: { connection, queuePrefix },
     onError: (error: Error) => backendErrors.push(error),
   };
 }
 
-function openClient(): SchedulerClient {
-  const client = createSchedulerClient(sharedOptions());
+function openClient(connection = openConnection()): SchedulerClient {
+  const client = createSchedulerClient(sharedOptions(connection));
   ownedResources.push(client);
   return client;
 }
 
-function openWorker(transport: TelegramTransport, policy?: BotPolicy): SchedulerWorker {
-  const worker = createSchedulerWorkerWithTransport({ ...sharedOptions(), policy }, transport);
+function openWorker(
+  transport: TelegramTransport,
+  policy?: BotPolicy,
+  connection = openConnection(),
+): SchedulerWorker {
+  const worker = createSchedulerWorkerWithTransport(
+    { ...sharedOptions(connection), policy },
+    transport,
+  );
   ownedResources.push(worker);
   return worker;
 }
@@ -124,11 +145,13 @@ async function settledJob(client: SchedulerClient, jobId: string): Promise<JobSn
 integrationTest(
   'accepted work runs after the producer exits and its result is retrievable',
   async () => {
-    const producer = openClient();
+    const connection = openConnection();
+    const producer = openClient(connection);
     const beforeSubmitMs = Date.now();
     const handle = await producer.submit('sendMessage', { chat_id: 1, text: 'hello' });
     const afterSubmitMs = Date.now();
     await producer.close();
+    connection.disconnect();
     expect(handle.method).toBe('sendMessage');
 
     const telegram = new FakeTelegram();
@@ -434,26 +457,132 @@ integrationTest('getJob returns undefined for an unknown job', async () => {
   expect(await openClient().getJob('does-not-exist')).toBeUndefined();
 });
 
-integrationTest('closing the client and worker releases every backend connection', async () => {
+integrationTest(
+  'closing a client leaves its shared connection and other clients usable',
+  async () => {
+    const connection = openConnection({
+      maxRetriesPerRequest: 2,
+      connectTimeout: 1_357,
+      enableOfflineQueue: false,
+    });
+    const originalOptions = { ...connection.options };
+    const originalErrorListeners = connection.listenerCount('error');
+    const first = openClient(connection);
+    const second = openClient(connection);
+    const handle = await first.submit('sendMessage', { chat_id: 1, text: 'hello' });
+    await first.close();
+
+    expect(await connection.ping()).toBe('PONG');
+    expect(await second.getJob(handle.id)).toMatchObject({ state: 'queued' });
+    expect(connection.options).toEqual(originalOptions);
+    await second.close();
+    expect(connection.listenerCount('error')).toBe(originalErrorListeners);
+    expect(await connection.ping()).toBe('PONG');
+  },
+);
+
+integrationTest.each([null, 0])(
+  'a worker shares and preserves a caller connection with maxRetriesPerRequest: %s',
+  async (maxRetriesPerRequest) => {
+    const connection = openConnection({ maxRetriesPerRequest });
+    const originalOptions = { ...connection.options };
+    const originalErrorListeners = connection.listenerCount('error');
+    const telegram = new FakeTelegram();
+    const client = openClient(connection);
+    const worker = openWorker(telegram, undefined, connection);
+    await worker.start();
+    const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+    await settledJob(client, handle.id);
+    await worker.close();
+
+    expect(await connection.ping()).toBe('PONG');
+    expect((await client.getJob(handle.id))?.state).toBe('succeeded');
+    expect(connection.options).toEqual(originalOptions);
+    await client.close();
+    expect(connection.listenerCount('error')).toBe(originalErrorListeners);
+  },
+);
+
+integrationTest(
+  'the same worker can start and deliver work after the caller reconnects',
+  async () => {
+    const connection = openConnection();
+    await connection.connect();
+    connection.disconnect();
+    await expect.poll(() => connection.status).toBe('end');
+    const originalErrorListeners = connection.listenerCount('error');
+    const telegram = new FakeTelegram();
+    const worker = openWorker(telegram, undefined, connection);
+
+    await expect(worker.start()).rejects.toThrow('Connection is closed.');
+    for (const error of backendErrors.splice(0)) {
+      expect(error.message).toBe('Connection is closed.');
+    }
+    expect(connection.listenerCount('error')).toBe(originalErrorListeners);
+    expect(telegram.attempts).toEqual([]);
+
+    await connection.connect();
+    await worker.start();
+    const client = openClient();
+    const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+    expect((await settledJob(client, handle.id)).state).toBe('succeeded');
+    expect(telegram.attempts.map((attempt) => attempt.request)).toEqual([
+      { method: 'sendMessage', payload: { chat_id: 1, text: 'hello' } },
+    ]);
+    await worker.close();
+    expect(connection.listenerCount('error')).toBe(originalErrorListeners);
+    expect(await connection.ping()).toBe('PONG');
+  },
+);
+
+integrationTest('a failed start preserves the caller connection and can be retried', async () => {
+  const connection = openConnection({ maxRetriesPerRequest: 1 });
+  await connection.connect();
+  const originalErrorListeners = connection.listenerCount('error');
   const telegram = new FakeTelegram();
-  const worker = openWorker(telegram);
+  const worker = openWorker(telegram, undefined, connection);
+  await expect(worker.start()).rejects.toThrow('maxRetriesPerRequest');
+  expect(await connection.ping()).toBe('PONG');
+  expect(connection.options.maxRetriesPerRequest).toBe(1);
+  expect(connection.listenerCount('error')).toBe(originalErrorListeners);
+
+  // The caller corrects the setting; the scheduler never changes the supplied options.
+  connection.options.maxRetriesPerRequest = null;
   await worker.start();
   const client = openClient();
   const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
-  await settledJob(client, handle.id);
-
-  const ownedClientIds = async () => {
-    const clients = await inspector.client('LIST');
-    if (typeof clients !== 'string') throw new Error('Expected a Valkey client list');
-    return clients
-      .trim()
-      .split('\n')
-      .filter((line) => line.match(/\bname=([^ ]*)/)?.[1]?.startsWith(`${queuePrefix}:`));
-  };
-  // Client queue, worker queue, worker, and the worker's duplicated blocking connection.
-  expect(await ownedClientIds()).toHaveLength(4);
-  await Promise.all([client.close(), worker.close()]);
-  await expect.poll(ownedClientIds).toEqual([]);
-  await expect(client.getJob(handle.id)).rejects.toThrow('SchedulerClient is closed');
-  await expect(worker.start()).rejects.toThrow('SchedulerWorker is closed');
+  expect((await settledJob(client, handle.id)).state).toBe('succeeded');
+  await worker.close();
+  expect(await connection.ping()).toBe('PONG');
 });
+
+integrationTest(
+  'shutdown releases BullMQ connections and retains the supplied connections',
+  async () => {
+    const workerConnection = openConnection();
+    const clientConnection = openConnection();
+    const telegram = new FakeTelegram();
+    const worker = openWorker(telegram, undefined, workerConnection);
+    await worker.start();
+    const client = openClient(clientConnection);
+    const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+    await settledJob(client, handle.id);
+
+    const ownedClientIds = async () => {
+      const clients = await inspector.client('LIST');
+      if (typeof clients !== 'string') throw new Error('Expected a Valkey client list');
+      return clients
+        .trim()
+        .split('\n')
+        .filter((line) => line.match(/\bname=([^ ]*)/)?.[1]?.startsWith(`${queuePrefix}:`));
+    };
+    // Two caller-owned connections and BullMQ's duplicated blocking connection.
+    expect(await ownedClientIds()).toHaveLength(3);
+    await Promise.all([client.close(), worker.close()]);
+    await expect.poll(ownedClientIds).toHaveLength(2);
+    expect(await workerConnection.ping()).toBe('PONG');
+    expect(await clientConnection.ping()).toBe('PONG');
+    await expect(client.getJob(handle.id)).rejects.toThrow('SchedulerClient is closed');
+    await expect(worker.start()).rejects.toThrow('SchedulerWorker is closed');
+  },
+);

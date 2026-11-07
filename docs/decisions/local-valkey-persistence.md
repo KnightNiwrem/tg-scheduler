@@ -13,6 +13,6 @@ host loopback (`VALKEY_PORT`, default `6379`) and requires no authentication.
 
 Eviction would silently delete queued jobs. `appendfsync everysec` can lose about the last second
 of acknowledged writes if Valkey or its host fails before the next fsync; see
-[submission acknowledgement](api-submit-acknowledgement.md). Loopback access without
+[Valkey persistence](https://valkey.io/topics/persistence/). Loopback access without
 authentication is only suitable for local testing, and operators supply the production Valkey
 configuration.

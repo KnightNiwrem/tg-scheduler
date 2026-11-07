@@ -6,6 +6,7 @@ import {
   type SharedBotOptions,
 } from 'tg-scheduler';
 
+// The caller supplies backend.connection and closes it after all clients and workers finish.
 // Usage sketch: submission and retrieval, plus a worker that is configured but not started here.
 // Schedule calls reject until recurrence is implemented, so they run after retrieval.
 export async function submitAndInspect(options: SchedulerClientOptions) {

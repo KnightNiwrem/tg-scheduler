@@ -9,8 +9,9 @@ coordinate producers and workers for the same bot.
 
 The library entry point is [`src/index.ts`](../src/index.ts). The client and worker implement the
 basic delivery path for immediate and one-time delayed jobs. Client and worker factories validate
-their options at construction, which performs no I/O. The client connects on first use; the worker
-connects in `start()`.
+their options at construction, which performs no I/O. The client initializes BullMQ on first use;
+the worker initializes it in `start()`. Connections are
+[created and owned by the caller](decisions/backend-ioredis-driver.md).
 
 A definite 429 currently [settles the job as `failed`](decisions/rate-limit-interim-429-failure.md),
 because lane cooldowns are not implemented.
@@ -43,14 +44,13 @@ All participants for one bot must use the same backend namespace and stable bot 
 | [`src/index.ts`](../src/index.ts)                                               | Public library exports; importing them performs no startup or environment access.                        |
 | [`src/client.ts`](../src/client.ts)                                             | Producer configuration, submission, job retrieval, schedule creation/disable, and connection cleanup.    |
 | [`src/worker.ts`](../src/worker.ts)                                             | Worker configuration and lifecycle, including shared per-bot policy and token resolution.                |
-| [`src/shared-bot-options.ts`](../src/shared-bot-options.ts)                     | Bot identity and backend options that every producer and worker for a bot must share.                    |
+| [`src/shared-bot-options.ts`](../src/shared-bot-options.ts)                     | Bot identity, caller-owned connections, and the queue namespace used by clients and workers.             |
 | [`src/jobs.ts`](../src/jobs.ts)                                                 | Job handles, earliest execution time, delivery lane, visible job outcomes, and settled outcomes.         |
 | [`src/schedules.ts`](../src/schedules.ts)                                       | Schedule handles, fixed intervals, and planned-time anchors.                                             |
 | [`src/telegram.ts`](../src/telegram.ts)                                         | grammY-derived method, payload, and result types, and durable JSON request validation at submission.     |
 | [`src/core/coordinator.ts`](../src/core/coordinator.ts)                         | Admission, ordering, cooldowns, outcome settlement, occurrence creation, and abandoned-attempt recovery. |
-| [`src/backend/bullmq.ts`](../src/backend/bullmq.ts)                             | Per-bot queue identity, BullMQ queues and worker, shared capacity, and owned connection lifecycle.       |
+| [`src/backend/bullmq.ts`](../src/backend/bullmq.ts)                             | Queue identity, caller-owned connections, shared capacity, and BullMQ resource cleanup.                  |
 | [`src/backend/stored-job.ts`](../src/backend/stored-job.ts)                     | Stored job data and outcomes, enqueueing, and mapping BullMQ job states to job snapshots.                |
-| [`src/backend/valkey-connection.ts`](../src/backend/valkey-connection.ts)       | Valkey URL validation and producer/worker connection settings for injected BullMQ clients.               |
 | [`src/transport/telegram-transport.ts`](../src/transport/telegram-transport.ts) | Transport interface used by the coordinator: one attempt, its classified outcome, and token resolution.  |
 | [`src/transport/grammy.ts`](../src/transport/grammy.ts)                         | grammY implementation of the transport, without an automatic retry layer.                                |
 | [`src/error-handler.ts`](../src/error-handler.ts)                               | Reporting for asynchronous errors that no operation awaits.                                              |
@@ -72,7 +72,8 @@ until recurrence is implemented.
 - `getJob(jobId)` retrieves a stored snapshot or `undefined` when the job does not exist.
 - `createSchedule(method, payload, options)` returns a handle for an ordinary-lane recurring schedule.
 - `disableSchedule(scheduleId)` stops future occurrences while preserving accepted jobs.
-- `client.close()` releases a client's owned backend resources; later operations reject.
+- `client.close()` releases its BullMQ resources while leaving the supplied connection open;
+  later operations reject.
 - `worker.start()` begins due-work activation; `worker.close()` stops admission, drains active
   work, and releases its resources.
 
