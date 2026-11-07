@@ -1,17 +1,18 @@
-# Zod validates options and stored data
+# Zod parses structured options and stored data
 
 - **Status:** provisional
 - **Human-confirmed:** no
 
 ## Decision
 
-Zod schemas validate `botId`, `queuePrefix`, Valkey URLs, submit options, the worker policy, and job
-data and outcomes read back from Valkey. Function options such as `resolveBotToken` are checked with
-`typeof` where they are required, and payloads use the [durable JSON
-request](api-durable-json-requests.md) validator. Invalid input is reported as a `TypeError` whose
-message omits credentials.
+Zod schemas parse structured input at the [trust boundaries](validation-trust-boundaries.md):
+`botId`, `queuePrefix`, Valkey URLs, submit options, the worker policy, and job data and outcomes
+read back from Valkey. Function options such as `resolveBotToken` are checked with `typeof` where
+they are required. Payloads use the hand-written
+[durable JSON request](api-durable-json-requests.md) parser instead of Zod.
 
 ## Context
 
-Options come from callers and stored data comes from other processes, so both are external input
-validated at the library boundary.
+Zod covers fixed-shape input concisely and reports every problem in one message. Zod schemas read
+property values, which runs getters. The payload parser instead reads property descriptors and
+checks for `toJSON` hooks, which value-based schemas do not detect.

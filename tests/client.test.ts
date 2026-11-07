@@ -49,6 +49,50 @@ test('construction and close perform no backend I/O', async () => {
 });
 
 class Upload {}
+
+/**
+ * Reports an infinite length and a valid element at every index, so only the length check ends
+ * parsing. Parsing is synchronous, so no test timeout could interrupt it; after a bounded number of
+ * element reads the proxy throws instead, failing the test rather than hanging the suite.
+ */
+function endlessArrayProxy(): unknown[] {
+  const maxElementReads = 1_000;
+  let elementReads = 0;
+  return new Proxy([], {
+    get: (target, key) => (key === 'length' ? Number.POSITIVE_INFINITY : Reflect.get(target, key)),
+    getOwnPropertyDescriptor: (target, key) => {
+      if (typeof key !== 'string' || !/^\d+$/.test(key)) {
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      }
+      elementReads++;
+      if (elementReads > maxElementReads) {
+        throw new Error(`Parser read more than ${maxElementReads} elements of an endless array`);
+      }
+      return { value: 1, writable: true, enumerable: true, configurable: true };
+    },
+  });
+}
+/**
+ * Answers every prototype read with itself, so only the chain depth bound ends the `toJSON` hook
+ * search. After a bounded number of reads the proxy throws instead, failing the test rather than
+ * hanging the suite.
+ */
+function selfPrototypeArrayProxy(): unknown[] {
+  const maxPrototypeReads = 1_000;
+  let prototypeReads = 0;
+  const proxy: unknown[] = new Proxy([], {
+    getPrototypeOf: () => {
+      prototypeReads++;
+      if (prototypeReads > maxPrototypeReads) {
+        throw new Error(
+          `Parser read more than ${maxPrototypeReads} prototypes of an endless chain`,
+        );
+      }
+      return proxy;
+    },
+  });
+  return proxy;
+}
 const circular: Record<string, unknown> = { text: 'loop' };
 circular.self = circular;
 
@@ -111,6 +155,16 @@ test.each([
     'a maximum-length sparse array',
     { chat_id: 1, text: 'x', entities: new Array(2 ** 32 - 1) },
     'payload.entities[0]',
+  ],
+  [
+    'an array proxy reporting an endless length',
+    { chat_id: 1, text: 'x', entities: endlessArrayProxy() },
+    'payload.entities',
+  ],
+  [
+    'an array proxy that is its own prototype',
+    { chat_id: 1, text: 'x', entities: selfPrototypeArrayProxy() },
+    'payload.entities',
   ],
   ['a circular reference', { chat_id: 1, nested: circular }, 'payload.nested.self'],
 ])('submit rejects a payload with %s', async (_case, payload, path) => {

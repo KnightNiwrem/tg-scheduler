@@ -14,10 +14,16 @@ as strings.
 dates, functions, bigints, symbols, non-finite numbers, undefined or missing array elements,
 getter or setter properties, arrays or objects with a callable or accessor `toJSON` (including a
 non-enumerable or inherited one) and circular references. A `toJSON` field holding a plain JSON
-value is an ordinary property. Validation reads property descriptors, so it runs no caller code.
+value is an ordinary property.
 
-Proxies are not supported payload values. JavaScript cannot reliably detect them, so validation does
-not reject them; a proxy may be rejected or may serialize differently from what was validated.
+Parsing builds a new payload from the property descriptors it reads, and `submit` stores that copy
+rather than the caller's object. The stored payload is therefore exactly the validated one, and
+changing the caller's object after `submit` returns has no effect on it. For a payload without
+proxies, parsing runs no caller code. A proxy's traps run while parsing reads it, so a proxy can
+cause a rejection or throw its own error, but it cannot make the stored payload differ from the
+parsed copy. An array proxy reporting a `length` that no array can have, and a value whose
+prototype chain is deeper than 100, are rejected, so parsing always ends. The copy holds `-0` as
+`0`, as JSON encodes it.
 
 Method names must look like Bot API methods and exclude inbound methods. They are not checked
 against the full method list, and per-method fields are left to Telegram.
@@ -28,8 +34,15 @@ New-file upload persistence is outside the first slice.
 
 Another process sends the request after the submitter may have exited, so callbacks, closures,
 process-local streams and temporary files cannot be replayed reliably and are rejected at submission
-rather than accepted unreliably. Getters and `toJSON` hooks run code when the payload is serialized,
-so the stored payload could differ from the validated one. A proxy can answer every property read
-differently, so no inspection of it guarantees what serialization will encode. Checking names
-against the full method list would duplicate grammY's types at runtime; Telegram rejects an unknown
-method with a definite 404, which is reported as `failed`.
+rather than accepted unreliably. Getters and `toJSON` hooks would encode differently from the
+contents that parsing reads, so they are rejected rather than copied silently.
+
+Storing a copy follows the [trust-boundary rule](validation-trust-boundaries.md). A proxy can answer
+every read differently, so inspecting the caller's object guarantees nothing about a later
+serialization of it. `util.types.isProxy` from `node:util` could reject proxies on Bun, Node.js and
+Deno, but it is not ECMAScript, and rejecting proxies would still leave the stored value dependent
+on BullMQ serializing the job before the caller could mutate it. Copying covers both cases and needs
+no runtime-specific API.
+
+Checking names against the full method list would duplicate grammY's types at runtime; Telegram
+rejects an unknown method with a definite 404, which is reported as `failed`.

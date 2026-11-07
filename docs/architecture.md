@@ -31,6 +31,7 @@ Immediate, delayed and recurring work for a bot share
   [Biome](decisions/tooling-biome.md),
   [Bun dependency management](decisions/tooling-bun-dependency-management.md),
   [Zod validation](decisions/tooling-zod-validation.md).
+- **Validation:** [trust boundaries](decisions/validation-trust-boundaries.md).
 - **Testing:** [Vitest on every runtime](decisions/testing-vitest-cross-runtime.md),
   [opt-in Valkey integration tests](decisions/testing-valkey-integration-opt-in.md).
 - **Deployment and local stack:**

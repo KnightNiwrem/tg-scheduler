@@ -30,11 +30,12 @@ const methodNamePattern = /^[a-z][A-Za-z0-9]*$/;
 const inboundMethodNames: ReadonlySet<string> = new Set(inboundMethods);
 
 /**
- * Validate a request that must remain replayable after the submitting process exits.
+ * Parse a request that must remain replayable after the submitting process exits.
  *
  * The method must be a Bot API method name outside the inbound set, and the payload a plain JSON
- * object. Field-level payload semantics are left to Telegram, which reports violations as failed
- * calls.
+ * object. The returned payload is a new value built from what validation read, so it cannot differ
+ * from what was validated, whatever happens to the caller's object later. Field-level payload
+ * semantics are left to Telegram, which reports violations as failed calls.
  *
  * @throws {TypeError} naming the first unsupported value, such as an `InputFile` upload.
  */
@@ -50,111 +51,135 @@ export function parseTelegramRequest(method: unknown, payload: unknown): Telegra
   if (!isPlainObject(payload)) {
     throw new TypeError('Invalid payload: expected a plain object');
   }
-  const problem = findNonDurableValue(payload, 'payload', new Set());
-  if (problem !== undefined) {
-    throw new TypeError(`Invalid payload: ${problem}`);
-  }
-  // The checks above establish the durable JSON shape; per-method field types cannot be checked
-  // at runtime without duplicating the Bot API schema.
-  return { method, payload } as TelegramRequest;
+  const ownedPayload = parseDurableObject(payload, 'payload', new Set([payload]));
+  // Parsing establishes the durable JSON shape; per-method field types cannot be checked at
+  // runtime without duplicating the Bot API schema.
+  return { method, payload: ownedPayload } as TelegramRequest;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+type DurableJson = null | string | boolean | number | DurableJson[] | DurableJsonObject;
+type DurableJsonObject = { [key: string]: DurableJson };
+
+function invalidPayload(problem: string): TypeError {
+  return new TypeError(`Invalid payload: ${problem}`);
+}
+
+function isPlainObject(value: unknown): value is object {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
 /**
- * Describe the first value that JSON storage would drop, alter, or fail to encode. Object
- * properties set to `undefined` are allowed because JSON omits them, matching an absent option.
+ * Copy a value that JSON storage encodes faithfully, rejecting the first value it would drop,
+ * alter, or fail to encode. Properties are read from their descriptors, so no getter or hook runs.
  */
-function findNonDurableValue(
-  value: unknown,
-  path: string,
-  ancestors: Set<object>,
-): string | undefined {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return undefined;
+function parseDurableJson(value: unknown, path: string, ancestors: Set<object>): DurableJson {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
   if (typeof value === 'number') {
-    return Number.isFinite(value) ? undefined : `${path} must be a finite number`;
+    // JSON encodes -0 as 0, so the copy holds the value storage will.
+    if (Number.isFinite(value)) return Object.is(value, -0) ? 0 : value;
+    throw invalidPayload(`${path} must be a finite number`);
   }
-  if (typeof value !== 'object') return `${path} has unsupported type ${typeof value}`;
-  if (ancestors.has(value)) return `${path} is a circular reference`;
-
-  const contents = jsonContents(value, path);
-  if ('problem' in contents) return contents.problem;
+  if (typeof value !== 'object') {
+    throw invalidPayload(`${path} has unsupported type ${typeof value}`);
+  }
+  if (ancestors.has(value)) throw invalidPayload(`${path} is a circular reference`);
+  if (!Array.isArray(value) && !isPlainObject(value)) {
+    throw invalidPayload(
+      `${path} must be plain JSON; InputFile uploads and other class instances are not supported`,
+    );
+  }
   ancestors.add(value);
   try {
-    for (const [itemPath, item] of contents.items) {
-      const problem = findNonDurableValue(item, itemPath, ancestors);
-      if (problem !== undefined) return problem;
-    }
-    return undefined;
+    return Array.isArray(value)
+      ? parseDurableArray(value, path, ancestors)
+      : parseDurableObject(value, path, ancestors);
   } finally {
     ancestors.delete(value);
   }
 }
 
+/** A real array's `length` is always an integer in this range; only a proxy can report another. */
+const maxArrayLength = 2 ** 32 - 1;
+
 /**
- * List the values JSON would encode inside an array or plain object, keyed by their paths. Values
- * are read from property descriptors, so no getter or hook runs during validation.
+ * Indices come from the non-configurable `length`, so a caller-defined `keys` method cannot skip
+ * elements, and they are read one at a time, so a huge sparse array fails at its first hole without
+ * first listing every index. A `length` no real array can have is rejected so iteration ends.
+ * Non-index properties are not copied because JSON does not encode them.
  */
-function jsonContents(
-  container: object,
-  path: string,
-): { items: [string, unknown][] } | { problem: string } {
-  const isArray = Array.isArray(container);
-  if (!isArray && !isPlainObject(container)) {
-    return {
-      problem: `${path} must be plain JSON; InputFile uploads and other class instances are not supported`,
-    };
+function parseDurableArray(array: unknown[], path: string, ancestors: Set<object>): DurableJson[] {
+  rejectToJsonHook(array, path);
+  const { length } = array;
+  if (!Number.isInteger(length) || length < 0 || length > maxArrayLength) {
+    throw invalidPayload(`${path} has an invalid array length`);
   }
-  if (definesToJsonHook(container)) {
-    return { problem: `${path} must not define a toJSON hook` };
-  }
-  const items: [string, unknown][] = [];
-  for (const key of jsonKeys(container)) {
-    const itemPath = isArray ? `${path}[${key}]` : `${path}.${key}`;
-    const descriptor = Object.getOwnPropertyDescriptor(container, key);
+  const copy: DurableJson[] = [];
+  for (let index = 0; index < length; index++) {
+    const elementPath = `${path}[${index}]`;
+    const descriptor = Object.getOwnPropertyDescriptor(array, index);
+    const element = descriptor === undefined ? undefined : dataValue(descriptor, elementPath);
     // JSON encodes holes and undefined elements as null.
-    if (descriptor === undefined) return { problem: `${itemPath} must not be undefined` };
-    if (!('value' in descriptor)) {
-      return { problem: `${itemPath} must be a data property, not a getter or setter` };
-    }
-    if (descriptor.value === undefined) {
-      if (isArray) return { problem: `${itemPath} must not be undefined` };
-      continue;
-    }
-    items.push([itemPath, descriptor.value]);
+    if (element === undefined) throw invalidPayload(`${elementPath} must not be undefined`);
+    copy.push(parseDurableJson(element, elementPath, ancestors));
   }
-  return { items };
+  return copy;
 }
 
 /**
- * Yield the keys JSON encodes, one at a time so an invalid element of a large sparse array is
- * rejected without first listing every index. Array indices come from the non-configurable
- * `length`, so a caller-defined `keys` method cannot skip elements.
+ * Symbol-keyed and non-enumerable properties are not copied because JSON does not encode them, and
+ * properties set to `undefined` are omitted, matching an absent option.
  */
-function* jsonKeys(container: object): Generator<string> {
-  if (!Array.isArray(container)) {
-    yield* Object.keys(container);
-    return;
+function parseDurableObject(
+  object: object,
+  path: string,
+  ancestors: Set<object>,
+): DurableJsonObject {
+  rejectToJsonHook(object, path);
+  const entries: [string, DurableJson][] = [];
+  for (const key of Reflect.ownKeys(object)) {
+    if (typeof key !== 'string') continue;
+    const descriptor = Object.getOwnPropertyDescriptor(object, key);
+    if (descriptor === undefined || !descriptor.enumerable) continue;
+    const propertyPath = `${path}.${key}`;
+    const value = dataValue(descriptor, propertyPath);
+    if (value !== undefined) entries.push([key, parseDurableJson(value, propertyPath, ancestors)]);
   }
-  const { length } = container;
-  for (let index = 0; index < length; index++) yield String(index);
+  // `fromEntries` defines own properties, so a `__proto__` key stays data instead of setting the
+  // copy's prototype.
+  return Object.fromEntries(entries);
 }
+
+function dataValue(descriptor: PropertyDescriptor, path: string): unknown {
+  if (!('value' in descriptor)) {
+    throw invalidPayload(`${path} must be a data property, not a getter or setter`);
+  }
+  return descriptor.value;
+}
+
+const maxPrototypeChainDepth = 100;
 
 /**
  * JSON.stringify calls a callable `toJSON`, even a non-enumerable or inherited one, and encodes its
- * result instead of the contents checked here. An accessor counts as a hook because reading it runs
- * code; a non-callable data value is encoded like any other property.
+ * result instead of the container's contents, so a hook means the caller's value does not encode
+ * as its copy would. An accessor counts as a hook because reading it runs code; a non-callable data
+ * value is an ordinary property.
+ *
+ * A real prototype chain is finite, but a proxy's `getPrototypeOf` trap can return itself or a new
+ * proxy each time, so the walk stops at a depth far beyond any class hierarchy.
  */
-function definesToJsonHook(container: object): boolean {
-  for (let owner: object | null = container; owner !== null; owner = Object.getPrototypeOf(owner)) {
-    const descriptor = Object.getOwnPropertyDescriptor(owner, 'toJSON');
-    if (descriptor !== undefined) {
-      return !('value' in descriptor) || typeof descriptor.value === 'function';
+function rejectToJsonHook(container: object, path: string): void {
+  let owner: object | null = container;
+  for (let depth = 0; owner !== null; depth++, owner = Object.getPrototypeOf(owner)) {
+    if (depth > maxPrototypeChainDepth) {
+      throw invalidPayload(`${path} has a prototype chain deeper than ${maxPrototypeChainDepth}`);
     }
+    const descriptor = Object.getOwnPropertyDescriptor(owner, 'toJSON');
+    if (descriptor === undefined) continue;
+    if (!('value' in descriptor) || typeof descriptor.value === 'function') {
+      throw invalidPayload(`${path} must not define a toJSON hook`);
+    }
+    return;
   }
-  return false;
 }
