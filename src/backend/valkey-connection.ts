@@ -32,6 +32,20 @@ export interface ValkeyConnectionOptions {
 }
 
 /**
+ * Validate a Valkey URL without connecting.
+ *
+ * @throws {TypeError} when `valkeyUrl` is invalid. The message omits the URL and its credentials.
+ */
+export function parseValkeyUrl(valkeyUrl: unknown): string {
+  const parsedUrl = valkeyUrlSchema.safeParse(valkeyUrl);
+  if (!parsedUrl.success) {
+    const problems = parsedUrl.error.issues.map((issue) => issue.message);
+    throw new TypeError(`Invalid valkeyUrl: ${problems.join('; ')}`);
+  }
+  return parsedUrl.data;
+}
+
+/**
  * Create an unconnected client for injection into a BullMQ queue or worker. The caller owns it and
  * must disconnect it after closing the BullMQ object; a worker closes its own duplicated blocking
  * connection.
@@ -39,13 +53,9 @@ export interface ValkeyConnectionOptions {
  * @throws {TypeError} when `valkeyUrl` is invalid. The message omits the URL and its credentials.
  */
 export function createValkeyConnection(options: ValkeyConnectionOptions): Redis {
-  const parsedUrl = valkeyUrlSchema.safeParse(options.valkeyUrl);
-  if (!parsedUrl.success) {
-    const problems = parsedUrl.error.issues.map((issue) => issue.message);
-    throw new TypeError(`Invalid valkeyUrl: ${problems.join('; ')}`);
-  }
+  const valkeyUrl = parseValkeyUrl(options.valkeyUrl);
   const isWorker = options.role === 'worker';
-  const connection = new Redis(parsedUrl.data, {
+  const connection = new Redis(valkeyUrl, {
     lazyConnect: true,
     connectTimeout: 5_000,
     connectionName: options.connectionName,

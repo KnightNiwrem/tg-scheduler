@@ -1,14 +1,15 @@
 # Outbound queue and scheduler architecture
 
-Status: selected design; the repository provides the typed library skeleton, the backend's Valkey
-connection factory, and the local Valkey service described in the
-[project overview](../README.md). The Telegram queue/scheduler implementation and
-its full acceptance tests are pending. **Fixed** identifies a project requirement or necessary
+Status: selected design; the repository implements the basic delivery path for immediate and
+delayed jobs and the local Valkey service described in the [project overview](../README.md). The
+remaining queue/scheduler policies and the full acceptance tests are pending. **Fixed** identifies a project requirement or necessary
 correctness constraint. **Provisional** identifies a selected implementation approach that can be
-revised with evidence.
+revised with evidence. **Pending review** identifies a provisional choice made by Claude (an AI
+coding agent) during implementation that a human maintainer has not yet reviewed; the
+[decisions pending review](#10-decisions-pending-review) list them.
 
-The [library overview](library-overview.md) maps the typed skeleton to these components. Its
-operations explicitly reject as unimplemented.
+The [library overview](library-overview.md) maps the source modules to these components and lists
+the operations that still reject as unimplemented.
 
 The [project overview](../README.md) describes current capabilities. [Validation](validation.md)
 defines acceptance criteria for this design; [library research](library-research.md) records
@@ -72,9 +73,9 @@ replacement; it does not by itself invalidate the fixed backend or runtime targe
 server; its use does not itself require a Valkey-specific client.
 
 Dependency support is recorded in the
-[runtime compatibility research](library-research.md#runtime-compatibility). The backend's producer and
-worker connections have cross-runtime BullMQ integration coverage; the queue/scheduler policies
-below remain pending.
+[runtime compatibility research](library-research.md#runtime-compatibility). The basic delivery path
+has cross-runtime integration coverage against Valkey; most queue/scheduler policies below remain
+pending.
 
 A durable queue does not inherently require a user-hosted always-running coordinator: a platform can
 persist state and wake ephemeral code. The first implementation uses operated workers; a serverless
@@ -306,3 +307,78 @@ Configuration, payload schema, ordering and uncertainty semantics become migrati
 the library has public consumers or production data. Internal draft interfaces carry no hypothetical
 compatibility obligation, while established external contracts and existing data require
 preservation or an explicit migration.
+
+## 10. Decisions pending review
+
+**Provisional, made by Claude, pending human review.** These choices were made while implementing
+the basic delivery path. They are in effect in the code and tests, but a maintainer has not
+accepted them.
+
+### Interim behavior until later policies land
+
+- **A definite 429 settles as `failed`** with `telegramErrorCode: 429` and is not retried. Retrying
+  without the [lane cooldown](#4-admission-and-429-handling) would add traffic during a flood wait.
+  A valid positive integer `retry_after` is included in the error message so callers know when
+  resubmitting is reasonable. This intentionally differs from the selected 429 policy and is
+  replaced when cooldowns are implemented.
+- **Stalled-job recovery is disabled** (`maxStalledCount: 0`), so BullMQ never runs an abandoned
+  attempt again. Any job BullMQ records as failed is reported as `uncertain`, because the
+  coordinator settles every attempt it completes and BullMQ fails a job only when processing was
+  interrupted (lost lock or processor error). A worker that stops mid-attempt leaves its job
+  `in-flight` until a running worker's stalled check after the 30-second lock expires. This
+  conservatively reports `uncertain` even when the interruption came before sending, because no
+  attempt records exist yet to tell the cases apart. A processor error is reported to `onError`
+  in full, while BullMQ stores only a generic failure reason, so error details never reach job
+  snapshots.
+- **Urgent submission and `urgentBypassEnabled: true` reject with `UnimplementedError`** instead
+  of falling back to the ordinary lane.
+
+### Outcome classification
+
+- Telegram 4xx responses other than 429 are `failed`: Telegram answered and did not perform the
+  call. Telegram 5xx responses, grammY `HttpError`s (network failures, timeouts, non-JSON
+  responses) and unrecognized transport errors are `uncertain`.
+- A token resolver that throws or returns anything but a non-empty string is reported as `failed` before
+  sending, with a generic message; the resolver's own error is not stored because it may describe
+  credentials. Stored messages also have the current token redacted.
+- The token is resolved before every attempt so rotation takes effect; the grammY `Api` instance
+  is reused while the token is unchanged. grammY's default 500-second request timeout is kept,
+  so a hung request can hold a capacity slot that long.
+
+### Identity, keys and configuration
+
+- **`botId` must be 1–64 letters, digits, `_` or `-`.** It names the bot's BullMQ queue,
+  `<botId>.ordinary`, so every Valkey key is `<queuePrefix>:<botId>.ordinary:<suffix>`. BullMQ
+  rejects `:` in queue names, and excluding `.` keeps future per-lane names distinct. Telegram's
+  numeric bot IDs satisfy the rule. Encoding arbitrary IDs instead would lift the restriction
+  at the cost of less readable keys.
+- **`queuePrefix` defaults to `tg-scheduler`** and must be 1–100 non-whitespace characters.
+- **Shared ordinary concurrency** is BullMQ's queue-wide limit, set by `worker.start()` once the
+  worker's connection is ready and before it claims jobs, so a worker that fails to start leaves
+  the limit unchanged. Workers started with different policies overwrite each other; the last one
+  started wins.
+- **`onError` on the client and worker options** receives errors no operation awaits, such as
+  Valkey reconnection failures and unexpected processing errors, defaulting to `console.error`.
+
+### Submission and storage
+
+- **Durable payload rules:** the payload must be a plain object of JSON values. Strings, booleans,
+  finite numbers, `null`, arrays and plain objects are accepted. Object properties set to
+  `undefined` are omitted like absent options. `InputFile` uploads, other class instances, dates,
+  functions, bigints, symbols, non-finite numbers, undefined or missing array elements, arrays
+  with a `toJSON` hook and circular references are rejected with `TypeError` naming the path. Method names must look like Bot API
+  methods and exclude inbound methods. Names are not checked against the full method list, which
+  would duplicate grammY's types at runtime; Telegram rejects an unknown method with a definite
+  404, reported as `failed`. Per-method fields are likewise left to Telegram.
+- **Submit options are strict:** unknown keys and fractional or negative `runAtMs` are rejected.
+  A past `runAtMs` runs immediately and keeps the past value as its original due time.
+- **Stored job data** is `{ request, originalDueAtMs }`, with the due time stored explicitly
+  rather than derived from BullMQ's timestamp and delay. Job data and outcomes are revalidated when
+  read back. Jobs use BullMQ's sequential IDs and `attempts: 1`.
+- **`submit` resolves once Valkey acknowledges the write**, without waiting for AOF fsync
+  (`WAITAOF`). Accepted work is therefore subject to the configured `appendfsync everysec` loss
+  window.
+- **Finished jobs are retained indefinitely** (BullMQ's default), so results stay retrievable but
+  storage grows without bound until a retention policy is chosen.
+- **Client construction performs no I/O**; the connection opens on first use. Operations after
+  `close()` reject.

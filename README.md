@@ -3,26 +3,37 @@
 A planned durable queue and scheduler for outgoing Telegram Bot API calls, written in TypeScript
 with grammY, BullMQ, and Valkey. Bun is the primary development and worker runtime.
 
-The repository currently provides a typed library skeleton for the client, worker, coordinator,
-backend, and grammY transport. Its operations explicitly reject with `UnimplementedError`. The
-implemented part is the backend's Valkey connection factory, which validates the connection URL and
-applies the producer and worker connection settings BullMQ needs. Telegram delivery, per-bot
-coordination, recurrence, and a runnable worker are not implemented yet.
+The library currently supports the basic delivery path for immediate and one-time delayed jobs:
+
+- `submit` validates that a payload is durable JSON and stores it in Valkey through BullMQ.
+- A library worker claims due jobs within an ordinary concurrency shared by every worker for the
+  bot, and makes one grammY call per job.
+- `getJob` reports the job as `queued`, `in-flight`, `succeeded`, `failed`, or `uncertain`, with
+  the Telegram result or error.
+
+Ambiguous attempts, such as network failures or Telegram server errors, are reported as `uncertain`
+and never retransmitted automatically. A worker that stops mid-attempt leaves its job `in-flight`
+until a running worker's stalled-job check, after BullMQ's 30-second lock expires, reports it as
+`uncertain`.
+
+A Telegram 429 currently settles the job as `failed`; durable 429 retry with lane cooldowns is not
+implemented yet, so the worker is not ready for production traffic. Recurring schedules and the
+urgent lane reject with `UnimplementedError`. Ordering by original due time and a runnable worker
+executable are also not implemented yet.
 
 See the [library overview](docs/library-overview.md) for the component flow and source map, and the
 [usage sketch](examples/library.ts) for the intended API.
 
 ## Planned capabilities
 
-The first implementation will provide explicit enqueue and status/result retrieval for immediate
-jobs, one-time delayed jobs, and fixed-interval recurring schedules. Payloads will support
-JSON-serializable requests and existing Telegram `file_id` references. Disabling recurrence will
-stop future occurrences while preserving jobs already created.
+The rest of the first implementation will add fixed-interval recurring schedules with status and
+result retrieval like other jobs. Disabling recurrence will stop future occurrences while
+preserving jobs already created.
 
-All producers for a bot will share durable coordination, including configurable concurrency and
-ordinary admission pauses on Telegram 429 responses. An opt-in, bounded urgent lane will support
-time-sensitive callback and pre-checkout answers. Accepted work will survive producer exit, with
-long-lived workers activating due work through BullMQ and Valkey.
+Producers and workers for a bot will pause ordinary admission on Telegram 429 responses and retry
+the affected job after the cooldown, keeping eligible jobs in original due-time order. An opt-in,
+bounded urgent lane will support time-sensitive callback and pre-checkout answers. A worker
+executable and Compose service will run the worker as a long-lived process.
 
 The selected design uses BullMQ's supported injectable connection interface backed by Valkey, with
 ioredis as the provisional initial driver. Node.js and Deno remain library compatibility targets.
@@ -76,11 +87,13 @@ available without a separate assertion or mocking library. Bun remains the defau
 
 `bun run test:all` requires all three runtimes to be installed. All dependencies come from `bun.lock`;
 the Deno test command uses the installed local packages without creating a separate Deno lockfile.
-The suite covers Valkey URL validation and the producer and worker connection settings. Set
-`VALKEY_TEST_URL` to also run a BullMQ queue and worker on those connections against real Valkey and
-verify that every client is released after cleanup. The test uses a unique queue name and deletes
-its own queue data; use a local test instance. Without this variable, backend integration tests are
-skipped. CI starts Valkey and enables them for every runtime.
+The suite covers option and payload validation, the producer and worker connection settings, and
+grammY outcome classification against a fake Bot API. Set `VALKEY_TEST_URL` to also run the
+client and worker against real Valkey with a fake Telegram transport: immediate and delayed
+delivery, visible outcomes, shared concurrency across workers, graceful worker shutdown, and
+connection release. Each test uses a unique key prefix and deletes its own data; use a local test
+instance. Without this variable, backend integration tests are skipped. CI starts Valkey and
+enables them for every runtime.
 
 ```sh
 docker compose up -d --wait valkey
@@ -93,7 +106,8 @@ Adjust the port if `VALKEY_PORT` differs. The full scheduler acceptance criteria
 
 - [Library overview](docs/library-overview.md): component flow, source map, and scaffolded public API.
 - [Architecture](docs/architecture.md): requirements, selected design, API boundaries, scheduling,
-  concurrency, and failure semantics.
+  concurrency, and failure semantics, including
+  [implementation decisions pending review](docs/architecture.md#10-decisions-pending-review).
 - [Validation](docs/validation.md): first-slice acceptance criteria, runtime and recovery checks,
   and deferred capabilities.
 - [Library research](docs/library-research.md): BullMQ integration caveats and the rationale for

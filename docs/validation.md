@@ -1,9 +1,8 @@
 # First-slice validation
 
 These are acceptance criteria for the planned [architecture](architecture.md), not a record of
-passing tests. The current suite covers Valkey connection validation and BullMQ compatibility of the
-backend's producer and worker connections; the Telegram queue/scheduler implementation and full
-acceptance checks remain pending.
+passing tests. The current suite covers the basic delivery path for immediate and delayed jobs;
+the remaining queue/scheduler policies and full acceptance checks are pending.
 [Library research](library-research.md#selected-version-native-behavior) records verified native
 behavior, integration gaps, and policies still awaiting validation.
 
@@ -19,9 +18,13 @@ dependency versions selected for it.
 
 ## Validation coverage
 
-The [repository checks](../README.md#commands) cover Valkey URL validation and the producer and
-worker connection settings. With `VALKEY_TEST_URL` set, as in CI, they also run a BullMQ job on
-those connections and verify that every client is released after cleanup.
+The [repository checks](../README.md#commands) cover option and durable-payload validation, the
+producer and worker connection settings, and grammY outcome classification against a fake Bot API.
+With `VALKEY_TEST_URL` set, as in CI, they also run the client and worker against Valkey with a
+fake Telegram transport. Those tests cover immediate delivery after producer exit, delayed activation,
+visible failed and uncertain outcomes without retries, shared ordinary capacity across workers,
+graceful worker shutdown, and connection release. Stalled-worker recovery, Valkey restart, and
+the 429, ordering, urgent-lane, and recurrence criteria are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
 not establish the full queue/scheduler acceptance criteria below. The shared suite uses
