@@ -50,14 +50,26 @@ test('construction and close perform no backend I/O', async () => {
 
 class Upload {}
 
-/** Reports an infinite length and a valid element at every index; only the length check ends it. */
+/**
+ * Reports an infinite length and a valid element at every index, so only the length check ends
+ * parsing. Parsing is synchronous, so no test timeout could interrupt it; after a bounded number of
+ * element reads the proxy throws instead, failing the test rather than hanging the suite.
+ */
 function endlessArrayProxy(): unknown[] {
+  const maxElementReads = 1_000;
+  let elementReads = 0;
   return new Proxy([], {
     get: (target, key) => (key === 'length' ? Number.POSITIVE_INFINITY : Reflect.get(target, key)),
-    getOwnPropertyDescriptor: (target, key) =>
-      typeof key === 'string' && /^\d+$/.test(key)
-        ? { value: 1, writable: true, enumerable: true, configurable: true }
-        : Reflect.getOwnPropertyDescriptor(target, key),
+    getOwnPropertyDescriptor: (target, key) => {
+      if (typeof key !== 'string' || !/^\d+$/.test(key)) {
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      }
+      elementReads++;
+      if (elementReads > maxElementReads) {
+        throw new Error(`Parser read more than ${maxElementReads} elements of an endless array`);
+      }
+      return { value: 1, writable: true, enumerable: true, configurable: true };
+    },
   });
 }
 const circular: Record<string, unknown> = { text: 'loop' };
