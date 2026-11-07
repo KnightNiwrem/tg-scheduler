@@ -49,6 +49,17 @@ test('construction and close perform no backend I/O', async () => {
 });
 
 class Upload {}
+
+/** Reports an infinite length and a valid element at every index; only the length check ends it. */
+function endlessArrayProxy(): unknown[] {
+  return new Proxy([], {
+    get: (target, key) => (key === 'length' ? Number.POSITIVE_INFINITY : Reflect.get(target, key)),
+    getOwnPropertyDescriptor: (target, key) =>
+      typeof key === 'string' && /^\d+$/.test(key)
+        ? { value: 1, writable: true, enumerable: true, configurable: true }
+        : Reflect.getOwnPropertyDescriptor(target, key),
+  });
+}
 const circular: Record<string, unknown> = { text: 'loop' };
 circular.self = circular;
 
@@ -111,6 +122,11 @@ test.each([
     'a maximum-length sparse array',
     { chat_id: 1, text: 'x', entities: new Array(2 ** 32 - 1) },
     'payload.entities[0]',
+  ],
+  [
+    'an array proxy reporting an endless length',
+    { chat_id: 1, text: 'x', entities: endlessArrayProxy() },
+    'payload.entities',
   ],
   ['a circular reference', { chat_id: 1, nested: circular }, 'payload.nested.self'],
 ])('submit rejects a payload with %s', async (_case, payload, path) => {

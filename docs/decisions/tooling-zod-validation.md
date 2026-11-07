@@ -14,5 +14,5 @@ they are required. Payloads use the hand-written
 ## Context
 
 Zod covers fixed-shape input concisely and reports every problem in one message. Zod schemas read
-property values, which runs getters. The payload parser instead reads each property descriptor
-once and checks for `toJSON` hooks, which value-based schemas do not detect.
+property values, which runs getters. The payload parser instead reads property descriptors and
+checks for `toJSON` hooks, which value-based schemas do not detect.

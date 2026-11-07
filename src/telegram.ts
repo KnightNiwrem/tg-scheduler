@@ -77,7 +77,8 @@ function isPlainObject(value: unknown): value is object {
 function parseDurableJson(value: unknown, path: string, ancestors: Set<object>): DurableJson {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
   if (typeof value === 'number') {
-    if (Number.isFinite(value)) return value;
+    // JSON encodes -0 as 0, so the copy holds the value storage will.
+    if (Number.isFinite(value)) return Object.is(value, -0) ? 0 : value;
     throw invalidPayload(`${path} must be a finite number`);
   }
   if (typeof value !== 'object') {
@@ -99,15 +100,22 @@ function parseDurableJson(value: unknown, path: string, ancestors: Set<object>):
   }
 }
 
+/** A real array's `length` is always an integer in this range; only a proxy can report another. */
+const maxArrayLength = 2 ** 32 - 1;
+
 /**
  * Indices come from the non-configurable `length`, so a caller-defined `keys` method cannot skip
  * elements, and they are read one at a time, so a huge sparse array fails at its first hole without
- * first listing every index. Non-index properties are not copied because JSON does not encode them.
+ * first listing every index. A `length` no real array can have is rejected so iteration ends.
+ * Non-index properties are not copied because JSON does not encode them.
  */
 function parseDurableArray(array: unknown[], path: string, ancestors: Set<object>): DurableJson[] {
   rejectToJsonHook(array, path);
-  const copy: DurableJson[] = [];
   const { length } = array;
+  if (!Number.isInteger(length) || length < 0 || length > maxArrayLength) {
+    throw invalidPayload(`${path} has an invalid array length`);
+  }
+  const copy: DurableJson[] = [];
   for (let index = 0; index < length; index++) {
     const elementPath = `${path}[${index}]`;
     const descriptor = Object.getOwnPropertyDescriptor(array, index);
@@ -120,9 +128,8 @@ function parseDurableArray(array: unknown[], path: string, ancestors: Set<object
 }
 
 /**
- * Each own property's descriptor is read once. Symbol-keyed and non-enumerable properties are not
- * copied because JSON does not encode them, and properties set to `undefined` are omitted, matching
- * an absent option.
+ * Symbol-keyed and non-enumerable properties are not copied because JSON does not encode them, and
+ * properties set to `undefined` are omitted, matching an absent option.
  */
 function parseDurableObject(
   object: object,
