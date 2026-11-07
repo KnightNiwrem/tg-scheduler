@@ -6,9 +6,10 @@
 ## Decision
 
 Zod schemas parse structured input at the [trust boundaries](validation-trust-boundaries.md):
-`botId`, `queuePrefix`, Valkey URLs, submit options, the worker policy, and job data and outcomes
-read back from Valkey. Function options such as `resolveBotToken` are checked with `typeof` where
-they are required. Submitted payloads use the hand-written
+`botId`, `queuePrefix`, submit options, the worker policy, and job data and outcomes read back from
+Valkey. A `z.custom` check uses BullMQ's instance predicate for the caller-owned connection, retaining
+the resource by reference. Function options such as `resolveBotToken` are checked with `typeof`
+where they are required. Submitted payloads use the hand-written
 [durable JSON request](api-durable-json-requests.md) parser instead of Zod, and a payload read back
 from Valkey is checked in place with `z.custom` rather than rebuilt by an object or record schema.
 

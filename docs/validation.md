@@ -15,12 +15,13 @@ dependency versions selected for it.
 
 ## Validation coverage
 
-The [repository checks](../README.md#commands) cover option and durable-payload validation, the
-producer and worker connection settings, and grammY outcome classification against a fake Bot API.
+The [repository checks](../README.md#commands) cover option and durable-payload validation,
+caller-owned connection handling, and grammY outcome classification against a fake Bot API.
 With `VALKEY_TEST_URL` set, as in CI, they also run the client and worker against Valkey with a
 fake Telegram transport. Those tests cover immediate delivery after producer exit, delayed activation,
 visible errors without retries, accepted-effect/lost-response failures, stored-outcome compatibility,
-shared ordinary capacity across workers, graceful worker shutdown, and connection release.
+shared ordinary capacity across workers, graceful shutdown, caller-connection reuse and option
+preservation, startup failure cleanup, and release of BullMQ's blocking connection.
 Stalled-worker recovery, Valkey restart, and the 429, ordering, urgent-lane, and recurrence criteria
 are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
@@ -34,8 +35,8 @@ the same library tests on each runtime.
 The first slice covers durable immediate jobs, one-time delayed jobs and fixed-interval UTC
 recurrence for each bot, with status/result retrieval and disabling of future recurrence. Its
 behavior is defined by the [decisions linked from the architecture](architecture.md#decisions-by-area).
-Durable acceptance requires validated Valkey persistence/recovery configuration and documented
-recovery limits.
+Store-level persistence and recovery guarantees follow the operator's configuration. Local
+acceptance validates the documented Compose configuration and its recovery limits.
 
 ## Runtime and local development checks
 
@@ -49,6 +50,9 @@ recovery limits.
   against Valkey on each runtime; a successful import alone is insufficient.
 - When using ioredis, worker startup succeeds with a manually created client configured with
   `maxRetriesPerRequest: null`, including the duplicated connection used for blocking operations.
+  Closing clients and workers preserves supplied connections and their settings while removing
+  the library's listeners and closing BullMQ-owned duplicates. Invalid worker retry settings fail
+  without taking ownership of the caller's connection, and startup can be retried after correction.
 - The grammY transport uses its outgoing API surface without inbound update processing or hidden
   automatic retries.
 - Runtime-specific permissions, startup and shutdown requirements are documented separately from the

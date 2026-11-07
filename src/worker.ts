@@ -23,12 +23,15 @@ export interface SchedulerWorkerOptions extends SharedBotOptions {
 
 export interface SchedulerWorker {
   /**
-   * Configure the bot's shared capacity and start claiming due jobs. Rejects when Valkey is
-   * unreachable; a failed start may be retried. Recurrence and the urgent lane are not
+   * Configure the bot's shared capacity and start claiming due jobs. Connection behavior follows
+   * the supplied client. A failed start may be retried. Recurrence and the urgent lane are not
    * implemented yet.
    */
   start(): Promise<void>;
-  /** Stop admission, wait for active attempts to settle, and close owned backend connections. */
+  /**
+   * Stop admission, drain active work, and close BullMQ resources.
+   * The caller's connection remains open.
+   */
   close(): Promise<void>;
 }
 

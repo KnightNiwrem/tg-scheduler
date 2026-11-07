@@ -9,8 +9,9 @@ change; the observations below apply to the tested versions.
 
 ## Runtime compatibility
 
-The integration suite runs a BullMQ queue and worker on the backend's ioredis connections and checks
-connection cleanup on Bun, Node.js, and Deno. The tests of a diagnostic bootstrap, removed after
+The integration suite runs the scheduler on caller-provided ioredis connections and checks reuse,
+settings preservation, and BullMQ resource cleanup on Bun, Node.js, and Deno. The tests of a
+diagnostic bootstrap, removed after
 [commit `2748c31`](https://github.com/KnightNiwrem/tg-scheduler/tree/2748c319dbad3c85fb8eb5fadc8343895a8796d4),
 also verified enqueue, claim, delayed activation, result retrieval, and graceful shutdown on those
 versions. A manual Compose check recorded in [PR #2](https://github.com/KnightNiwrem/tg-scheduler/pull/2)
@@ -72,8 +73,8 @@ classification or retry-delay validation, or the complete scheduler acceptance c
 
 BullMQ's [connection documentation](https://docs.bullmq.io/guide/connections) describes raw ioredis
 compatibility and `IRedisClient` adapters, including an adapter for Bun's built-in Redis client.
-The [ioredis driver decision](decisions/backend-ioredis-driver.md) records the selected client, the
-required worker connection settings and the conditions for replacing it.
+The [connection ownership decision](decisions/backend-ioredis-driver.md) records the public
+caller-owned connection contract and the required worker settings.
 
 The source review identified the following integration risks. The archived experiments above
 verified cooldown replacement, ordinary retry ordering, stalled recovery, and shared limits in the

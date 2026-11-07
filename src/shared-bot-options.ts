@@ -1,8 +1,8 @@
 import type { BullMqBackendOptions } from './backend/bullmq.ts';
 
 /**
- * Options that every producer and worker for one bot must share, so all of them use the same
- * coordination authority.
+ * Options identifying one bot's coordination authority. Connections may be separate instances
+ * targeting the same backend; the bot identity and queue prefix must match across participants.
  */
 export interface SharedBotOptions {
   /** Stable public bot identity. */
