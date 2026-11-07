@@ -159,11 +159,15 @@ async function deliveredRequests(
   return telegram.attempts.map((attempt) => attempt.request);
 }
 
-integrationTest('invalid stored job data fails without sending a request', async () => {
+integrationTest.each([
+  ['a non-object payload', { method: 'sendMessage', payload: [] }],
+  ['an inbound method', { method: 'deleteWebhook', payload: {} }],
+  ['a malformed method', { method: 'send message', payload: {} }],
+])('stored job data with %s fails without sending a request', async (_case, corruptRequest) => {
   const client = openClient();
   const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
   const jobKey = `${queuePrefix}:${botId}.ordinary:${handle.id}`;
-  const corruptData = { request: { method: 'sendMessage', payload: [] }, originalDueAtMs: 0 };
+  const corruptData = { request: corruptRequest, originalDueAtMs: 0 };
   await inspector.hset(jobKey, 'data', JSON.stringify(corruptData));
 
   const telegram = new FakeTelegram();

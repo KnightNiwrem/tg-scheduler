@@ -40,6 +40,23 @@ const inboundMethodNames: ReadonlySet<string> = new Set(inboundMethods);
  * @throws {TypeError} naming the first unsupported value, such as an `InputFile` upload.
  */
 export function parseTelegramRequest(method: unknown, payload: unknown): TelegramRequest {
+  const outgoingMethod = parseTelegramMethod(method);
+  if (!isPlainObject(payload)) {
+    throw new TypeError('Invalid payload: expected a plain object');
+  }
+  const ownedPayload = copyDurableJson(payload, 'payload', new Set());
+  // Copying establishes the durable JSON shape; per-method field types cannot be checked at
+  // runtime without duplicating the Bot API schema.
+  return { method: outgoingMethod, payload: ownedPayload } as TelegramRequest;
+}
+
+/**
+ * Parse an outgoing Bot API method name. Names are not checked against the full method list;
+ * Telegram rejects an unknown method as a failed call.
+ *
+ * @throws {TypeError} when the value is not a method name or names an inbound method.
+ */
+export function parseTelegramMethod(method: unknown): TelegramMethod {
   if (typeof method !== 'string' || !methodNamePattern.test(method)) {
     throw new TypeError('Invalid method: expected a Telegram Bot API method name');
   }
@@ -48,13 +65,7 @@ export function parseTelegramRequest(method: unknown, payload: unknown): Telegra
       `Invalid method: ${method} handles inbound updates, which are out of scope`,
     );
   }
-  if (!isPlainObject(payload)) {
-    throw new TypeError('Invalid payload: expected a plain object');
-  }
-  const ownedPayload = copyDurableJson(payload, 'payload', new Set());
-  // Copying establishes the durable JSON shape; per-method field types cannot be checked at
-  // runtime without duplicating the Bot API schema.
-  return { method, payload: ownedPayload } as TelegramRequest;
+  return method as TelegramMethod;
 }
 
 type DurableJson =

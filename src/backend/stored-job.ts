@@ -1,7 +1,8 @@
 import type { Job, JobState, Queue } from 'bullmq';
 import { z } from 'zod';
+import { toError } from '../error-handler.ts';
 import type { JobOutcome, JobSnapshot, SettledJobOutcome } from '../jobs.ts';
-import type { TelegramRequest } from '../telegram.ts';
+import { parseTelegramMethod, type TelegramRequest } from '../telegram.ts';
 
 /** Job data persisted in BullMQ. Jobs are read back by later processes, so reads revalidate it. */
 export interface StoredJobData {
@@ -20,7 +21,8 @@ export type BotQueue = Queue<StoredJobData, SettledJobOutcome>;
 /**
  * BullMQ parses job data from JSON, so a non-array object payload is already plain JSON that no
  * other code references. The payload is checked in place: a Zod object or record schema would
- * rebuild it and drop own `__proto__` keys.
+ * rebuild it and drop own `__proto__` keys. The method gets the same outgoing-only check as
+ * `submit`, so stored data cannot send an inbound or malformed method.
  */
 const storedPayloadSchema = z.custom<Record<string, unknown>>(
   (value) => typeof value === 'object' && value !== null && !Array.isArray(value),
@@ -28,7 +30,17 @@ const storedPayloadSchema = z.custom<Record<string, unknown>>(
 );
 
 const storedJobDataSchema = z.object({
-  request: z.object({ method: z.string(), payload: storedPayloadSchema }),
+  request: z.object({
+    method: z.unknown().transform((method, context) => {
+      try {
+        return parseTelegramMethod(method);
+      } catch (error) {
+        context.addIssue({ code: 'custom', message: toError(error).message });
+        return z.NEVER;
+      }
+    }),
+    payload: storedPayloadSchema,
+  }),
   originalDueAtMs: z.int().nonnegative(),
 });
 
@@ -50,7 +62,7 @@ export function decodeStoredJobData(data: unknown): StoredJobData {
     throw new TypeError(`Invalid stored job data: ${z.prettifyError(parsed.error)}`);
   }
   const { request, originalDueAtMs } = parsed.data;
-  // `submit` paired the method with its payload; TypeScript cannot correlate the two values.
+  // `submit` paired the method with its payload, which is left to Telegram to check.
   return { request: request as TelegramRequest, originalDueAtMs };
 }
 
