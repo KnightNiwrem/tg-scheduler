@@ -35,8 +35,8 @@ the affected job after the cooldown, keeping eligible jobs in original due-time 
 bounded urgent lane will support time-sensitive callback and pre-checkout answers. A worker
 executable and Compose service will run the worker as a long-lived process.
 
-The selected design uses BullMQ's supported injectable connection interface backed by Valkey, with
-ioredis as the provisional initial driver. Node.js and Deno remain library compatibility targets.
+Node.js and Deno remain library compatibility targets. The [technical decisions](docs/decisions/)
+record the selected backend, runtimes and scheduling policies.
 The [testing guide](#testing) describes current coverage and the commands to run it.
 Inbound updates, polling, and webhook ingestion are outside scope.
 
@@ -105,9 +105,10 @@ Adjust the port if `VALKEY_PORT` differs. The full scheduler acceptance criteria
 ## Project documentation
 
 - [Library overview](docs/library-overview.md): component flow, source map, and scaffolded public API.
-- [Architecture](docs/architecture.md): requirements, selected design, API boundaries, scheduling,
-  concurrency, and failure semantics, including
-  [implementation decisions pending review](docs/architecture.md#10-decisions-pending-review).
+- [Architecture](docs/architecture.md): components, job lifecycle, durable transitions, guarantee
+  limits, and links to the decisions by area.
+- [Decisions](docs/decisions/): one file per current technical decision, with its status and
+  whether a maintainer has confirmed it.
 - [Validation](docs/validation.md): first-slice acceptance criteria, runtime and recovery checks,
   and deferred capabilities.
 - [Library research](docs/library-research.md): BullMQ integration caveats and the rationale for

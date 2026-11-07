@@ -1,0 +1,23 @@
+# Retry delay from retry_after with a 30-second fallback
+
+- **Status:** provisional
+- **Human-confirmed:** no
+
+## Decision
+
+The transport reports Telegram's raw `parameters.retry_after`, in seconds, and the coordinator
+validates and converts it once:
+
+- For a positive integer whose conversion and resulting expiry are safely representable,
+  `retryDelayMs = retry_after * 1000`.
+- If `parameters` or `retry_after` is absent, or the value is invalid, nonpositive or
+  unrepresentable, `retryDelayMs = 30_000`.
+
+The fallback applies to both lanes and to every such 429. It never causes an immediate retry, never
+shortens a longer existing cooldown and never caps a valid server-specified delay.
+
+## Context
+
+[`ResponseParameters`](https://core.telegram.org/bots/api#responseparameters) makes `retry_after`
+optional. The fallback is application policy rather than a guarantee that Telegram accepts the call
+after thirty seconds; Telegram publishes no universal requests-per-second threshold.

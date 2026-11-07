@@ -45,10 +45,10 @@ uncertain. Support the classification with code and usage evidence:
   score is useful only when the design improves.
 
 A blocking review finding needs a concrete trigger, material impact, evidence, and a reason it must
-be fixed now. Address fixed-requirement violations, core acceptance failures, and credible material
-security, data-integrity, or operational risks, including rare severe risks. Defer useful nonblocking
-improvements without turning every suggestion into a backlog item or restarting an unrestricted
-audit after each fix.
+be fixed now. Address violations of invariant decisions or explicit requirements, core acceptance
+failures, and credible material security, data-integrity, or operational risks, including rare
+severe risks. Defer useful nonblocking improvements without turning every suggestion into a backlog
+item or restarting an unrestricted audit after each fix.
 
 Prioritize confirmed issues by impact and task scope. Investigate uncertain findings; leave code
 unchanged when evidence remains insufficient and continue with independent, supported findings.

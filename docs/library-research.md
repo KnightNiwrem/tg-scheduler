@@ -2,7 +2,7 @@
 
 The source findings below date to 2 November 2026; the native behavior experiments were run on
 6 November 2026 against the pinned dependencies. The
-[architecture](architecture.md) defines selected choices, and [validation](validation.md) defines
+[decisions](decisions/) record the selected choices, and [validation](validation.md) defines
 acceptance criteria. The project pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; current integration
 coverage is described in the [testing guide](../README.md#testing). Default-branch source links can
 change; the observations below apply to the tested versions.
@@ -60,7 +60,7 @@ To reproduce the experiments, use a checkout of that commit with the
 `VALKEY_TEST_URL=redis://127.0.0.1:6379/0 bun run test:all`.
 The recorded verification used isolated host port `16379`.
 
-These findings retain BullMQ/Valkey as the selected backend. They establish reusable claim,
+These findings support the [BullMQ and Valkey backend](decisions/backend-bullmq-valkey.md). They establish reusable claim,
 capacity, activation, and settlement primitives, with additional coordination required for
 monotonic cooldowns, original-rank admission/requeue, and uncertainty. They do not establish
 Valkey persistence across restart, recurrence/coalescing, urgent-lane policy, Telegram error
@@ -68,14 +68,10 @@ classification or retry-delay validation, or the complete scheduler acceptance c
 
 ## BullMQ integration findings
 
-BullMQ with Valkey is fixed; actual ioredis is the provisional initial driver. BullMQ's [connection
-documentation](https://docs.bullmq.io/guide/connections) describes raw ioredis compatibility and
-`IRedisClient` adapters, including an adapter for Bun's built-in Redis client. Ioredis is the initial
-driver used by the backend's connection factory. Other clients need the
-full selected-version contract: commands, lifecycle/events, duplication, Lua scripts and pipelines.
-Valkey is the server, independent of the JavaScript client choice. The
-[architecture](architecture.md#1-scope-and-ownership) records the required ioredis worker connection
-settings and the boundary for changing the provisional driver.
+BullMQ's [connection documentation](https://docs.bullmq.io/guide/connections) describes raw ioredis
+compatibility and `IRedisClient` adapters, including an adapter for Bun's built-in Redis client.
+The [ioredis driver decision](decisions/backend-ioredis-driver.md) records the selected client, the
+required worker connection settings and the conditions for replacing it.
 
 The source review identified the following integration risks. The archived experiments above
 verified cooldown replacement, ordinary retry ordering, stalled recovery, and shared limits in the
@@ -99,14 +95,14 @@ selected version. Recurrence/coalescing remains unverified:
   and cooldown state. [Global concurrency](https://docs.bullmq.io/guide/queues/global-concurrency),
   [rate limiting](https://docs.bullmq.io/guide/rate-limiting)
 
-These risks are reflected in the architecture and acceptance criteria; the selected backend remains
-BullMQ with Valkey.
+These risks are reflected in the [decisions](decisions/) and acceptance criteria.
 
 ## Cross-runtime test framework
 
-[Vitest](https://vitest.dev/guide/features.html) is the selected test runner for Bun, Node.js, and
-Deno. It provides TypeScript support, assertions, lifecycle hooks, asynchronous tests, mocking,
-fake timers, snapshots, and watch mode. The same TypeScript test files run directly on each
+[Vitest](https://vitest.dev/guide/features.html), the
+[selected test runner](decisions/testing-vitest-cross-runtime.md), runs on Bun, Node.js, and Deno.
+It provides TypeScript support, assertions, lifecycle hooks, asynchronous tests, mocking, fake
+timers, snapshots, and watch mode. The same TypeScript test files run directly on each
 runtime. The [testing guide](../README.md#testing) describes the repository commands and verified
 CI runtime versions.
 

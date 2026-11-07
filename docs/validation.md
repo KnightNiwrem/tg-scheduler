@@ -6,11 +6,8 @@ the remaining queue/scheduler policies and full acceptance checks are pending.
 [Library research](library-research.md#selected-version-native-behavior) records verified native
 behavior, integration gaps, and policies still awaiting validation.
 
-The fixed stack is **TypeScript, grammY, Bun as the primary runtime, and BullMQ using its supported
-injectable connection interface with ioredis-compatible interoperability backed by Valkey**. Node.js
-and Deno remain library compatibility targets. The provisional topology is a long-lived Bun worker
-containing the grammY caller; actual ioredis is the provisional initial driver. Docker Compose with
-the official `valkey/valkey` image is part of the first implementation slice.
+The checks verify the [technical decisions](decisions/); when a decision changes, the affected
+checks change with it.
 
 The [runtime compatibility research](library-research.md#runtime-compatibility) records dependency
 support. The checks below cover this project's library and scheduling behavior, including the
@@ -34,19 +31,10 @@ the same library tests on each runtime.
 ## Selected slice
 
 The first slice covers durable immediate jobs, one-time delayed jobs and fixed-interval UTC
-recurrence through one per-bot queue/scheduler authority. It includes explicit enqueue and
-status/result retrieval, JSON-serializable payloads and existing Telegram `file_id` references, and
-disabling future recurrence.
-
-Ordinary concurrency defaults to 1 and is configurable, with optional urgent capacity 1 for
-`answerCallbackQuery` and `answerPreCheckoutQuery`. Ordinary and urgent lane cooldowns are separate
-and monotonic. Eligible ordinary FIFO uses original due time then submission sequence. Ambiguous
-sends become visibly uncertain without automatic replay; unrelated work continues. Recurrence is
-planned-time anchored and coalesces missed, not-yet-materialized occurrences to the latest one
-without discarding accepted jobs.
-
-Native engine functionality is suitable where it meets these semantics. Durable acceptance requires
-validated Valkey persistence/recovery configuration and documented recovery limits.
+recurrence for each bot, with status/result retrieval and disabling of future recurrence. Its
+behavior is defined by the [decisions linked from the architecture](architecture.md#decisions-by-area).
+Durable acceptance requires validated Valkey persistence/recovery configuration and documented
+recovery limits.
 
 ## Runtime and local development checks
 
