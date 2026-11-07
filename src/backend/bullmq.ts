@@ -106,9 +106,8 @@ function isClusterConnection(connection: Redis | Cluster): connection is Cluster
 }
 
 /**
- * Configure queue-wide capacity and start claiming the bot's ordinary jobs. Capacity changes only
- * after the worker's connection is ready, so a worker that cannot start leaves it unchanged, and
- * claiming begins only after the capacity is set.
+ * Wait for the worker's connection to be ready, set the bot's queue-wide capacity, then start
+ * claiming ordinary jobs.
  *
  * @throws when BullMQ cannot start or configure capacity; owned resources are released.
  */

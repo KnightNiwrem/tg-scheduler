@@ -93,9 +93,8 @@ errors that no operation awaits [to `onError`](decisions/api-unawaited-error-rep
 
 ## Coordination contract
 
-Shared ordinary concurrency is implemented through BullMQ's queue-wide limit, which
-[the last worker started sets](decisions/admission-concurrency-set-by-worker-start.md), so every
-worker for a bot must use the same policy. The urgent lane, lane cooldowns, 429 requeue, FIFO
+Workers configure [shared ordinary concurrency for their bot](decisions/admission-concurrency-set-by-worker-start.md)
+during startup. The urgent lane, lane cooldowns, 429 requeue, FIFO
 ordering by original due time, recurrence and recovery records are not implemented yet. The
 [architecture](architecture.md#decisions-by-area) links the decisions that define them, and
 [validation](validation.md) defines the evidence needed to claim they work.
