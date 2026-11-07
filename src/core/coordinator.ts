@@ -8,7 +8,7 @@ import type { TelegramTransport } from '../transport/telegram-transport.ts';
 import { UnimplementedError } from '../unimplemented-error.ts';
 
 export interface BotPolicy {
-  /** Shared ordinary capacity across workers; defaults to one. */
+  /** Shared ordinary capacity across workers; defaults to three. */
   ordinaryConcurrency?: number;
   /** Defaults to false. The urgent lane adds at most one reservation. */
   urgentBypassEnabled?: boolean;
@@ -16,7 +16,7 @@ export interface BotPolicy {
 
 const botPolicySchema = z
   .strictObject({
-    ordinaryConcurrency: z.int().positive().default(1),
+    ordinaryConcurrency: z.int().positive().default(3),
     urgentBypassEnabled: z.boolean().default(false),
   })
   .prefault({});

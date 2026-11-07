@@ -1,6 +1,11 @@
 import { Redis } from 'ioredis';
 import { afterEach, beforeEach, expect, test } from 'vitest';
-import { createSchedulerClient, type JobSnapshot, type SchedulerClient } from '../src/index.ts';
+import {
+  type BotPolicy,
+  createSchedulerClient,
+  type JobSnapshot,
+  type SchedulerClient,
+} from '../src/index.ts';
 import type { TelegramRequest } from '../src/telegram.ts';
 import type {
   TelegramAttemptOutcome,
@@ -60,11 +65,8 @@ function openClient(): SchedulerClient {
   return client;
 }
 
-function openWorker(transport: TelegramTransport, ordinaryConcurrency = 1): SchedulerWorker {
-  const worker = createSchedulerWorkerWithTransport(
-    { ...sharedOptions(), policy: { ordinaryConcurrency } },
-    transport,
-  );
+function openWorker(transport: TelegramTransport, policy?: BotPolicy): SchedulerWorker {
+  const worker = createSchedulerWorkerWithTransport({ ...sharedOptions(), policy }, transport);
   ownedResources.push(worker);
   return worker;
 }
@@ -322,32 +324,50 @@ integrationTest(
   },
 );
 
-integrationTest('ordinary capacity is shared by every worker for the bot', async () => {
-  const release = deferred();
-  const telegram = new FakeTelegram(async () => {
-    await release.promise;
-    return { kind: 'succeeded', result: true };
-  });
-  await Promise.all([openWorker(telegram, 2).start(), openWorker(telegram, 2).start()]);
-  const client = openClient();
-  const handles = await Promise.all(
-    [1, 2, 3, 4].map((chat_id) => client.submit('sendChatAction', { chat_id, action: 'typing' })),
-  );
+integrationTest.each([
+  { configuration: 'an omitted policy', policy: undefined, expectedConcurrency: 3 },
+  { configuration: 'an empty policy', policy: {}, expectedConcurrency: 3 },
+  {
+    configuration: 'an explicit concurrency of one',
+    policy: { ordinaryConcurrency: 1 },
+    expectedConcurrency: 1,
+  },
+  {
+    configuration: 'an explicit concurrency of two',
+    policy: { ordinaryConcurrency: 2 },
+    expectedConcurrency: 2,
+  },
+])(
+  '$configuration shares ordinary capacity of $expectedConcurrency across workers',
+  async ({ policy, expectedConcurrency }) => {
+    const release = deferred();
+    const telegram = new FakeTelegram(async () => {
+      await release.promise;
+      return { kind: 'succeeded', result: true };
+    });
+    await Promise.all([openWorker(telegram, policy).start(), openWorker(telegram, policy).start()]);
+    const client = openClient();
+    const handles = await Promise.all(
+      [1, 2, 3, 4, 5, 6].map((chat_id) =>
+        client.submit('sendChatAction', { chat_id, action: 'typing' }),
+      ),
+    );
 
-  try {
-    await expect.poll(() => telegram.inFlight).toBe(2);
-    // Give a third claim time to happen if the shared limit did not hold.
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(telegram.inFlight).toBe(2);
-  } finally {
-    release.resolve();
-  }
-  for (const handle of handles) {
-    expect((await settledJob(client, handle.id)).state).toBe('succeeded');
-  }
-  expect(telegram.maxInFlight).toBe(2);
-  expect(telegram.attempts).toHaveLength(4);
-});
+    try {
+      await expect.poll(() => telegram.inFlight).toBe(expectedConcurrency);
+      // Give another claim time to happen if the shared limit did not hold.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(telegram.inFlight).toBe(expectedConcurrency);
+    } finally {
+      release.resolve();
+    }
+    for (const handle of handles) {
+      expect((await settledJob(client, handle.id)).state).toBe('succeeded');
+    }
+    expect(telegram.maxInFlight).toBe(expectedConcurrency);
+    expect(telegram.attempts).toHaveLength(6);
+  },
+);
 
 integrationTest('getJob returns undefined for an unknown job', async () => {
   expect(await openClient().getJob('does-not-exist')).toBeUndefined();
