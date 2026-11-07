@@ -45,7 +45,7 @@ export function configureWorker(options: SharedBotOptions, resolveBotToken: BotT
   const worker = createSchedulerWorker({
     ...options,
     resolveBotToken,
-    policy: { ordinaryConcurrency: 1, urgentBypassEnabled: false },
+    policy: { ordinaryConcurrency: 3, urgentBypassEnabled: false },
   });
   // A long-lived executable owns calling start(), handling signals, and awaiting close().
   return worker;
