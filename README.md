@@ -65,7 +65,8 @@ removes the data. See [Valkey persistence](https://valkey.io/topics/persistence/
 tradeoffs. This configuration is for local testing.
 
 For deployments beyond local testing, operators configure Valkey authentication and network
-restrictions. Backend access permits reading and modifying jobs in the accessible namespace.
+restrictions, and include the credentials in `backend.valkeyUrl` for every client and worker.
+Backend access permits reading and modifying jobs in the accessible namespace.
 
 ## Commands
 
