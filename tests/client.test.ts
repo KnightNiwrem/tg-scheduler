@@ -72,6 +72,27 @@ function endlessArrayProxy(): unknown[] {
     },
   });
 }
+/**
+ * Answers every prototype read with itself, so only the chain depth bound ends the `toJSON` hook
+ * search. After a bounded number of reads the proxy throws instead, failing the test rather than
+ * hanging the suite.
+ */
+function selfPrototypeArrayProxy(): unknown[] {
+  const maxPrototypeReads = 1_000;
+  let prototypeReads = 0;
+  const proxy: unknown[] = new Proxy([], {
+    getPrototypeOf: () => {
+      prototypeReads++;
+      if (prototypeReads > maxPrototypeReads) {
+        throw new Error(
+          `Parser read more than ${maxPrototypeReads} prototypes of an endless chain`,
+        );
+      }
+      return proxy;
+    },
+  });
+  return proxy;
+}
 const circular: Record<string, unknown> = { text: 'loop' };
 circular.self = circular;
 
@@ -138,6 +159,11 @@ test.each([
   [
     'an array proxy reporting an endless length',
     { chat_id: 1, text: 'x', entities: endlessArrayProxy() },
+    'payload.entities',
+  ],
+  [
+    'an array proxy that is its own prototype',
+    { chat_id: 1, text: 'x', entities: selfPrototypeArrayProxy() },
     'payload.entities',
   ],
   ['a circular reference', { chat_id: 1, nested: circular }, 'payload.nested.self'],

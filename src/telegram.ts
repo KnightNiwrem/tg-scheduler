@@ -158,14 +158,23 @@ function dataValue(descriptor: PropertyDescriptor, path: string): unknown {
   return descriptor.value;
 }
 
+const maxPrototypeChainDepth = 100;
+
 /**
  * JSON.stringify calls a callable `toJSON`, even a non-enumerable or inherited one, and encodes its
  * result instead of the container's contents, so a hook means the caller's value does not encode
  * as its copy would. An accessor counts as a hook because reading it runs code; a non-callable data
  * value is an ordinary property.
+ *
+ * A real prototype chain is finite, but a proxy's `getPrototypeOf` trap can return itself or a new
+ * proxy each time, so the walk stops at a depth far beyond any class hierarchy.
  */
 function rejectToJsonHook(container: object, path: string): void {
-  for (let owner: object | null = container; owner !== null; owner = Object.getPrototypeOf(owner)) {
+  let owner: object | null = container;
+  for (let depth = 0; owner !== null; depth++, owner = Object.getPrototypeOf(owner)) {
+    if (depth > maxPrototypeChainDepth) {
+      throw invalidPayload(`${path} has a prototype chain deeper than ${maxPrototypeChainDepth}`);
+    }
     const descriptor = Object.getOwnPropertyDescriptor(owner, 'toJSON');
     if (descriptor === undefined) continue;
     if (!('value' in descriptor) || typeof descriptor.value === 'function') {

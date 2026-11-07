@@ -21,8 +21,9 @@ rather than the caller's object. The stored payload is therefore exactly the val
 changing the caller's object after `submit` returns has no effect on it. For a payload without
 proxies, parsing runs no caller code. A proxy's traps run while parsing reads it, so a proxy can
 cause a rejection or throw its own error, but it cannot make the stored payload differ from the
-parsed copy. An array proxy reporting a `length` that no array can have is rejected, so parsing
-always ends. The copy holds `-0` as `0`, as JSON encodes it.
+parsed copy. An array proxy reporting a `length` that no array can have, and a value whose
+prototype chain is deeper than 100, are rejected, so parsing always ends. The copy holds `-0` as
+`0`, as JSON encodes it.
 
 Method names must look like Bot API methods and exclude inbound methods. They are not checked
 against the full method list, and per-method fields are left to Telegram.
