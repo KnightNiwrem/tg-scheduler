@@ -1,13 +1,14 @@
 # Outbound queue and scheduler architecture
 
-Status: selected design; the repository provides the local Valkey/BullMQ bootstrap described in
-the [project overview](../README.md). The Telegram queue/scheduler implementation and
+Status: selected design; the repository provides the typed library skeleton, the backend's Valkey
+connection factory, and the local Valkey service described in the
+[project overview](../README.md). The Telegram queue/scheduler implementation and
 its full acceptance tests are pending. **Fixed** identifies a project requirement or necessary
 correctness constraint. **Provisional** identifies a selected implementation approach that can be
 revised with evidence.
 
 The [library overview](library-overview.md) maps the typed skeleton to these components. Its
-operations explicitly reject as unimplemented; the bootstrap remains the runnable implementation.
+operations explicitly reject as unimplemented.
 
 The [project overview](../README.md) describes current capabilities. [Validation](validation.md)
 defines acceptance criteria for this design; [library research](library-research.md) records
@@ -71,9 +72,9 @@ replacement; it does not by itself invalidate the fixed backend or runtime targe
 server; its use does not itself require a Valkey-specific client.
 
 Dependency support is recorded in the
-[runtime compatibility research](library-research.md#runtime-compatibility). Bootstrap queue/worker
-operations have cross-runtime integration coverage; the queue/scheduler policies below remain
-pending.
+[runtime compatibility research](library-research.md#runtime-compatibility). The backend's producer and
+worker connections have cross-runtime BullMQ integration coverage; the queue/scheduler policies
+below remain pending.
 
 A durable queue does not inherently require a user-hosted always-running coordinator: a platform can
 persist state and wake ephemeral code. The first implementation uses operated workers; a serverless

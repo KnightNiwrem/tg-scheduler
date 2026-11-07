@@ -11,11 +11,9 @@ The library entry point is [`src/index.ts`](../src/index.ts). Its API and intern
 compiling skeleton: client, worker, and transport factories construct objects without opening
 connections, resolving tokens, or making Telegram calls. Their methods, including `close()`,
 reject with `UnimplementedError`. Backend opening and coordinator functions also reject explicitly.
-Options and payloads are typed but runtime validation is still pending.
-
-The existing diagnostic worker in `src/main.ts` remains runnable through the
-[bootstrap commands](../README.md#getting-started). It exercises BullMQ and Valkey with healthcheck
-jobs; it does not run the scheduler skeleton.
+Options and payloads are typed but runtime validation is still pending, except for the Valkey URL,
+which the backend's connection factory validates. That factory is the implemented part of the
+backend; nothing runnable uses the skeleton yet.
 
 ## Intended flow
 
@@ -37,18 +35,19 @@ All participants for one bot must use the same backend namespace and stable bot 
 
 ## Source map
 
-| Module                                                        | Responsibility                                                                                           |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [`src/index.ts`](../src/index.ts)                             | Public library exports; importing them performs no startup or environment access.                        |
-| [`src/client.ts`](../src/client.ts)                           | Producer configuration, submission, job retrieval, schedule creation/disable, and connection cleanup.    |
-| [`src/jobs.ts`](../src/jobs.ts)                               | Job handles, earliest execution time, delivery lane, and visible job outcomes.                           |
-| [`src/schedules.ts`](../src/schedules.ts)                     | Schedule handles, fixed intervals, and planned-time anchors.                                             |
-| [`src/telegram.ts`](../src/telegram.ts)                       | grammY-derived method, payload, and result types, excluding new file uploads and inbound operations.     |
-| [`src/worker.ts`](../src/worker.ts)                           | Worker configuration and lifecycle, including shared per-bot policy and token resolution.                |
-| [`src/core/coordinator.ts`](../src/core/coordinator.ts)       | Admission, ordering, cooldowns, outcome settlement, occurrence creation, and abandoned-attempt recovery. |
-| [`src/backend/bullmq.ts`](../src/backend/bullmq.ts)           | Concrete per-bot BullMQ queues, Valkey persistence, and owned connection lifecycle.                      |
-| [`src/transport/grammy.ts`](../src/transport/grammy.ts)       | One outgoing attempt, worker-side credential resolution, and a classified transport outcome.             |
-| [`src/unimplemented-error.ts`](../src/unimplemented-error.ts) | Explicit failure for unfinished operations.                                                              |
+| Module                                                                    | Responsibility                                                                                           |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [`src/index.ts`](../src/index.ts)                                         | Public library exports; importing them performs no startup or environment access.                        |
+| [`src/client.ts`](../src/client.ts)                                       | Producer configuration, submission, job retrieval, schedule creation/disable, and connection cleanup.    |
+| [`src/jobs.ts`](../src/jobs.ts)                                           | Job handles, earliest execution time, delivery lane, and visible job outcomes.                           |
+| [`src/schedules.ts`](../src/schedules.ts)                                 | Schedule handles, fixed intervals, and planned-time anchors.                                             |
+| [`src/telegram.ts`](../src/telegram.ts)                                   | grammY-derived method, payload, and result types, excluding new file uploads and inbound operations.     |
+| [`src/worker.ts`](../src/worker.ts)                                       | Worker configuration and lifecycle, including shared per-bot policy and token resolution.                |
+| [`src/core/coordinator.ts`](../src/core/coordinator.ts)                   | Admission, ordering, cooldowns, outcome settlement, occurrence creation, and abandoned-attempt recovery. |
+| [`src/backend/bullmq.ts`](../src/backend/bullmq.ts)                       | Concrete per-bot BullMQ queues, Valkey persistence, and owned connection lifecycle.                      |
+| [`src/backend/valkey-connection.ts`](../src/backend/valkey-connection.ts) | Valkey URL validation and producer/worker connection settings for injected BullMQ clients.               |
+| [`src/transport/grammy.ts`](../src/transport/grammy.ts)                   | One outgoing attempt, worker-side credential resolution, and a classified transport outcome.             |
+| [`src/unimplemented-error.ts`](../src/unimplemented-error.ts)             | Explicit failure for unfinished operations.                                                              |
 
 These are modules within the selected BullMQ implementation. Storage transitions and native worker
 wiring remain provisional until selected-version integration establishes the required semantics.

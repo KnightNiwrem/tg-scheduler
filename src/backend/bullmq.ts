@@ -4,6 +4,10 @@ import type { TelegramAttemptOutcome } from '../transport/grammy.ts';
 import { UnimplementedError } from '../unimplemented-error.ts';
 
 export interface BullMqBackendOptions {
+  /**
+   * `redis://` or `rediss://` URL with optional credentials and database number. Query parameters
+   * and fragments are rejected because ioredis would apply them as connection options.
+   */
   valkeyUrl: string;
   /** Shared namespace for producers and workers; bot identity supplies per-bot isolation. */
   queuePrefix?: string;
