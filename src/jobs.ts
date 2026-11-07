@@ -20,12 +20,16 @@ export interface JobError {
   telegramErrorCode?: number;
 }
 
-type JobOutcome<Method extends TelegramMethod> =
-  | { state: 'queued' }
-  | { state: 'in-flight' }
+/** Outcomes that end a job. A definite 429 is not one: the job returns to queued. */
+export type SettledJobOutcome<Method extends TelegramMethod = TelegramMethod> =
   | { state: 'succeeded'; result: TelegramResult<Method> }
   | { state: 'failed'; error: JobError }
   | { state: 'uncertain'; error: JobError };
+
+type JobOutcome<Method extends TelegramMethod> =
+  | { state: 'queued' }
+  | { state: 'in-flight' }
+  | SettledJobOutcome<Method>;
 
 /** Narrow method and state to retrieve the corresponding Telegram result type. */
 export type JobSnapshot = {

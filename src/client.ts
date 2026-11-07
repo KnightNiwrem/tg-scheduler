@@ -1,14 +1,10 @@
-import type { BullMqBackendOptions } from './backend/bullmq.ts';
 import type { JobHandle, JobSnapshot, SubmitOptions } from './jobs.ts';
 import type { ScheduleHandle, ScheduleOptions } from './schedules.ts';
+import type { SharedBotOptions } from './shared-bot-options.ts';
 import type { TelegramMethod, TelegramPayload } from './telegram.ts';
 import { UnimplementedError } from './unimplemented-error.ts';
 
-export interface SchedulerClientOptions {
-  /** Stable public bot identity, shared by every producer and worker for this bot. */
-  botId: string;
-  backend: BullMqBackendOptions;
-}
+export interface SchedulerClientOptions extends SharedBotOptions {}
 
 export interface SchedulerClient {
   submit<Method extends TelegramMethod>(
