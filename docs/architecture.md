@@ -86,7 +86,7 @@ current behavior.
    processing opportunity, after which the producer may exit.
 2. A worker claims due work when its lane has capacity and no active cooldown, in admission order.
 3. The transport makes one Telegram attempt and reports a classified outcome.
-4. The coordinator settles the job as succeeded, failed or uncertain, or returns it to the queue
+4. The coordinator settles the job as succeeded or failed, or returns it to the queue
    after a 429, extending that lane's cooldown.
 5. Recurring schedules materialize occurrences as ordinary jobs that follow the same path.
 
@@ -101,8 +101,9 @@ than behind mandatory adapter method names:
    current attempt identity and lease.
 3. **Settle/defer/fail:** verify current ownership, save the outcome, release capacity,
    monotonically extend cooldowns and ensure next activation.
-4. **Recover abandoned attempts:** reclaim expired ownership under the uncertainty policy; arrange
-   recovery at claim time, not only after successful completion.
+4. **Recover abandoned attempts:** reclaim expired ownership under the
+   [no-retransmission policy](decisions/uncertainty-no-automatic-retransmission.md); arrange recovery
+   at claim time, not only after successful completion.
 5. **Materialize occurrence:** create one unique occurrence and advance the schedule atomically.
 6. **Disable recurrence:** prevent further occurrence creation without silently cancelling accepted
    jobs.
@@ -129,7 +130,7 @@ finish first.
 
 ## Compatibility boundaries
 
-Configuration, payload schema, ordering and uncertainty semantics become migration boundaries once
+Configuration, payload schema, ordering and failure semantics become migration boundaries once
 the library has public consumers or production data. Internal draft interfaces carry no hypothetical
 compatibility obligation, while established external contracts and existing data require
 preservation or an explicit migration.

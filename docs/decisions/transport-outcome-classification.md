@@ -9,12 +9,14 @@
 - A 429 is reported as rate-limited, with Telegram's raw `retry_after`, and settled by the
   rate-limit decisions; currently the [interim 429 failure](rate-limit-interim-429-failure.md)
   applies.
-- Any other Telegram 4xx response is `failed`.
-- Telegram 5xx responses, grammY `HttpError`s (network failures, timeouts and non-JSON responses)
-  and unrecognized transport errors are `uncertain`.
+- Every other error is `failed`, with its message and Telegram error code when available. This
+  includes Telegram 4xx and 5xx responses, grammY `HttpError`s (network failures, timeouts and
+  non-JSON responses), and unrecognized transport errors.
 
 ## Context
 
-A 4xx response means Telegram answered and did not perform the call. A server error does not prove
-the call had no effect, and a request may reach Telegram before the connection fails or times out;
-see the [uncertainty policy](uncertainty-no-automatic-retransmission.md).
+Failure describes the execution outcome, not whether Telegram performed the call. A server error
+can follow an external effect, and a request may reach Telegram before the connection fails or
+times out. Recording these errors as failures follows the
+[visible job states](api-visible-job-states.md) without changing the
+[no-retransmission policy](uncertainty-no-automatic-retransmission.md).

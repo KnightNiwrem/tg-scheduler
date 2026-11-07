@@ -8,14 +8,15 @@ The library currently supports the basic delivery path for immediate and one-tim
 - `submit` parses a payload as durable JSON and stores the parsed copy in Valkey through BullMQ.
 - A library worker claims due jobs within an ordinary concurrency shared by every worker for the
   bot, and makes one grammY call per job.
-- `getJob` reports the job as `queued`, `in-flight`, `succeeded`, `failed`, or `uncertain`, with
-  the Telegram result or error.
+- `getJob` reports the job as `queued`, `in-flight`, `succeeded`, or `failed`, with the Telegram
+  result or error.
 
-Ambiguous attempts, such as network failures or Telegram server errors, are reported as `uncertain`
-and never retransmitted automatically. A worker that stops mid-attempt leaves its job `in-flight`
-until a running worker's stalled-job check after BullMQ's 30-second lock expires. The job then shows
-as `queued` until a worker fetches it and records it as `uncertain`, which can take longer when the
-queue is busy. A `queued` state therefore does not prove that a request was never sent.
+Network failures and Telegram server errors are reported as `failed` with their errors and are never
+retransmitted automatically. A failed job does not prove that Telegram did not perform the call.
+A worker that stops mid-attempt leaves its job `in-flight` until a running worker's stalled-job
+check after BullMQ's 30-second lock expires. The job then shows as `queued` until a worker fetches
+it and records it as `failed`, which can take longer when the queue is busy. A `queued` state
+therefore does not prove that a request was never sent.
 
 A Telegram 429 currently settles the job as `failed`; durable 429 retry with lane cooldowns is not
 implemented yet, so the worker is not ready for production traffic. Recurring schedules and the

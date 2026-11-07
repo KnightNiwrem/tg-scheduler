@@ -9,10 +9,8 @@ export type TelegramAttemptOutcome =
   // Telegram's raw `retry_after`, in seconds. Lane cooldowns will validate it and convert it to
   // milliseconds once; until then the coordinator only reports a valid value to callers.
   | { kind: 'rate-limited'; retryAfterSeconds?: unknown }
-  // Telegram definitely did not perform the call.
-  | { kind: 'failed'; error: JobError }
-  // Telegram may have performed the call, so it must not be retransmitted automatically.
-  | { kind: 'uncertain'; error: JobError };
+  // A terminal error does not prove Telegram did not perform the call.
+  | { kind: 'failed'; error: JobError };
 
 export interface TelegramTransport {
   /**

@@ -20,11 +20,10 @@ export interface JobError {
   telegramErrorCode?: number;
 }
 
-/** Outcomes that end a job. A definite 429 is not one: the job returns to queued. */
+/** Terminal execution outcomes. Failure does not prove Telegram did not perform the call. */
 export type SettledJobOutcome<Method extends TelegramMethod = TelegramMethod> =
   | { state: 'succeeded'; result: TelegramResult<Method> }
-  | { state: 'failed'; error: JobError }
-  | { state: 'uncertain'; error: JobError };
+  | { state: 'failed'; error: JobError };
 
 export type JobOutcome<Method extends TelegramMethod = TelegramMethod> =
   | { state: 'queued' }

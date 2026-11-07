@@ -62,7 +62,7 @@ test('a zero-parameter method is called with an empty payload', async () => {
   expect(calls).toEqual([{ url: `https://api.telegram.org/bot${token}/getMe`, body: {} }]);
 });
 
-test('a Telegram rejection is a definite failure', async () => {
+test('a Telegram rejection records its API error', async () => {
   const { outcome, calls } = await attemptWith(() =>
     telegramResponse(
       { ok: false, error_code: 400, description: 'Bad Request: chat not found' },
@@ -94,22 +94,24 @@ test.each([
   },
 );
 
-test('a Telegram server error is uncertain', async () => {
-  const { outcome } = await attemptWith(() =>
+test('a Telegram server error fails once with its API error', async () => {
+  const { outcome, calls } = await attemptWith(() =>
     telegramResponse({ ok: false, error_code: 502, description: 'Bad Gateway' }, 502),
   );
   expect(outcome).toEqual({
-    kind: 'uncertain',
+    kind: 'failed',
     error: { message: 'Bad Gateway', telegramErrorCode: 502 },
   });
+  expect(calls).toHaveLength(1);
 });
 
 test.each([
   ['a network failure', () => Promise.reject(new Error(`request to bot${token} failed`))],
+  ['a timeout', () => Promise.reject(new Error('Request timed out'))],
   ['a non-JSON response', () => new Response('<html>proxy error</html>', { status: 502 })],
-])('%s is uncertain and does not expose the token', async (_case, answer) => {
+])('%s fails once and does not expose the token', async (_case, answer) => {
   const { outcome, calls } = await attemptWith(answer);
-  expect(outcome).toMatchObject({ kind: 'uncertain' });
+  expect(outcome).toMatchObject({ kind: 'failed', error: { message: expect.any(String) } });
   expect(JSON.stringify(outcome)).not.toContain(token);
   expect(calls).toHaveLength(1);
 });
@@ -145,7 +147,7 @@ test('the token is resolved for each attempt, so rotation takes effect', async (
   ]);
 });
 
-test('an unknown method is sent once and its 404 is a definite failure', async () => {
+test('an unknown method is sent once and its 404 is recorded', async () => {
   const { outcome, calls } = await attemptWith(
     () => telegramResponse({ ok: false, error_code: 404, description: 'Not Found' }, 404),
     // Untyped callers can submit a misspelled method; only its name format is checked.

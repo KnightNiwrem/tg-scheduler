@@ -5,7 +5,7 @@
 
 ## Decision
 
-Succeeded, failed and uncertain jobs are kept indefinitely, which is BullMQ's default.
+Succeeded and failed jobs are kept indefinitely, which is BullMQ's default.
 
 ## Context
 

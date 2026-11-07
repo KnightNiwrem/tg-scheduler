@@ -1,15 +1,18 @@
 # Visible job states
 
 - **Status:** provisional
-- **Human-confirmed:** no
+- **Human-confirmed:** yes
 
 ## Decision
 
-A job is `queued`, `in-flight`, `succeeded`, `failed` or `uncertain`.
+A job is `queued`, `in-flight`, `succeeded` or `failed`.
 
 - `succeeded` carries the Telegram result for the job's method.
-- `failed` means Telegram definitely did not perform the call.
-- `uncertain` means Telegram may have performed the call.
+- `failed` carries the execution error. Telegram may have performed the call even though the
+  attempt did not produce a confirmed success.
+
+After submission has completed, execution errors are retrieved through `getJob`; they do not
+reject the original `submit` call.
 
 Once lane cooldowns are implemented, a definite 429 is not a final outcome: the job returns to
 `queued`, as described in [429 requeue](rate-limit-429-requeue-preserves-rank.md). Until then, the
@@ -17,6 +20,7 @@ Once lane cooldowns are implemented, a definite 429 is not a final outcome: the 
 
 ## Context
 
-Callers need the actual outcome, including ambiguity, to decide whether resubmitting is safe; see
-the [uncertainty policy](uncertainty-no-automatic-retransmission.md) and
+Like a rejected grammY API call, a failed job records an error and leaves the application to decide
+whether to resubmit. A separate state for an unknown external outcome is unnecessary; see the
+[no-retransmission policy](uncertainty-no-automatic-retransmission.md) and
 [outcome classification](transport-outcome-classification.md).

@@ -16,10 +16,12 @@ Reused natively: queue-wide capacity (`setGlobalConcurrency`), unique current cl
 tokens, cooldown gating through a configured limiter, activation after worker replacement and
 fencing of stale settlements.
 
+[Stalled recovery](recovery-stalled-replay-disabled.md) disables abandoned-attempt replay and
+exposes interrupted processing as `failed` through job snapshots.
+
 Requires additional coordination: [monotonic cooldown extension](rate-limit-lane-cooldowns.md),
-[original-rank ordering](ordering-eligible-fifo.md),
-[429 requeue](rate-limit-429-requeue-preserves-rank.md), and
-[uncertainty reporting](uncertainty-no-automatic-retransmission.md) after interrupted attempts.
+[original-rank ordering](ordering-eligible-fifo.md), and
+[429 requeue](rate-limit-429-requeue-preserves-rank.md).
 Native recurrence helpers are usable only where they match the
 [recurrence decision](recurrence-planned-time-anchored.md).
 

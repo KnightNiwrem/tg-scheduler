@@ -13,6 +13,9 @@ is not copied again, because BullMQ has already parsed it from JSON. Data that f
 settles the job as `failed` without sending a request, and `getJob` rejects with a `TypeError`. Jobs
 use BullMQ's sequential IDs and `attempts: 1`.
 
+New settled outcomes are `succeeded` or `failed`. Previously stored `uncertain` outcomes remain
+readable as `failed`, preserving their recorded error.
+
 ## Context
 
 Jobs are read by processes other than the one that wrote them, so reads cannot trust stored data.

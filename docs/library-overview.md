@@ -28,7 +28,7 @@ flowchart LR
   Coordinator -->|admission / outcomes / cooldowns| Backend
   Coordinator -->|one admitted attempt| Transport[grammY transport]
   Transport --> Telegram[Telegram Bot API]
-  Transport -->|success / 429 / failure / uncertainty| Coordinator
+  Transport -->|success / 429 / failure| Coordinator
 ```
 
 The arrows describe the intended integration. Admission currently relies on BullMQ's queue-wide
@@ -86,7 +86,7 @@ fields.
 Job states and their meanings are defined in [visible job
 states](decisions/api-visible-job-states.md). A worker that stops mid-attempt leaves its job
 `in-flight`, then `queued`, until a running worker [records it as
-`uncertain`](decisions/recovery-stalled-replay-disabled.md), so `queued` does not prove that a
+`failed`](decisions/recovery-stalled-replay-disabled.md), so `queued` does not prove that a
 request was never sent. Clients and workers report asynchronous
 errors that no operation awaits [to `onError`](decisions/api-unawaited-error-reporting.md).
 

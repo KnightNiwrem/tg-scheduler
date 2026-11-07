@@ -52,6 +52,7 @@ const jobErrorSchema = z.object({
 const settledJobOutcomeSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('succeeded'), result: z.json() }),
   z.object({ state: z.literal('failed'), error: jobErrorSchema }),
+  // Older workers stored ambiguous errors separately; reads expose the current failure model.
   z.object({ state: z.literal('uncertain'), error: jobErrorSchema }),
 ]);
 
@@ -70,6 +71,9 @@ function decodeSettledJobOutcome(value: unknown): SettledJobOutcome {
   const parsed = settledJobOutcomeSchema.safeParse(value);
   if (!parsed.success) {
     throw new TypeError(`Invalid stored job outcome: ${z.prettifyError(parsed.error)}`);
+  }
+  if (parsed.data.state === 'uncertain') {
+    return { state: 'failed', error: parsed.data.error };
   }
   // Results are stored exactly as Telegram returned them for the job's own method.
   return parsed.data as SettledJobOutcome;
@@ -147,7 +151,7 @@ function jobOutcome(engineState: JobState, job: BotJob): JobOutcome {
       // processing was interrupted: a lost lock with stalled recovery disabled, or a processor
       // error. Either can follow a transmitted request.
       return {
-        state: 'uncertain',
+        state: 'failed',
         error: {
           message: `Processing was interrupted after admission; the request may have reached Telegram (${job.failedReason})`,
         },
