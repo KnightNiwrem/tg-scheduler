@@ -12,7 +12,7 @@ import { UnimplementedError } from './unimplemented-error.ts';
 
 export interface SchedulerWorkerOptions extends SharedBotOptions {
   resolveBotToken: BotTokenResolver;
-  /** Every worker for the bot must use the same policy; the last worker started sets capacity. */
+  /** Starting this worker sets the bot's shared ordinary capacity; the latest write wins. */
   policy?: BotPolicy;
   /**
    * Receives backend connection errors and unexpected job processing errors that no operation
