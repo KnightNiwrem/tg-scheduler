@@ -85,6 +85,9 @@ acceptance validates the documented Compose configuration and its recovery limit
   their schedule's priority.
 - Eligible urgent jobs precede normal jobs. New ready jobs enter the back of their selected
   priority; future jobs do not block ready work, and already-admitted jobs are not interrupted.
+- Jobs accepted by the current API without a priority remain normal jobs, preserving their identity,
+  payload, requested due time and recorded outcomes. Priority implementation must account for those
+  stored jobs before enabling urgent-first claims on the existing queue.
 - Due-job activation progresses while all C dispatch slots are occupied and while a bot cooldown
   is active. Within one priority, an immediate job ready before a scheduled job's activation stays
   ahead, and an immediate job ready after activation stays behind. Verify the same order after

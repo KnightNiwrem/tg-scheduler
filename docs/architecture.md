@@ -19,9 +19,9 @@ Clients and workers [borrow caller-owned ioredis connections](decisions/backend-
 | Component                        | Owns                                                                                                                 |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Client                           | Submit jobs/schedules, retrieve status/results, disable future recurrence                                            |
-| Core queue/scheduler             | Due-job activation, priority ordering, occurrence creation, shared admission, cooldown and retry/recovery decisions  |
+| Core queue/scheduler             | Eligibility, priority ordering, occurrence creation, shared admission, cooldown and retry/recovery decisions         |
 | Durable backend                  | Jobs, schedules, bot state, atomic transitions, reservations and recovery records                                    |
-| Wakeup/scheduling infrastructure | Activate due work, cooldown expiry, recurrence and recovery independently of producer lifetime                       |
+| Wakeup/scheduling infrastructure | Trigger due-job activation, cooldown expiry, recurrence and recovery independently of producer lifetime              |
 | Telegram executor/transport      | Use grammY to perform an admitted API attempt and report the result; no hidden retry/sleep loop or independent queue |
 
 ## Decisions by area
@@ -84,14 +84,14 @@ describes the current behavior.
 
 ```mermaid
 flowchart LR
-  Application --> Immediate[Immediate submissions]
-  Application --> Scheduling[Durable delayed jobs / schedules]
   subgraph Library[Scheduler library]
-    Immediate --> Ready[Per-bot prioritized ready queue]
-    Scheduling --> Activation[Due-job activation]
+    Immediate[Immediate submissions] --> Ready[Per-bot prioritized ready queue]
+    Scheduling[Durable delayed jobs / schedules] --> Activation[Due-job activation]
     Activation --> Ready
     Ready --> Admission[Shared capacity / cooldown]
   end
+  Application --> Immediate
+  Application --> Scheduling
   Admission --> Dispatcher[grammY dispatcher]
 ```
 

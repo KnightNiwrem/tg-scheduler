@@ -23,5 +23,9 @@ implemented, the [interim 429 failure](rate-limit-interim-429-failure.md) applie
 
 A definite 429 is retryable because Telegram rejected the attempt. BullMQ already provides a
 priority-aware return to waiting for that case; native tie ordering is sufficient for this queue.
+In BullMQ 6.7.1, concurrent returns at the same positive priority receive equal scores, so Valkey
+orders those jobs lexicographically by job ID. Unprioritized FIFO jobs instead retry in reverse
+return order. These characterize the selected native version; the library adds no independent
+tie-order guarantee.
 The [integration findings](../library-research.md#bullmq-integration-findings) distinguish this path
 from ordinary failure/backoff retries, which do not generally insert at the front.

@@ -42,9 +42,10 @@ Immediate, delayed and recurring work will support normal or urgent
 [priority](docs/decisions/admission-job-priorities.md) through a
 [single dispatch queue per bot](docs/decisions/backend-single-dispatch-queue.md). Due jobs will join
 that queue while dispatch is busy, following [ready-entry ordering](docs/decisions/ordering-eligible-fifo.md).
-Telegram 429 responses will pause both priorities and use
-[native retry insertion](docs/decisions/rate-limit-native-429-requeue.md) after the cooldown. A worker
-executable and Compose service will run the worker as a long-lived process.
+Telegram 429 responses will return the affected job to the queue using
+[native retry insertion](docs/decisions/rate-limit-native-429-requeue.md). The bot cooldown will pause
+claims for both priorities until it expires. A worker executable and Compose service will run the
+worker as a long-lived process.
 
 Durable new-file sending is a candidate for v1; its storage and API design remain open. The
 [current request contract](docs/decisions/api-durable-json-requests.md) covers the first slice.

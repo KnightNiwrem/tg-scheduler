@@ -23,17 +23,18 @@ are not implemented yet; delayed promotion currently runs through BullMQ worker 
 
 ```mermaid
 flowchart LR
-  Application -->|submit / getJob / schedules| Client
   subgraph Library[Scheduler library]
-    Client -->|immediate jobs| Ready[Per-bot prioritized ready queue]
+    Client[Client] -->|immediate jobs| Ready[Per-bot prioritized ready queue]
     Client -->|delayed jobs / schedules| Scheduling[Durable scheduling]
     Scheduling -->|due-job activation| Ready
     Ready --> Admission[Shared capacity / cooldown]
     Admission --> Worker[Worker / coordinator]
     Worker -->|one admitted attempt| Transport[grammY dispatcher]
     Transport -->|success / 429 / failure| Worker
-    Worker -->|settle / native 429 requeue| Ready
+    Worker -->|definite 429: native requeue| Ready
+    Worker -->|succeeded / failed| Outcomes[Stored terminal outcomes]
   end
+  Application -->|submit / getJob / schedules| Client
   Transport --> Telegram[Telegram Bot API]
 ```
 
