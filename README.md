@@ -64,6 +64,12 @@ an abrupt crash can still lose roughly one second of writes, and volume deletion
 removes the data. See [Valkey persistence](https://valkey.io/topics/persistence/) for the persistence
 tradeoffs. This configuration is for local testing.
 
+For deployments beyond local testing, operators configure Valkey authentication and network
+restrictions, and include the credentials in `backend.valkeyUrl` for every client and worker.
+Prefer `rediss://` with a trusted server certificate, or an equivalent encrypted transport, to
+protect credentials and job data in transit. See [Valkey security](https://valkey.io/topics/security/).
+Backend access permits reading and modifying jobs in the accessible namespace.
+
 ## Commands
 
 - `bun run test` — run the shared tests on Bun
