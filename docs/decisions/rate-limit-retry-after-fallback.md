@@ -1,7 +1,7 @@
-# Retry delay from retry_after with a 30-second fallback
+# Retry delay from retry_after with a 60-second fallback
 
 - **Status:** provisional
-- **Human-confirmed:** no
+- **Human-confirmed:** yes
 
 ## Decision
 
@@ -11,7 +11,7 @@ validates and converts it once:
 - For a positive integer for which `nowMs + retry_after * 1000` does not exceed
   `Number.MAX_SAFE_INTEGER`, `retryDelayMs = retry_after * 1000`.
 - If `parameters` or `retry_after` is absent, or the value is invalid, nonpositive or
-  unrepresentable, `retryDelayMs = 30_000`.
+  unrepresentable, `retryDelayMs = 60_000`.
 
 The fallback applies to both lanes and to every such 429. It never causes an immediate retry, never
 shortens a longer existing cooldown and never caps a valid server-specified delay. An integer too
@@ -20,5 +20,9 @@ large to satisfy the bound, which would exceed 285,000 years, is treated as inva
 ## Context
 
 [`ResponseParameters`](https://core.telegram.org/bots/api#responseparameters) makes `retry_after`
-optional. The fallback is application policy rather than a guarantee that Telegram accepts the call
-after thirty seconds; Telegram publishes no universal requests-per-second threshold.
+optional. Maintainer observations include Telegram returning repeated 429s during downtime or
+maintenance, with a valid `retry_after` that remains unchanged across retries. Missing or invalid
+delay metadata alone does not establish that Telegram is down.
+
+The fallback backs off conservatively for anomalous rate-limit responses. Neither the fallback nor
+a valid server-specified delay guarantees that the next attempt will succeed.
