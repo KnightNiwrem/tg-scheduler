@@ -1,8 +1,8 @@
 # Supporting library research
 
 The source findings below date to 2 November 2026; the native behavior experiments were run on
-6 November 2026 against the pinned dependencies. The
-[decisions](decisions/) record the selected choices, and [validation](validation.md) defines
+6 November 2026, with a scheduler recovery probe on 7 November 2026, against the pinned dependencies.
+The [decisions](decisions/) record the selected choices, and [validation](validation.md) defines
 acceptance criteria. The project pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; current integration
 coverage is described in the [testing guide](../README.md#testing). Default-branch source links can
 change; the observations below apply to the tested versions.
@@ -65,9 +65,32 @@ These findings support the [BullMQ and Valkey backend](decisions/backend-bullmq-
 capacity, activation, and settlement primitives, with additional coordination required for
 monotonic cooldowns and original-rank admission/requeue. The disabled-replay setting supports the
 [no-retransmission policy](decisions/uncertainty-no-automatic-retransmission.md); the library's full
-crash-recovery acceptance tests remain pending. The experiments do not establish Valkey persistence
-across restart, recurrence/coalescing, urgent-lane policy, Telegram error
+crash-recovery acceptance tests remain pending. The archived experiments do not establish Valkey
+persistence across restart, full recurrence integration, urgent-lane policy, Telegram error
 classification or retry-delay validation, or the complete scheduler acceptance criteria.
+
+## Native scheduler recovery probe
+
+On 7 November 2026, an isolated probe of BullMQ **6.7.1** and ioredis **6.0.0** against Valkey
+**9.0.7** passed on Bun **1.4.4**, Node.js **24.22.1**, and Deno **2.9.6**. It registered a
+one-second interval schedule with a future start date and a one-second UTC cron schedule, left
+both without workers for 3.4 seconds, then claimed each through `Worker.getNextJob`.
+
+Both strategies retained exactly the first queued occurrence while no workers ran. Claiming that
+overdue job created one next occurrence in the future; intervening uncreated times were skipped.
+The interval schedule preserved its phase. Native scheduling did not create an additional job
+representing the latest missed time. This matches the documented
+[production of the next job when the previous one begins processing](https://docs.bullmq.io/guide/job-schedulers/).
+
+BullMQ provides both [fixed-interval and cron strategies](https://docs.bullmq.io/guide/job-schedulers/repeat-strategies).
+Its existing delayed-job machinery supplies the wakeup; an operating-system cron service is not
+required. The [recurrence decision](decisions/recurrence-planned-time-anchored.md) selects this
+native recovery behavior.
+
+This probe used temporary queues outside the active suite and removed its data afterward. It did
+not implement the scheduler API, simulate a process crash or backend restart, or establish atomic
+occurrence uniqueness, disable behavior, or interaction with lane cooldowns and original-rank
+ordering. Those library integration checks remain pending.
 
 ## BullMQ integration findings
 
@@ -78,7 +101,8 @@ caller-owned connection contract and the required worker settings.
 
 The source review identified the following integration risks. The archived experiments above
 verified cooldown replacement, ordinary retry ordering, stalled recovery, and shared limits in the
-selected version. Recurrence/coalescing remains unverified:
+selected version. The recovery probe above narrows the recurrence gap; full library integration
+remains unverified:
 
 - **Cooldown extension:** the inspected Redis-compatible backend replaces the rate-limit expiry
   rather than taking the later expiry. The library requires atomic maximum-expiry updates. [Backend
@@ -89,8 +113,9 @@ selected version. Recurrence/coalescing remains unverified:
   requeue](https://github.com/taskforcesh/bullmq/blob/master/src/commands/moveJobFromActiveToWait-9.lua),
   [priority
   reinsertion](https://github.com/taskforcesh/bullmq/blob/master/src/commands/includes/pushBackJobWithPriority.lua)
-- **Recurrence:** native scheduler behaviour must match planned-time anchoring, occurrence
-  uniqueness and coalescing of missed unmaterialized work. [Job
+- **Recurrence:** the library still needs to integrate native Job Schedulers and verify planned-time
+  anchoring, occurrence uniqueness, disable behavior, and interaction with lane cooldowns and
+  original-rank ordering. [Job
   schedulers](https://docs.bullmq.io/guide/job-schedulers/)
 - **Recovery:** automatic stalled-job replay can repeat an ambiguous Telegram effect. The
   [disabled-replay setting](decisions/recovery-stalled-replay-disabled.md) implements the

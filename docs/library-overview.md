@@ -15,7 +15,7 @@ the worker initializes it in `start()`. Connections are
 
 A definite 429 currently [settles the job as `failed`](decisions/rate-limit-interim-429-failure.md),
 because lane cooldowns are not implemented.
-Schedules, the urgent lane, and the coordinator's recurrence and recovery functions reject with
+Schedules, the urgent lane, and the coordinator's recovery function reject with
 `UnimplementedError`. Original-rank ordering is not implemented yet.
 
 ## Intended flow
@@ -39,22 +39,22 @@ All participants for one bot must use the same backend namespace and stable bot 
 
 ## Source map
 
-| Module                                                                          | Responsibility                                                                                           |
-| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [`src/index.ts`](../src/index.ts)                                               | Public library exports; importing them performs no startup or environment access.                        |
-| [`src/client.ts`](../src/client.ts)                                             | Producer configuration, submission, job retrieval, schedule creation/disable, and connection cleanup.    |
-| [`src/worker.ts`](../src/worker.ts)                                             | Worker configuration and lifecycle, including shared per-bot policy and token resolution.                |
-| [`src/shared-bot-options.ts`](../src/shared-bot-options.ts)                     | Bot identity, caller-owned connections, and the queue namespace used by clients and workers.             |
-| [`src/jobs.ts`](../src/jobs.ts)                                                 | Job handles, earliest execution time, delivery lane, visible job outcomes, and settled outcomes.         |
-| [`src/schedules.ts`](../src/schedules.ts)                                       | Schedule handles, fixed intervals, and planned-time anchors.                                             |
-| [`src/telegram.ts`](../src/telegram.ts)                                         | grammY-derived method, payload, and result types, and durable JSON request validation at submission.     |
-| [`src/core/coordinator.ts`](../src/core/coordinator.ts)                         | Admission, ordering, cooldowns, outcome settlement, occurrence creation, and abandoned-attempt recovery. |
-| [`src/backend/bullmq.ts`](../src/backend/bullmq.ts)                             | Queue identity, caller-owned connections, shared capacity, and BullMQ resource cleanup.                  |
-| [`src/backend/stored-job.ts`](../src/backend/stored-job.ts)                     | Stored job data and outcomes, enqueueing, and mapping BullMQ job states to job snapshots.                |
-| [`src/transport/telegram-transport.ts`](../src/transport/telegram-transport.ts) | Transport interface used by the coordinator: one attempt, its classified outcome, and token resolution.  |
-| [`src/transport/grammy.ts`](../src/transport/grammy.ts)                         | grammY implementation of the transport, without an automatic retry layer.                                |
-| [`src/error-handler.ts`](../src/error-handler.ts)                               | Reporting for asynchronous errors that no operation awaits.                                              |
-| [`src/unimplemented-error.ts`](../src/unimplemented-error.ts)                   | Explicit failure for unfinished operations.                                                              |
+| Module                                                                          | Responsibility                                                                                          |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [`src/index.ts`](../src/index.ts)                                               | Public library exports; importing them performs no startup or environment access.                       |
+| [`src/client.ts`](../src/client.ts)                                             | Producer configuration, submission, job retrieval, schedule creation/disable, and connection cleanup.   |
+| [`src/worker.ts`](../src/worker.ts)                                             | Worker configuration and lifecycle, including shared per-bot policy and token resolution.               |
+| [`src/shared-bot-options.ts`](../src/shared-bot-options.ts)                     | Bot identity, caller-owned connections, and the queue namespace used by clients and workers.            |
+| [`src/jobs.ts`](../src/jobs.ts)                                                 | Job handles, earliest execution time, delivery lane, visible job outcomes, and settled outcomes.        |
+| [`src/schedules.ts`](../src/schedules.ts)                                       | Schedule handles, fixed intervals, and planned-time anchors.                                            |
+| [`src/telegram.ts`](../src/telegram.ts)                                         | grammY-derived method, payload, and result types, and durable JSON request validation at submission.    |
+| [`src/core/coordinator.ts`](../src/core/coordinator.ts)                         | Admission, ordering, cooldowns, outcome settlement, and abandoned-attempt recovery.                     |
+| [`src/backend/bullmq.ts`](../src/backend/bullmq.ts)                             | Queue identity, caller-owned connections, shared capacity, and BullMQ resource cleanup.                 |
+| [`src/backend/stored-job.ts`](../src/backend/stored-job.ts)                     | Stored job data and outcomes, enqueueing, and mapping BullMQ job states to job snapshots.               |
+| [`src/transport/telegram-transport.ts`](../src/transport/telegram-transport.ts) | Transport interface used by the coordinator: one attempt, its classified outcome, and token resolution. |
+| [`src/transport/grammy.ts`](../src/transport/grammy.ts)                         | grammY implementation of the transport, without an automatic retry layer.                               |
+| [`src/error-handler.ts`](../src/error-handler.ts)                               | Reporting for asynchronous errors that no operation awaits.                                             |
+| [`src/unimplemented-error.ts`](../src/unimplemented-error.ts)                   | Explicit failure for unfinished operations.                                                             |
 
 These are modules within the selected BullMQ implementation. Storage transitions and native worker
 wiring remain provisional until selected-version integration establishes the required semantics.

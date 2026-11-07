@@ -99,10 +99,13 @@ acceptance validates the documented Compose configuration and its recovery limit
   Completed failure outcomes from existing storage remain readable. Default retention keeps both
   terminal states without automatic removal. Configured age/count cleanup follows the
   [native lazy policy](decisions/backend-finished-job-retention.md).
-- Recurrence stays anchored to planned times. Missed, not-yet-created occurrences coalesce to the
-  latest one; occurrence creation is unique and advances atomically to the next future time.
-- Coalescing does not discard accepted queued jobs. Disabling recurrence stops future creation
-  without silently cancelling already materialized work.
+- Recurrence stays anchored to planned times and follows
+  [native scheduler recovery](decisions/recurrence-planned-time-anchored.md): an already-created
+  overdue job runs when capacity is available, and beginning it creates the next scheduled occurrence.
+  Missed, uncreated occurrences are skipped without an additional catch-up job. Occurrence
+  creation and advancement remain unique under competing workers.
+- Recovery preserves accepted queued jobs. Disabling recurrence stops future creation without
+  silently cancelling already materialized work.
 - Supported payloads remain usable after the submitting process exits. Unsupported transient
   payloads are rejected at submission rather than accepted unreliably.
 

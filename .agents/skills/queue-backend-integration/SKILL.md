@@ -30,7 +30,7 @@ when a replacement client qualifies. Validate a replacement before updating that
 - Check client lifecycle and worker startup, including blocking connection duplication and the
   selected driver's required retry settings recorded in the driver decision.
 - Verify native engine semantics before relying on them for eligible FIFO, original-rank 429
-  requeue, monotonic lane cooldowns, planned-time recurrence, and missed-occurrence coalescing.
+  requeue, monotonic lane cooldowns, planned-time recurrence, and native missed-occurrence recovery.
   Reuse native machinery where it satisfies the selected behavior.
 - Exercise interrupted and stalled workers against the uncertainty policy. Native recovery must
   not silently retransmit an ambiguous Telegram effect or allow stale attempts to overwrite state.

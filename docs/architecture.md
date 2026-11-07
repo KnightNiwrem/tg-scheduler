@@ -104,7 +104,8 @@ than behind mandatory adapter method names:
 4. **Recover abandoned attempts:** reclaim expired ownership under the
    [no-retransmission policy](decisions/uncertainty-no-automatic-retransmission.md); arrange recovery
    at claim time, not only after successful completion.
-5. **Materialize occurrence:** create one unique occurrence and advance the schedule atomically.
+5. **Materialize occurrence:** create occurrences and advance schedules through the
+   [native Job Scheduler](decisions/recurrence-planned-time-anchored.md).
 6. **Disable recurrence:** prevent further occurrence creation without silently cancelling accepted
    jobs.
 

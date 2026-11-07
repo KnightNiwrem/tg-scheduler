@@ -33,9 +33,10 @@ See the [library overview](docs/library-overview.md) for the component flow and 
 
 ## Planned capabilities
 
-The rest of the first implementation will add fixed-interval recurring schedules with status and
-result retrieval like other jobs. Disabling recurrence will stop future occurrences while
-preserving jobs already created.
+The rest of the first implementation will add fixed-interval recurring schedules with
+[native scheduler recovery](docs/decisions/recurrence-planned-time-anchored.md) and status/result
+retrieval like other jobs. Disabling recurrence will stop future occurrences while preserving jobs
+already created.
 
 Producers and workers for a bot will pause ordinary admission on Telegram 429 responses and retry
 the affected job after the cooldown, keeping eligible jobs in original due-time order. An opt-in,
