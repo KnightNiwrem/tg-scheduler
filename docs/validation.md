@@ -65,9 +65,9 @@ acceptance validates the documented Compose configuration and its recovery limit
 - Accepted work survives producer exit and the documented worker/backend recovery conditions. The
   recovery guarantees identify the components responsible for retaining work, activating due jobs,
   and recovering abandoned claims.
-- Concurrent submissions do not lose accepted jobs or create more current reservations than
-  configured capacity. The documented failover limitation still applies to already-sent physical
-  HTTP requests.
+- Concurrent submissions do not lose accepted jobs. New claims respect configured capacity,
+  including the [transition when ordinary capacity decreases](decisions/admission-ordinary-concurrency.md).
+  The documented failover limitation still applies to already-sent physical HTTP requests.
 - Producers for one bot share ordinary cooldown state; other bots remain independent.
 - A later shorter 429 cannot shorten either lane's longer existing cooldown.
 - Application timestamps use Unix epoch milliseconds and durations use milliseconds. A valid

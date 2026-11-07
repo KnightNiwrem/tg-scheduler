@@ -13,6 +13,9 @@ Workers with different settings overwrite each other's limit when they start. Bu
 the mismatch or order writes by application version. A worker shutting down or failing after the
 write does not restore the previous limit; a later worker startup writes its configured limit again.
 
+Lowering the limit follows the [ordinary admission policy](admission-ordinary-concurrency.md):
+already-active jobs continue, and the new limit gates subsequent claims.
+
 ## Context
 
 Each bot has its [own ordinary queue](backend-queue-per-lane.md), so BullMQ's global concurrency
