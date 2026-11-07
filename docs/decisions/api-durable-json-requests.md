@@ -30,6 +30,6 @@ Another process sends the request after the submitter may have exited, so callba
 process-local streams and temporary files cannot be replayed reliably and are rejected at submission
 rather than accepted unreliably. Getters and `toJSON` hooks run code when the payload is serialized,
 so the stored payload could differ from the validated one. A proxy can answer every property read
-differently, so no inspection of it guarantees what serialization will encode. Checking names against the full method
-list would duplicate grammY's types at runtime; Telegram rejects an unknown method with a definite
-404, which is reported as `failed`.
+differently, so no inspection of it guarantees what serialization will encode. Checking names
+against the full method list would duplicate grammY's types at runtime; Telegram rejects an unknown
+method with a definite 404, which is reported as `failed`.
