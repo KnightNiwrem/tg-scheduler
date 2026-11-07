@@ -37,6 +37,9 @@ the affected job after the cooldown, keeping eligible jobs in original due-time 
 bounded urgent lane will support time-sensitive callback and pre-checkout answers. A worker
 executable and Compose service will run the worker as a long-lived process.
 
+Durable new-file sending is a candidate for v1; its storage and API design remain open. The
+[current request contract](docs/decisions/api-durable-json-requests.md) covers the first slice.
+
 Node.js and Deno remain library compatibility targets. The [technical decisions](docs/decisions/)
 record the selected backend, runtimes and scheduling policies.
 The [testing guide](#testing) describes current coverage and the commands to run it.
