@@ -13,8 +13,9 @@ The library currently supports the basic delivery path for immediate and one-tim
 
 Ambiguous attempts, such as network failures or Telegram server errors, are reported as `uncertain`
 and never retransmitted automatically. A worker that stops mid-attempt leaves its job `in-flight`
-until a running worker's stalled-job check, after BullMQ's 30-second lock expires, reports it as
-`uncertain`.
+until a running worker's stalled-job check after BullMQ's 30-second lock expires. The job then
+briefly shows as `queued`, although its request may already have reached Telegram, until a worker
+records it as `uncertain`.
 
 A Telegram 429 currently settles the job as `failed`; durable 429 retry with lane cooldowns is not
 implemented yet, so the worker is not ready for production traffic. Recurring schedules and the

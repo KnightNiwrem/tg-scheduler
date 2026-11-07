@@ -8,8 +8,9 @@
 Producers and workers create unconnected ioredis clients (`lazyConnect`) with a five-second connect
 timeout and a connection name that appears in `CLIENT LIST`.
 
-- **Producer connections** fail commands promptly during outages: `maxRetriesPerRequest: 1` and no
-  offline queue.
+- **Producer connections** fail commands promptly when the connection is down:
+  `maxRetriesPerRequest: 1` and no offline queue. There is no command timeout, so a command sent on
+  an open connection that stops responding waits until ioredis detects the disconnection.
 - **Worker connections** keep reconnecting and queue commands offline: `maxRetriesPerRequest: null`
   and the offline queue enabled.
 

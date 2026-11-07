@@ -12,7 +12,7 @@ dependency findings.
 
 The scheduler queues [outgoing Bot API calls only](decisions/scope-outgoing-bot-api-calls.md).
 Immediate, delayed and recurring work for a bot share
-[one coordination authority](decisions/coordination-one-authority-per-bot.md).
+[one coordination authority](decisions/scope-one-coordination-authority-per-bot.md).
 
 | Component                        | Owns                                                                                                                 |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -24,11 +24,13 @@ Immediate, delayed and recurring work for a bot share
 
 ## Decisions by area
 
+- **Scope:** [outgoing Bot API calls only](decisions/scope-outgoing-bot-api-calls.md),
+  [one coordination authority per bot](decisions/scope-one-coordination-authority-per-bot.md).
 - **Stack and tooling:** [TypeScript](decisions/language-typescript.md),
   [Bun with Node.js and Deno targets](decisions/runtime-bun-primary-node-deno-compatible.md),
   [Biome](decisions/tooling-biome.md),
   [Bun dependency management](decisions/tooling-bun-dependency-management.md),
-  [Zod validation](decisions/validation-zod-at-boundaries.md).
+  [Zod validation](decisions/tooling-zod-validation.md).
 - **Testing:** [Vitest on every runtime](decisions/testing-vitest-cross-runtime.md),
   [opt-in Valkey integration tests](decisions/testing-valkey-integration-opt-in.md).
 - **Deployment and local stack:** [operated Bun workers](decisions/deployment-operated-bun-worker.md),
@@ -49,9 +51,9 @@ Immediate, delayed and recurring work for a bot share
   [unawaited error reporting](decisions/api-unawaited-error-reporting.md),
   [submit options](decisions/api-submit-options.md),
   [submission acknowledgement](decisions/api-submit-acknowledgement.md),
-  [durable JSON requests](decisions/payload-durable-json-requests.md),
+  [durable JSON requests](decisions/api-durable-json-requests.md),
   [bot token handling](decisions/credentials-bot-token-handling.md),
-  [visible job states](decisions/jobs-visible-states.md),
+  [visible job states](decisions/api-visible-job-states.md),
   [millisecond timestamps](decisions/time-unix-epoch-milliseconds.md).
 - **Admission and 429 handling:**
   [required capabilities](decisions/admission-required-capabilities.md),
@@ -68,11 +70,15 @@ Immediate, delayed and recurring work for a bot share
 - **Outcomes and recovery:**
   [no automatic retransmission](decisions/uncertainty-no-automatic-retransmission.md),
   [stalled-job reporting](decisions/recovery-stalled-replay-disabled.md),
-  [outcome classification](decisions/telegram-outcome-classification.md),
+  [outcome classification](decisions/transport-outcome-classification.md),
   [grammY transport](decisions/transport-grammy-outgoing-api.md),
   [request timeout](decisions/transport-request-timeout.md).
 
 ## Job lifecycle
+
+This is the target lifecycle. Cooldowns, 429 requeue, ordering by original due time and recurrence
+are not implemented yet; the [library overview](library-overview.md#current-state) describes the
+current behavior.
 
 1. A producer submits a validated request; the backend persists it and guarantees a future
    processing opportunity, after which the producer may exit.

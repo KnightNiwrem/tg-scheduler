@@ -8,11 +8,13 @@
 The client exposes explicit operations:
 
 - `submit(method, payload, options?)` durably accepts immediate or one-time delayed work and returns
-  a job handle. Options set the earliest execution time (`runAtMs`) and the delivery lane.
+  a job handle. [Options](api-submit-options.md) set the earliest execution time (`runAtMs`) and the
+  delivery lane; urgent submission [currently rejects](admission-urgent-lane-interim-rejection.md).
 - `getJob(jobId)` returns the job's current snapshot, including the Telegram result or error, or
   `undefined` when the job does not exist. The result type corresponds to the job's method.
-- `createSchedule(method, payload, options)` returns a handle for a fixed-interval schedule defined
-  by an interval and a planned-time anchor.
+- `createSchedule(method, payload, options)` returns a handle for a
+  [fixed-interval schedule](recurrence-planned-time-anchored.md) defined by an interval and a
+  planned-time anchor.
 - `disableSchedule(scheduleId)` stops future occurrences while preserving jobs already created.
 - `close()` releases the client's backend resources.
 

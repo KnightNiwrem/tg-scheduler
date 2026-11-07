@@ -75,6 +75,15 @@ test.each([
     { chat_id: 1, text: 'x', entities: Object.assign([], { toJSON: () => 'replaced' }) },
     'payload.entities',
   ],
+  [
+    'an object with a non-enumerable toJSON hook',
+    {
+      chat_id: 1,
+      text: 'x',
+      reply_markup: Object.defineProperty({}, 'toJSON', { value: () => 'replaced' }),
+    },
+    'payload.reply_markup',
+  ],
   ['a circular reference', { chat_id: 1, nested: circular }, 'payload.nested.self'],
 ])('submit rejects a payload with %s', async (_case, payload, path) => {
   const client = openClient();

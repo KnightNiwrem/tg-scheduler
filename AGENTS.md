@@ -77,8 +77,9 @@ not belong there. Each file uses this structure:
 - A decision file contains only the current decision. Edit it in place when the decision changes and
   delete it when the decision no longer applies; do not keep superseded versions or history
   sections. Git history and the commit or PR that changes a decision record its history.
-- Name files `<area>-<decision>.md`, reusing existing area prefixes, and link each decision from
-  the architecture's [decisions by area](docs/architecture.md#decisions-by-area).
+- Name files `<area>-<decision>.md`. Reuse an existing area prefix when the decision fits one, and
+  start a new area only when none does. List each decision in the architecture's
+  [decisions by area](docs/architecture.md#decisions-by-area).
 - Other documentation, including the README, AGENTS.md, and skills, links to the decision file
   instead of restating its choice or context. It may still describe current behavior and acceptance
   criteria.

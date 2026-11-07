@@ -19,5 +19,6 @@ A timeout or server error does not prove that Telegram did not act, and the libr
 guarantee exactly-once external effects; see the
 [guarantee limits](../architecture.md#guarantee-limits). The
 [native behavior experiments](../library-research.md#selected-version-native-behavior) showed that
-BullMQ's default stalled recovery repeats an effect Telegram already accepted. Which errors are
-ambiguous is the [outcome classification](telegram-outcome-classification.md) decision.
+BullMQ's default stalled recovery repeats an effect that a simulated Telegram service had already
+accepted. Which errors are
+ambiguous is the [outcome classification](transport-outcome-classification.md) decision.

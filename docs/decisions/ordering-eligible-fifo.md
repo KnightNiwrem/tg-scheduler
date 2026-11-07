@@ -9,7 +9,8 @@ Eligible ordinary jobs are admitted in order of original due time, then submissi
 Immediate work uses its enqueue time as its due time. Future jobs never block ready work, and a 429
 retry changes a job's next eligible time but not its rank.
 
-- FIFO describes admission, not completion or Telegram-side effect order when C > 1.
+- FIFO describes admission, not completion or Telegram-side effect order when
+  [ordinary concurrency](admission-ordinary-concurrency.md) C > 1.
 - "Run at" means not before that time, not delivery at that instant.
 - Urgent bypass deliberately overtakes ordinary work. General priorities are outside the first
   slice.

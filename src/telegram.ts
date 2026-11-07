@@ -100,11 +100,12 @@ function jsonContents(
   container: object,
   path: string,
 ): { items: [string, unknown][] } | { problem: string } {
+  // JSON.stringify calls a toJSON hook even when it is non-enumerable or inherited, and would
+  // encode its return value instead of the contents checked here.
+  if ('toJSON' in container) {
+    return { problem: `${path} must not define a toJSON hook` };
+  }
   if (Array.isArray(container)) {
-    // JSON.stringify would encode the hook's return value instead of the elements checked here.
-    if ('toJSON' in container) {
-      return { problem: `${path} must not define a toJSON hook` };
-    }
     // JSON encodes holes and undefined elements as null. `map` and `indexOf` skip holes.
     // biome-ignore lint/complexity/useIndexOf: findIndex visits holes, which must be rejected.
     const undefinedIndex = container.findIndex((item) => item === undefined);

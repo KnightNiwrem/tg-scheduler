@@ -12,5 +12,5 @@ own bounded capacity and cooldown; it is not an unrestricted second sender.
 ## Context
 
 BullMQ capacity limits and rate limits apply per queue, and separate queue identities remain
-independent, so a queue per lane gives each lane its own capacity and cooldown gate. Queue names
-follow the [bot identity and key namespace](backend-bot-id-and-key-namespace.md) decision.
+independent, so a queue per lane gives each lane its own capacity and cooldown gate. The
+[bot identity and key namespace](backend-bot-id-and-key-namespace.md) decision names both queues.

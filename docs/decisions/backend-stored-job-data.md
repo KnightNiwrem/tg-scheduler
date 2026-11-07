@@ -14,4 +14,6 @@ value. Job data and outcomes are revalidated when read back. Jobs use BullMQ's s
 
 Jobs are read by processes other than the one that wrote them, so reads cannot trust stored data.
 Admission ordering needs the [original due time](ordering-eligible-fifo.md). An unsettled attempt
-may already have reached Telegram, so BullMQ must never retry it on its own.
+may already have reached Telegram, so BullMQ must never retry it on its own: `attempts: 1` prevents
+failed-job retries, and [stalled replay](recovery-stalled-replay-disabled.md) is disabled
+separately.

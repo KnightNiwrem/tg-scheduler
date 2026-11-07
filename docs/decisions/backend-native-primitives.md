@@ -17,7 +17,8 @@ tokens, cooldown gating through a configured limiter, activation after worker re
 fencing of stale settlements.
 
 Requires additional coordination: [monotonic cooldown extension](rate-limit-lane-cooldowns.md),
-[original-rank ordering and 429 requeue](ordering-eligible-fifo.md), and
+[original-rank ordering](ordering-eligible-fifo.md),
+[429 requeue](rate-limit-429-requeue-preserves-rank.md), and
 [uncertainty reporting](uncertainty-no-automatic-retransmission.md) after interrupted attempts.
 Native recurrence helpers are usable only where they match the
 [recurrence decision](recurrence-planned-time-anchored.md).

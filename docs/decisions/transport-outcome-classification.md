@@ -6,7 +6,9 @@
 ## Decision
 
 - A successful response is `succeeded`.
-- A 429 is handled as a rate limit.
+- A 429 is reported as rate-limited, with Telegram's raw `retry_after`, and settled by the
+  rate-limit decisions; currently the [interim 429 failure](rate-limit-interim-429-failure.md)
+  applies.
 - Any other Telegram 4xx response is `failed`.
 - Telegram 5xx responses, grammY `HttpError`s (network failures, timeouts and non-JSON responses)
   and unrecognized transport errors are `uncertain`.

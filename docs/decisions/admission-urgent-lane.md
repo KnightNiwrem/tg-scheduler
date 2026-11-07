@@ -10,8 +10,8 @@
 - Only `answerCallbackQuery` and `answerPreCheckoutQuery` may use the urgent lane.
 - When enabled, urgent capacity U is 1 in addition to ordinary capacity, so up to C + U attempts
   are normally admitted at once.
-- Urgent work may bypass the ordinary backlog and cooldown but requires urgent capacity and an open
-  urgent gate.
+- Urgent work may bypass the ordinary backlog and cooldown but is admitted only while an urgent
+  slot is free and the urgent lane is not in cooldown.
 - An urgent 429 extends the urgent lane's own cooldown, which gates both retrying and newly
   submitted urgent jobs.
 - Urgent work is requested through explicit `submit` calls; schedule occurrences use the ordinary

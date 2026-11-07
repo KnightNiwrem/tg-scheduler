@@ -78,13 +78,13 @@ until recurrence is implemented.
 
 Public payload and result types come from grammY. The Telegram Bot API lifecycle methods `logOut`
 and `close` remain part of the method surface; update polling and webhook management are excluded.
-Submission accepts only [durable JSON requests](decisions/payload-durable-json-requests.md), which
+Submission accepts only [durable JSON requests](decisions/api-durable-json-requests.md), which
 include file IDs but not new uploads. A job snapshot pairs each method with its result type: checking
 `state === 'succeeded'` and `method === 'sendMessage'` exposes the returned message's fields.
 
-Job states and their meanings are defined in [visible job states](decisions/jobs-visible-states.md).
-A worker that stops mid-attempt leaves its job `in-flight` until a running worker's stalled-job check
-[records it as `uncertain`](decisions/recovery-stalled-replay-disabled.md). Clients and workers
+Job states and their meanings are defined in [visible job states](decisions/api-visible-job-states.md).
+A worker that stops mid-attempt leaves its job `in-flight`, then briefly `queued`, until a running
+worker [records it as `uncertain`](decisions/recovery-stalled-replay-disabled.md). Clients and workers
 report asynchronous errors that no operation awaits [to `onError`](decisions/api-unawaited-error-reporting.md).
 
 ## Coordination contract
