@@ -36,5 +36,5 @@ the [native validation](recurrence-native-schedules.md) that decides acceptance 
 
 Passing a native type through is preferred only while its units match the library's. A
 seconds-valued `age` among millisecond options would let `age: 86_400_000`, meant as one day,
-silently keep jobs for about 2,700 years. `KeepJobs` is small and stable, so converting it carries
+silently keep jobs for about 2.7 years. `KeepJobs` is small and stable, so converting it carries
 less risk than exposing that unit.

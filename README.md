@@ -37,7 +37,7 @@ See the [library overview](docs/library-overview.md) for the component flow and 
 
 The rest of the first implementation will add recurring schedules using native BullMQ `every`
 intervals and UTC `pattern` cron expressions and listing of retained jobs by schedule ID; `getJob`
-reports each listed job's status and result. Deleting a schedule will remove its definition and its next
+reports each listed job's status and outcome. Deleting a schedule will remove its definition and its next
 occurrence if still delayed. Jobs already ready for dispatch, in flight or finished will remain
 listable while retained, including after schedule deletion. See the
 [native scheduler lifecycle](docs/decisions/recurrence-native-schedules.md) for creation,
