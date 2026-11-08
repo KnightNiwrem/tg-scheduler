@@ -8,9 +8,9 @@ the same bot.
 ## Current state
 
 The library entry point is [`src/index.ts`](../src/index.ts). The client and worker implement the
-basic delivery path for immediate and one-time delayed jobs. Client and worker factories validate
-their options at construction, which performs no I/O. The client initializes BullMQ on first use;
-the worker initializes it in `start()`. Connections are
+basic delivery path for immediate and one-time delayed jobs. The `SchedulerClient` and
+`SchedulerWorker` constructors validate their options and perform no I/O. The client initializes
+BullMQ on first use; the worker initializes it in `start()`. Connections are
 [created and owned by the caller](decisions/backend-ioredis-driver.md).
 
 Workers use a [caller-owned grammY API instance](decisions/transport-caller-owned-api.md), and
