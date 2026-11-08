@@ -158,6 +158,7 @@ acceptance validates the documented Compose configuration and its recovery limit
   [native lazy policy](decisions/backend-finished-job-retention.md).
 - Schedule options accept exactly one native form, `every` or `pattern`. `every` is a positive safe
   integer number of milliseconds; `pattern` uses native BullMQ cron syntax with UTC evaluation.
+  An alternative recurrence field set to `undefined` is treated as absent for form selection.
   Invalid options, including both forms together, neither form, or unsupported option keys, reject
   with a `TypeError` before work is accepted. The library adds no separate anchor parameter or
   custom cron grammar.
@@ -167,13 +168,13 @@ acceptance validates the documented Compose configuration and its recovery limit
   with an optional seconds field also follow native interpretation. Claims can be late but do not
   change an occurrence's recorded planned time.
 - Both recurrence forms follow their native planned times and
-  [native scheduler recovery](decisions/recurrence-planned-time-anchored.md): an already-created
+  [native scheduler recovery](decisions/recurrence-native-schedules.md): an already-created
   overdue job runs when capacity is available, and beginning it creates the next scheduled occurrence.
   Missed, uncreated occurrences are skipped without an additional catch-up job. Occurrence
   creation and advancement remain unique under competing workers for both forms.
 - Recovery preserves accepted queued jobs.
 - Schedule creation uses native BullMQ Job Schedulers. Deletion follows
-  [native scheduler removal](decisions/recurrence-planned-time-anchored.md): it removes the scheduler
+  [native scheduler removal](decisions/recurrence-native-schedules.md): it removes the scheduler
   definition and the next occurrence if still delayed, including an overdue occurrence awaiting
   activation. `getJob` returns `undefined` for the removed job. Ready, in-flight and finished
   occurrences remain intact.

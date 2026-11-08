@@ -88,19 +88,19 @@ calls reject until recurrence is implemented.
 - `getJob(jobId)` retrieves a stored snapshot or `undefined` when the job does not exist.
 - `createSchedule(method, payload, options)` accepts one native recurrence form in its scaffolded
   types: `{ every: milliseconds }` or `{ pattern: cronExpression }`. It currently rejects as
-  unimplemented. The [recurrence contract](decisions/recurrence-planned-time-anchored.md) defines
+  unimplemented. The [recurrence contract](decisions/recurrence-native-schedules.md) defines
   initial eligibility and UTC cron evaluation.
 - `deleteSchedule(scheduleId)` is scaffolded and currently rejects as unimplemented. It will remove
   the definition and its next occurrence if still delayed, while preserving ready, in-flight and
   finished jobs. See
-  [native scheduler removal](decisions/recurrence-planned-time-anchored.md) for the removal boundary
+  [native scheduler removal](decisions/recurrence-native-schedules.md) for the removal boundary
   and races with activation.
 - `client.close()` releases its BullMQ resources while leaving the supplied connection open;
   later operations reject.
 - `worker.start()` begins due-work activation; `worker.close()` stops admission, drains active
   work, and releases its resources.
 
-The planned [schedule job listing](decisions/recurrence-planned-time-anchored.md) will expose retained
+The planned [schedule job listing](decisions/recurrence-native-schedules.md) will expose retained
 jobs by schedule ID, including after deletion of the schedule definition. Callers can use a listed
 job ID with `getJob` for its current state and outcome. The listing API is not scaffolded yet.
 

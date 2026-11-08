@@ -1,17 +1,18 @@
-# Zod parses structured options and stored data
+# Parse structured options and stored data with Zod
 
 - **Status:** provisional
 - **Human-confirmed:** no
 
 ## Decision
 
-Zod schemas parse structured input at the [trust boundaries](validation-trust-boundaries.md):
-`botId`, `queuePrefix`, submit and schedule options, the worker policy, and job data, native timing
-metadata and outcomes read back from Valkey. A `z.custom` check uses BullMQ's instance predicate
-for the caller-owned connection, retaining the resource by reference. Required function options are
-checked with `typeof`. Submitted payloads use the hand-written
-[durable JSON request](api-durable-json-requests.md) parser instead of Zod, and a payload read back
-from Valkey is checked in place with `z.custom` rather than rebuilt by an object or record schema.
+Structured input at the [trust boundaries](validation-trust-boundaries.md) must be parsed with Zod
+schemas. This requirement applies to `botId`, `queuePrefix`, submit and schedule options, the worker
+policy, and job data, native timing metadata and outcomes read back from Valkey. A `z.custom` check
+uses BullMQ's instance predicate for the caller-owned connection, retaining the resource by
+reference. Required function options are checked with `typeof`. Submitted payloads use the
+hand-written [durable JSON request](api-durable-json-requests.md) parser instead of Zod, and a payload
+read back from Valkey is checked in place with `z.custom` rather than rebuilt by an object or record
+schema.
 
 ## Context
 

@@ -39,7 +39,7 @@ intervals and UTC `pattern` cron expressions, listing of retained jobs by schedu
 status/result retrieval by job ID. Deleting a schedule will remove its definition and its next
 occurrence if still delayed. Jobs already ready for dispatch, in flight or finished will remain
 listable while retained, including after schedule deletion. See the
-[native scheduler lifecycle](docs/decisions/recurrence-planned-time-anchored.md) for creation,
+[native scheduler lifecycle](docs/decisions/recurrence-native-schedules.md) for creation,
 recovery, deletion and listing. Per-schedule pause and resume are deferred.
 
 Immediate, delayed and recurring work will support normal or urgent

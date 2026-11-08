@@ -144,7 +144,7 @@ representing the latest missed time. This matches the documented
 
 BullMQ provides both [fixed-interval and cron strategies](https://docs.bullmq.io/guide/job-schedulers/repeat-strategies).
 Its existing delayed-job machinery supplies the wakeup; an operating-system cron service is not
-required. The [recurrence decision](decisions/recurrence-planned-time-anchored.md) selects this
+required. The [recurrence decision](decisions/recurrence-native-schedules.md) selects this
 native recovery behavior.
 
 This probe used temporary queues outside the active suite and removed its data afterward. It did
@@ -166,7 +166,7 @@ The pinned interval helper, `getJobSchedulerEveryNextMillis`, chooses the later 
 its next match. The [repeat strategy documentation](https://docs.bullmq.io/guide/job-schedulers/repeat-strategies)
 describes the two forms; the [interval initial-run note](https://docs.bullmq.io/guide/job-schedulers/repeat-options#immediately)
 records the immediate default for new interval schedulers. These findings support the selected
-[recurrence forms](decisions/recurrence-planned-time-anchored.md), not a custom anchor or alignment
+[recurrence forms](decisions/recurrence-native-schedules.md), not a custom anchor or alignment
 algorithm. The earlier native recovery probe exercised both strategies on all three runtimes;
 library schedule creation, input validation and full recurrence integration remain unimplemented.
 
@@ -216,7 +216,7 @@ remains unverified:
   and interaction with the shared cooldown, priorities and independent activation. In the pinned
   backend, `removeJobScheduler` deletes the
   next occurrence only if it remains in the delayed set. The
-  [removal contract](decisions/recurrence-planned-time-anchored.md) adopts that boundary; integration
+  [removal contract](decisions/recurrence-native-schedules.md) adopts that boundary; integration
   checks must distinguish delayed from ready occurrences and cover activation and advancement races.
   [Job
   schedulers](https://docs.bullmq.io/guide/job-schedulers/)

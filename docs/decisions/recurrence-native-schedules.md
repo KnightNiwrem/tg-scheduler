@@ -16,7 +16,8 @@ recurrence form:
   Created at 12:25 UTC, `0 * * * *` first becomes due at 13:00, while `26 * * * *` becomes due at
   12:26. Parsing and calendar calculations use BullMQ's native cron strategy.
 
-The public forms keep the native `every` and `pattern` names. There is no separate anchor timestamp,
+The public forms keep the native `every` and `pattern` names. Form selection treats an alternative
+field set to `undefined` as absent. There is no separate anchor timestamp,
 alignment algorithm or custom repeat strategy. Creation uses native `Queue.upsertJobScheduler`;
 occurrence generation, recovery and deletion follow the native scheduler lifecycle without custom
 scheduling or removal semantics. A planned occurrence time is an eligibility time, not a delivery
