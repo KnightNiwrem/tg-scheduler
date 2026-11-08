@@ -10,7 +10,7 @@ export interface BullMqBackendOptions {
   connection: Redis | Cluster;
   /**
    * Shared key namespace for producers and workers; bot identity supplies per-bot isolation.
-   * Defaults to `tg-scheduler`.
+   * Defaults to `tg-scheduler`. Whitespace and braces are not allowed.
    */
   queuePrefix?: string;
 }
@@ -20,7 +20,9 @@ const defaultQueuePrefix = 'tg-scheduler';
 const botIdSchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{1,64}$/, 'Expected 1-64 letters, digits, underscores, or hyphens');
-const queuePrefixSchema = z.string().regex(/^\S{1,100}$/, 'Expected 1-100 non-space characters');
+const queuePrefixSchema = z
+  .string()
+  .regex(/^[^\s{}]{1,100}$/, 'Expected 1-100 characters without whitespace or braces');
 const connectionSchema = z.custom<Redis | Cluster>(
   isRedisInstance,
   'Expected an ioredis connection accepted by BullMQ',
@@ -31,7 +33,7 @@ export interface BotBackendConfig {
   botId: string;
   connection: Redis | Cluster;
   queuePrefix: string;
-  /** BullMQ queue names cannot contain `:`; bot IDs cannot contain `.`, so names stay distinct. */
+  /** The bot ID is a cluster hash tag, keeping the queue's keys in one slot. */
   ordinaryQueueName: string;
 }
 
@@ -60,7 +62,7 @@ export function resolveBotBackendConfig(
     botId: parsedBotId.data,
     connection: parsedConnection.data,
     queuePrefix: parsedPrefix.data,
-    ordinaryQueueName: `${parsedBotId.data}.ordinary`,
+    ordinaryQueueName: `{${parsedBotId.data}}.ordinary`,
   };
 }
 

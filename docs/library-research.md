@@ -22,6 +22,28 @@ verified native admission, ordering, cooldown, and stalled-recovery behavior on 
 This project's full queue/scheduler acceptance tests remain pending; the experiments expose
 integration gaps rather than establishing the scheduler's required policies.
 
+## Cluster namespace compatibility
+
+On 8 November 2026, a library-level probe passed delivery and key-placement checks on Bun
+**1.4.4**, Node.js **24.22.1**, and Deno **2.9.6**, using BullMQ **6.7.1**, ioredis **6.0.0**, and
+three Valkey **9.0.7** primary nodes.
+It exercised `submit`, worker claims, delayed activation and `getJob` through caller-owned
+ioredis `Cluster` connections and a fake Telegram transport. Two bots shared a queue prefix;
+one bot completed work while the other bot's single dispatch slot remained occupied. Immediate
+and delayed jobs completed with their results retrievable, and delayed work did not run early.
+
+All observed keys for each bot's queue shared one cluster hash slot, while the two tested bot IDs
+occupied different slots. The [namespace decision](decisions/backend-bot-id-and-key-namespace.md)
+defines the key layout and prefix restrictions. No Telegram calls were made.
+
+Shutdown completed on Bun and Node.js. On Deno, `worker.close()` sometimes remained pending when
+the probe's 20-second deadline elapsed, after all jobs had settled. The same observation reproduced
+with the backend at [revision `a34dc6f`](https://github.com/KnightNiwrem/tg-scheduler/blob/a34dc6f322295c7193a0176a759869eba24a9277/src/backend/bullmq.ts)
+and caller-provided per-bot hash tags. Reliable Deno Cluster resource cleanup therefore remains
+unverified. The temporary cluster was removed after testing. These checks do not establish
+cluster failover, resharding or replica durability; the active integration suite continues to use
+standalone Valkey.
+
 ## Selected-version native behavior
 
 The experiments used BullMQ **6.7.1**, ioredis **6.0.0**, and the official
