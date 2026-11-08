@@ -43,11 +43,12 @@ acceptance validates the documented Compose configuration and its recovery limit
 
 ## Runtime and local development checks
 
-- A documented Docker Compose command starts the Bun worker and official `valkey/valkey` service on
-  the local VM. Tested image/dependency versions are pinned, and secrets are supplied outside
-  committed Compose files.
-- The local Compose smoke test covers submission, worker execution, visible results, worker restart,
-  and Valkey persistence/restart behavior within the documented durability limits.
+- A documented Docker Compose command starts the official `valkey/valkey` service on the local VM.
+  Tested image/dependency versions are pinned, and secrets are supplied outside committed Compose
+  files.
+- Library acceptance checks against the local Valkey service cover submission, worker execution,
+  visible results, worker restart, and Valkey persistence/restart behavior within the documented
+  durability limits.
 - TypeScript checking passes through `bun run check`. Imports and package entry points work on Bun,
   Node.js and Deno. Actual BullMQ/client enqueue, claim, delayed activation and result retrieval run
   against Valkey on each runtime; a successful import alone is insufficient.

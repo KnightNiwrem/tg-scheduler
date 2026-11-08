@@ -37,7 +37,7 @@ export interface SchedulerWorker {
 
 /**
  * Construction validates options but performs no I/O. Runtime environment access and process
- * signal handlers stay in executable entry points.
+ * signal handlers stay in the host application.
  *
  * @throws {TypeError} when the bot identity, backend options, policy, or token resolver is invalid.
  */

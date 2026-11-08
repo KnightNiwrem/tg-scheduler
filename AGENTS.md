@@ -26,8 +26,9 @@
 
 ## Project workflow
 
-Bun is the primary development and worker runtime. Use the scripts and pinned tooling in
-`package.json` and `bun.lock`; the [decisions](docs/decisions/) record the tooling choices.
+Use the scripts and pinned tooling in `package.json` and `bun.lock`. The
+[runtime decision](docs/decisions/runtime-bun-primary-node-deno-compatible.md) defines development
+and compatibility requirements; the [decisions](docs/decisions/) record the tooling choices.
 
 The [README](README.md) describes current project status. The [architecture](docs/architecture.md),
 [decisions](docs/decisions/), [acceptance criteria](docs/validation.md), and
