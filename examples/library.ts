@@ -48,6 +48,6 @@ export function configureWorker(options: SharedBotOptions, resolveBotToken: BotT
     resolveBotToken,
     policy: { ordinaryConcurrency: 3, urgentBypassEnabled: false },
   });
-  // A long-lived executable owns calling start(), handling signals, and awaiting close().
+  // The host application calls start(), handles signals, and awaits close().
   return worker;
 }

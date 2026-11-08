@@ -37,8 +37,7 @@ Workers also use a [caller-owned grammY API instance](decisions/transport-caller
 - **Validation:** [trust boundaries](decisions/validation-trust-boundaries.md).
 - **Testing:** [Vitest on every runtime](decisions/testing-vitest-cross-runtime.md),
   [opt-in Valkey integration tests](decisions/testing-valkey-integration-opt-in.md).
-- **Deployment and local stack:**
-  [operated Bun workers](decisions/deployment-operated-bun-worker.md),
+- **Local stack:**
   [Docker Compose with Valkey](decisions/local-docker-compose-valkey.md),
   [local Valkey persistence](decisions/local-valkey-persistence.md).
 - **Backend:** [BullMQ backed by Valkey](decisions/backend-bullmq-valkey.md),

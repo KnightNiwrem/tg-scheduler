@@ -1,9 +1,9 @@
 # Library and worker overview
 
-tg-scheduler is a TypeScript library for durable outgoing Telegram calls, accompanied by a
-long-lived worker. Applications submit work and retrieve outcomes through the client. Workers
-activate due work and execute admitted calls through grammY. BullMQ and Valkey retain work and
-coordinate producers and workers for the same bot.
+tg-scheduler is a TypeScript library for durable outgoing Telegram calls. Applications submit work
+and retrieve outcomes through the client, and run library workers to activate due work and execute
+admitted calls through grammY. BullMQ and Valkey retain work and coordinate clients and workers for
+the same bot.
 
 ## Current state
 
@@ -46,7 +46,10 @@ flowchart LR
 The arrows describe the intended integration; BullMQ and Valkey persist the queues and scheduling
 state. Admission currently relies on BullMQ's queue-wide concurrency; priorities, independent
 activation, cooldowns, recurrence, and recovery records are not connected yet.
-The producer may exit after acceptance; the operated worker supplies future execution opportunities.
+Clients and workers can run in the same application process or in separate application instances.
+A library worker can process queued requests without a grammY `Bot` or an inbound update handler.
+The submitting process may exit after acceptance; running library workers provide future execution
+opportunities.
 All participants for one bot must use the same backend namespace and stable bot identity.
 
 ## Source map
@@ -71,7 +74,7 @@ All participants for one bot must use the same backend namespace and stable bot 
 These are modules within the selected BullMQ implementation. Storage transitions and native worker
 wiring remain provisional until selected-version integration establishes the required semantics.
 Environment access, runtime permissions, process signals, and process exit
-[belong in executables](decisions/runtime-bun-primary-node-deno-compatible.md).
+[belong to the host application](decisions/runtime-bun-primary-node-deno-compatible.md).
 
 ## Consumer API
 

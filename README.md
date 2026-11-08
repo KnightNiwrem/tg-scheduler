@@ -25,8 +25,8 @@ therefore does not prove that a request was never sent.
 
 A Telegram 429 currently settles the job as `failed`; durable 429 retry with a bot cooldown is not
 implemented yet, so the worker is not ready for production traffic. Recurring schedules and
-urgent-priority requests reject with `UnimplementedError`. Priority selection, due-job activation
-independent of dispatch capacity, and a runnable worker executable are also not implemented yet.
+urgent-priority requests reject with `UnimplementedError`. Priority selection and due-job activation
+independent of dispatch capacity are also not implemented yet.
 
 See the [library overview](docs/library-overview.md) for the component flow and source map, and the
 [usage sketch](examples/library.ts) for the intended API.
@@ -44,8 +44,7 @@ Immediate, delayed and recurring work will support normal or urgent
 that queue while dispatch is busy, following [ready-entry ordering](docs/decisions/ordering-eligible-fifo.md).
 Telegram 429 responses will return the affected job to the queue using
 [native retry insertion](docs/decisions/rate-limit-native-429-requeue.md). The bot cooldown will pause
-claims for both priorities until it expires. A worker executable and Compose service will run the
-worker as a long-lived process.
+claims for both priorities until it expires.
 
 Workers will accept a [caller-owned grammY API instance](docs/decisions/transport-caller-owned-api.md).
 The current worker still accepts a token resolver and constructs its own `Api`.
@@ -68,9 +67,8 @@ cp .env.example .env
 docker compose up -d --wait
 ```
 
-Compose currently starts only a local Valkey service, used by the integration tests. A worker
-service will be added once the scheduler worker can run. `docker compose down` stops Valkey and
-preserves the named data volume; `docker compose down -v` also deletes local queue data.
+Compose starts a local Valkey service used by the integration tests. `docker compose down` stops
+Valkey and preserves the named data volume; `docker compose down -v` also deletes local queue data.
 
 `VALKEY_PORT` sets the published host port and defaults to `6379`. If that port is occupied, set it
 to another port in `.env` and use the same port in `VALKEY_TEST_URL`.

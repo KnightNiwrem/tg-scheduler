@@ -10,13 +10,13 @@ targets: library imports and package entry points must work on all three runtime
 core must not depend on Bun-only or Deno-only APIs.
 
 Runtime-specific startup, permissions, environment access, process signals and exit handling belong
-in executables at the edges, not in the library.
+to the host application, outside the shared library.
 
 Compatibility with a runtime is established only by real queue and worker operations against Valkey
 on that runtime. Successful imports or type checking alone do not establish it.
 
 ## Context
 
-Producers may run in hosting environments other than the worker's, so the library must stay
-portable while the operated worker uses Bun. The tested runtime versions are recorded in the
+Clients and workers may run in application processes on different supported runtimes, so the
+library core must stay portable. The tested runtime versions are recorded in the
 [library research](../library-research.md#selected-version-native-behavior).
