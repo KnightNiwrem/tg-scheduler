@@ -1,8 +1,8 @@
 # tg-scheduler
 
 A planned durable queue and scheduler for outgoing Telegram Bot API calls, written in TypeScript
-with grammY, BullMQ, and Valkey. Bun is the primary development runtime and the reference runtime for
-library workers.
+with grammY, BullMQ, and Valkey. Development uses Bun, with Node.js and Deno compatibility enforced
+in CI.
 
 The library currently supports the basic delivery path for immediate and one-time delayed jobs:
 
