@@ -31,7 +31,12 @@ export interface SchedulerClient {
     payload: TelegramPayload<Method>,
     options: ScheduleOptions,
   ): Promise<ScheduleHandle>;
-  /** Stop future occurrence creation while preserving jobs already materialized. */
+  /**
+   * Stop recurrence and remove its next occurrence if still delayed (not activated for dispatch).
+   * Delayed occurrences also report `queued`, including overdue ones awaiting activation.
+   * Preserve `queued` jobs already activated for dispatch, plus `in-flight`, `succeeded` and
+   * `failed` jobs.
+   */
   disableSchedule(scheduleId: string): Promise<void>;
   /**
    * Close this client's queue resources, leaving the caller's connection open.

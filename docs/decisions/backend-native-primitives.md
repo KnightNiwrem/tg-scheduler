@@ -23,7 +23,7 @@ exposes interrupted processing as `failed` through job snapshots.
 
 Requires additional coordination: [monotonic cooldown extension](rate-limit-bot-cooldown.md) and
 [due-job activation independent of dispatch capacity](ordering-eligible-fifo.md).
-Recurrence uses [native BullMQ Job Schedulers](recurrence-planned-time-anchored.md).
+Recurrence and schedule removal use [native BullMQ Job Schedulers](recurrence-planned-time-anchored.md).
 
 ## Context
 

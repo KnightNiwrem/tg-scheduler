@@ -153,8 +153,15 @@ acceptance validates the documented Compose configuration and its recovery limit
   overdue job runs when capacity is available, and beginning it creates the next scheduled occurrence.
   Missed, uncreated occurrences are skipped without an additional catch-up job. Occurrence
   creation and advancement remain unique under competing workers.
-- Recovery preserves accepted queued jobs. Disabling recurrence stops future creation without
-  silently cancelling already materialized work.
+- Recovery preserves accepted queued jobs.
+- Disabling recurrence follows [native scheduler removal](decisions/recurrence-planned-time-anchored.md):
+  it stops occurrence generation and removes the next occurrence if it is still delayed, including
+  an overdue occurrence awaiting activation. `getJob` returns `undefined` for the removed job.
+  Ready, in-flight and finished occurrences remain intact.
+- Disabling a schedule while an occurrence is ready or in-flight does not prevent that occurrence
+  from executing or settling, and its execution cannot recreate the scheduler. Races with due-job
+  activation and occurrence advancement follow the native ordering: activation before removal
+  preserves the ready job, while removal before activation deletes the delayed job.
 - Supported payloads remain usable after the submitting process exits. Unsupported transient
   payloads are rejected at submission rather than accepted unreliably.
 

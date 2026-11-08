@@ -181,7 +181,11 @@ remains unverified:
   selected and validated against the project's ordering and recovery criteria.
 - **Recurrence:** the library still needs to integrate native Job Schedulers and verify planned-time
   anchoring, occurrence uniqueness, disable behavior, and interaction with the shared cooldown,
-  priorities and independent activation. [Job
+  priorities and independent activation. In the pinned backend, `removeJobScheduler` deletes the
+  next occurrence only if it remains in the delayed set. The
+  [removal contract](decisions/recurrence-planned-time-anchored.md) adopts that boundary; integration
+  checks must distinguish delayed from ready occurrences and cover activation and advancement races.
+  [Job
   schedulers](https://docs.bullmq.io/guide/job-schedulers/)
 - **Recovery:** automatic stalled-job replay can repeat an ambiguous Telegram effect. The
   [disabled-replay setting](decisions/recovery-stalled-replay-disabled.md) implements the
