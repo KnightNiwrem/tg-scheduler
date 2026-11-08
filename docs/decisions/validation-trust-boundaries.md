@@ -27,7 +27,8 @@ Values from outside the library enter at these boundaries:
 - client and worker options, at construction; connections are recognized with BullMQ's instance
   check, while connection settings and the supplied API instance's configuration remain the
   caller's responsibility;
-- `submit`, `createSchedule`, `deleteSchedule` and `getJob` arguments, including the payload, which
+- `submit`, `createSchedule`, `deleteSchedule`, `listScheduleJobs` and `getJob` arguments,
+  including the payload, which
   is copied as described in
   [durable JSON requests](api-durable-json-requests.md);
 - fields read from Telegram responses, such as `retry_after`, whose parsing the

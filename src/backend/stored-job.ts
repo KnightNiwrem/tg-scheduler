@@ -9,9 +9,14 @@ export interface StoredJobData {
   request: TelegramRequest;
 }
 
-/** Successful outcomes use BullMQ's return value; terminal errors use its failure reason. */
-export type BotJob = Job<StoredJobData, SettledJobOutcome>;
-export type BotQueue = Queue<StoredJobData, SettledJobOutcome>;
+/**
+ * The outcome stored as BullMQ's return value. Terminal failures are stored in the native failure
+ * reason instead, so a return value is always a success.
+ */
+export type StoredJobSuccess = Extract<SettledJobOutcome, { state: 'succeeded' }>;
+
+export type BotJob = Job<StoredJobData, StoredJobSuccess>;
+export type BotQueue = Queue<StoredJobData, StoredJobSuccess>;
 
 /**
  * BullMQ parses job data from JSON, so a non-array object payload is already plain JSON that no
@@ -98,13 +103,13 @@ export function decodeStoredJob(job: BotJob): {
   return { request: data.request as TelegramRequest, scheduledForMs: timestamp + opts.delay };
 }
 
-function decodeStoredSuccess(value: unknown): SettledJobOutcome {
+function decodeStoredSuccess(value: unknown): StoredJobSuccess {
   const parsed = storedSuccessSchema.safeParse(value);
   if (!parsed.success) {
     throw new TypeError(`Invalid stored job outcome: ${z.prettifyError(parsed.error)}`);
   }
   // Results are stored exactly as Telegram returned them for the job's own method.
-  return parsed.data as SettledJobOutcome;
+  return parsed.data as StoredJobSuccess;
 }
 
 /**
