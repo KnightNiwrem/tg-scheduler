@@ -64,7 +64,7 @@ Workers also use a [caller-owned grammY API instance](decisions/transport-caller
   [retry delay](decisions/rate-limit-retry-after-fallback.md),
   [interim 429 failure](decisions/rate-limit-interim-429-failure.md).
 - **Ordering and recurrence:** [priority and ready-entry FIFO](decisions/ordering-eligible-fifo.md),
-  [planned-time recurrence](decisions/recurrence-planned-time-anchored.md).
+  [native interval and UTC cron schedules](decisions/recurrence-planned-time-anchored.md).
 - **Outcomes and recovery:**
   [no automatic retransmission](decisions/uncertainty-no-automatic-retransmission.md),
   [stalled-job reporting](decisions/recovery-stalled-replay-disabled.md),

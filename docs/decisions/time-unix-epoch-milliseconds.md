@@ -7,9 +7,11 @@
 
 Application timestamps are integer milliseconds since the Unix epoch, in UTC. This covers public
 execution times, persisted due times, retry eligibility, bot cooldown expiries, lease expiries and
-recurrence anchors. Intervals and lease durations are in milliseconds, and `nowMs` uses the same
-units. Names carry the unit, such as `runAtMs` and `intervalMs`. Native engine or Telegram units
-are converted explicitly at the boundary.
+recurrence planned times. Intervals and lease durations are in milliseconds, and `nowMs` uses the
+same units. Names for application values carry the unit, such as `runAtMs` and `scheduledForMs`.
+Recurrence options retain the [native BullMQ form names](recurrence-planned-time-anchored.md),
+whose units are defined by that contract. Native engine or Telegram units are converted explicitly
+at the boundary.
 
 ## Context
 

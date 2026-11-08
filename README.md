@@ -34,10 +34,11 @@ See the [library overview](docs/library-overview.md) for the component flow and 
 
 ## Planned capabilities
 
-The rest of the first implementation will add fixed-interval recurring schedules, listing of their
-retained jobs by schedule ID, and status/result retrieval by job ID. Deleting a schedule will remove
-its definition and its next occurrence if still delayed. Jobs already ready for dispatch, in flight
-or finished will remain listable while retained, including after schedule deletion. See the
+The rest of the first implementation will add recurring schedules using native BullMQ `every`
+intervals and UTC `pattern` cron expressions, listing of retained jobs by schedule ID, and
+status/result retrieval by job ID. Deleting a schedule will remove its definition and its next
+occurrence if still delayed. Jobs already ready for dispatch, in flight or finished will remain
+listable while retained, including after schedule deletion. See the
 [native scheduler lifecycle](docs/decisions/recurrence-planned-time-anchored.md) for creation,
 recovery, deletion and listing. Per-schedule pause and resume are deferred.
 
