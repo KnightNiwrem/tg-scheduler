@@ -32,12 +32,13 @@ export interface SchedulerClient {
     options: ScheduleOptions,
   ): Promise<ScheduleHandle>;
   /**
-   * Stop recurrence and remove its next occurrence if still delayed (not activated for dispatch).
+   * Delete the schedule definition and its next occurrence if still delayed (not activated for
+   * dispatch).
    * Delayed occurrences also report `queued`, including overdue ones awaiting activation.
    * Preserve `queued` jobs already activated for dispatch, plus `in-flight`, `succeeded` and
    * `failed` jobs.
    */
-  disableSchedule(scheduleId: string): Promise<void>;
+  deleteSchedule(scheduleId: string): Promise<void>;
   /**
    * Close this client's queue resources, leaving the caller's connection open.
    * Later operations reject.
@@ -98,8 +99,8 @@ export function createSchedulerClient(options: SchedulerClientOptions): Schedule
     async createSchedule(_method, _payload, _options) {
       throw new UnimplementedError('SchedulerClient.createSchedule');
     },
-    async disableSchedule(_scheduleId) {
-      throw new UnimplementedError('SchedulerClient.disableSchedule');
+    async deleteSchedule(_scheduleId) {
+      throw new UnimplementedError('SchedulerClient.deleteSchedule');
     },
     close() {
       closing ??= queues?.close() ?? Promise.resolve();

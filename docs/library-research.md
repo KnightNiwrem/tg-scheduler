@@ -1,6 +1,6 @@
 # Supporting library research
 
-The source review dates to 2 November 2026. Native behavior experiments and library-level probes
+The initial source review dates to 2 November 2026. Native behavior experiments and library-level probes
 record their execution dates, tested versions and coverage limits in their own sections.
 The [decisions](decisions/) record the selected choices, and [validation](validation.md) defines
 acceptance criteria. The project pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; current integration
@@ -149,7 +149,7 @@ native recovery behavior.
 
 This probe used temporary queues outside the active suite and removed its data afterward. It did
 not implement the scheduler API, simulate a process crash or backend restart, or establish atomic
-occurrence uniqueness, disable behavior, or interaction with the shared cooldown, job priorities
+occurrence uniqueness, schedule deletion, or interaction with the shared cooldown, job priorities
 and independent due-job activation. Those library integration checks remain pending.
 
 ## BullMQ integration findings
@@ -194,13 +194,23 @@ remains unverified:
   future ones; it is not a due-only scheduling loop. An activation mechanism still needs to be
   selected and validated against the project's ordering and recovery criteria.
 - **Recurrence:** the library still needs to integrate native Job Schedulers and verify planned-time
-  anchoring, occurrence uniqueness, disable behavior, and interaction with the shared cooldown,
+  anchoring, occurrence uniqueness, schedule deletion, and interaction with the shared cooldown,
   priorities and independent activation. In the pinned backend, `removeJobScheduler` deletes the
   next occurrence only if it remains in the delayed set. The
   [removal contract](decisions/recurrence-planned-time-anchored.md) adopts that boundary; integration
   checks must distinguish delayed from ready occurrences and cover activation and advancement races.
   [Job
   schedulers](https://docs.bullmq.io/guide/job-schedulers/)
+- **Schedule lifecycle and history:** a source review on 8 November 2026 of BullMQ **6.7.1** found
+  creation through `upsertJobScheduler` and deletion through `removeJobScheduler`.
+  Pause/resume controls apply to a whole queue or
+  one worker; there is no individual-scheduler pause API. Retained jobs carry `repeatJobKey`
+  independently of the scheduler definition. Native job getters accept states and page bounds,
+  not a scheduler filter, so the library's planned listing needs a query over retained job metadata.
+  Schedule deletion does not purge those retained jobs. These source findings do not establish
+  library creation, deletion or listing behavior, which remain unimplemented. [Scheduler
+  management](https://docs.bullmq.io/guide/job-schedulers/manage-job-schedulers),
+  [pause controls](https://docs.bullmq.io/guide/workers/pausing-queues)
 - **Recovery:** automatic stalled-job replay can repeat an ambiguous Telegram effect. The
   [disabled-replay setting](decisions/recovery-stalled-replay-disabled.md) implements the
   [no-retransmission policy](decisions/uncertainty-no-automatic-retransmission.md).

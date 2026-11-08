@@ -19,7 +19,7 @@ Workers also use a [caller-owned grammY API instance](decisions/transport-caller
 
 | Component                        | Owns                                                                                                                 |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Client                           | Submit jobs/schedules, retrieve status/results, disable future recurrence                                            |
+| Client                           | Submit jobs/create schedules, list retained schedule jobs, retrieve status/results, delete schedules                 |
 | Core queue/scheduler             | Eligibility, priority ordering, occurrence creation, shared admission, cooldown and retry/recovery decisions         |
 | Durable backend                  | Jobs, schedules, bot state, atomic transitions, reservations and recovery records                                    |
 | Wakeup/scheduling infrastructure | Trigger due-job activation, cooldown expiry, recurrence and recovery independently of producer lifetime              |
@@ -115,9 +115,9 @@ than behind mandatory adapter method names:
 4. **Recover abandoned attempts:** reclaim expired ownership under the
    [no-retransmission policy](decisions/uncertainty-no-automatic-retransmission.md); arrange recovery
    at claim time, not only after successful completion.
-5. **Materialize occurrence:** create occurrences and advance schedules through the
+5. **Create and advance schedules:** materialize occurrences through the
    [native Job Scheduler](decisions/recurrence-planned-time-anchored.md).
-6. **Disable recurrence:** use [native scheduler removal](decisions/recurrence-planned-time-anchored.md),
+6. **Delete schedule:** use [native scheduler removal](decisions/recurrence-planned-time-anchored.md),
    including removal of the next occurrence if it is still delayed.
 7. **Activate due jobs:** move already-created due jobs into the ready queue without requiring a
    free dispatch slot or an expired cooldown; recover pending activation after an interruption.
