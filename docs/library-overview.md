@@ -88,9 +88,10 @@ until recurrence is implemented.
 - `getJob(jobId)` retrieves a stored snapshot or `undefined` when the job does not exist.
 - `createSchedule(method, payload, options)` is scaffolded for fixed-interval recurrence and currently
   rejects as unimplemented.
-- Schedule deletion is currently scaffolded as `disableSchedule(scheduleId)` and rejects as
-  unimplemented. It will remove the definition and its next occurrence if still delayed, while
-  preserving ready, in-flight and finished jobs. See
+- `deleteSchedule(scheduleId)` is scaffolded and currently rejects as unimplemented. It will remove
+  the definition and its next occurrence if still delayed, while preserving ready, in-flight and
+  finished jobs. `disableSchedule(scheduleId)` is a deprecated compatibility alias for this deletion
+  operation. See
   [native scheduler removal](decisions/recurrence-planned-time-anchored.md) for the removal boundary
   and races with activation.
 - `client.close()` releases its BullMQ resources while leaving the supplied connection open;

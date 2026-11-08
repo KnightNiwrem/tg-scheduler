@@ -32,11 +32,14 @@ export interface SchedulerClient {
     options: ScheduleOptions,
   ): Promise<ScheduleHandle>;
   /**
-   * Stop recurrence and remove its next occurrence if still delayed (not activated for dispatch).
+   * Delete the schedule definition and its next occurrence if still delayed (not activated for
+   * dispatch).
    * Delayed occurrences also report `queued`, including overdue ones awaiting activation.
    * Preserve `queued` jobs already activated for dispatch, plus `in-flight`, `succeeded` and
    * `failed` jobs.
    */
+  deleteSchedule(scheduleId: string): Promise<void>;
+  /** @deprecated Use deleteSchedule to delete the schedule definition and its next delayed occurrence. */
   disableSchedule(scheduleId: string): Promise<void>;
   /**
    * Close this client's queue resources, leaving the caller's connection open.
@@ -71,6 +74,10 @@ export function createSchedulerClient(options: SchedulerClientOptions): Schedule
     return queues;
   }
 
+  async function deleteSchedule(_scheduleId: string): Promise<void> {
+    throw new UnimplementedError('SchedulerClient.deleteSchedule');
+  }
+
   return {
     async submit(method, payload, submitOptions) {
       const request = parseTelegramRequest(method, payload);
@@ -98,9 +105,8 @@ export function createSchedulerClient(options: SchedulerClientOptions): Schedule
     async createSchedule(_method, _payload, _options) {
       throw new UnimplementedError('SchedulerClient.createSchedule');
     },
-    async disableSchedule(_scheduleId) {
-      throw new UnimplementedError('SchedulerClient.disableSchedule');
-    },
+    deleteSchedule,
+    disableSchedule: deleteSchedule,
     close() {
       closing ??= queues?.close() ?? Promise.resolve();
       return closing;

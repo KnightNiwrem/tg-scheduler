@@ -28,7 +28,7 @@ export async function submitAndInspect(options: SchedulerClientOptions) {
       { chat_id: 123, text: 'Recurring' },
       { intervalMs: 3_600_000, anchorAtMs: Date.now() + 3_600_000 },
     );
-    await client.disableSchedule(schedule.id);
+    await client.deleteSchedule(schedule.id);
   } catch (operationError) {
     await client.close().catch((cleanupError: unknown) => {
       throw new AggregateError(

@@ -18,7 +18,9 @@ semantics. Missed-occurrence recovery follows BullMQ's native behavior:
 - Occurrences inherit the schedule's selected [job priority](admission-job-priorities.md). Once
   created, they enter the shared ready queue through [due-job activation](ordering-eligible-fifo.md).
 
-Deleting a schedule uses BullMQ's native `Queue.removeJobScheduler` operation:
+Schedule deletion through `deleteSchedule(scheduleId)` must use BullMQ's native
+`Queue.removeJobScheduler` operation. `disableSchedule(scheduleId)` is a deprecated compatibility
+alias for the same deletion operation:
 
 - Delete the scheduler definition so it cannot create subsequent occurrences.
 - Delete its next occurrence if that job is still in BullMQ's delayed set, including an overdue
@@ -33,14 +35,13 @@ A removed occurrence no longer exists, so `getJob` returns `undefined` for its I
 not record a separate cancellation outcome. Both delayed and ready occurrences report the public
 `queued` state; that state alone does not determine whether an occurrence will be removed.
 
-Callers can list retained jobs by schedule ID and retrieve an individual job through `getJob`
-using its listed job ID. Membership follows the job's native BullMQ scheduler association, and
-listing does not require the scheduler definition to exist: jobs remain listable after schedule
-deletion while retained under the
-[finished-job retention policy](backend-finished-job-retention.md).
-Skipped times whose jobs were never created and jobs removed by deletion or cleanup have no entry.
-The library exposes this query over retained jobs; BullMQ does not provide a native per-schedule
-job-history listing operation. No separate occurrence history is recorded.
+The first-slice client API must support listing retained jobs by schedule ID and retrieving an
+individual listed job through `getJob`. Listing must use each job's native BullMQ scheduler
+association and remain available after schedule deletion while the jobs are retained under the
+[finished-job retention policy](backend-finished-job-retention.md). It must exclude skipped times
+whose jobs were never created and jobs removed by deletion or cleanup. This requires a library
+query over retained jobs; BullMQ does not provide a native per-schedule job-history listing
+operation. No separate occurrence history is recorded.
 
 Schedule-specific pause and resume, calendar cron expressions, time zones and alternative
 missed-occurrence policies are outside the first slice. Deletion does not retain a resumable
