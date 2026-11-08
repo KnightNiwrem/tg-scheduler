@@ -63,6 +63,14 @@ acceptance validates the documented Compose configuration and its recovery limit
   the coordinator with their raw `retry_after`; classification works without depending solely on
   constructor identity from a separate grammY copy. Package installation and public types use a
   compatible grammY peer dependency with a pinned development/test version.
+- Under the [credential boundary](decisions/credentials-bot-token-handling.md), transport failures
+  redact the known API token from stored messages and do not persist raw error objects or causes.
+  A caller-sanitized custom error preserves its safe message and outcome fields without exposing
+  the custom endpoint or network credentials removed by caller-owned code.
+- Credential rotation follows the [API ownership contract](decisions/transport-caller-owned-api.md):
+  replacing a caller's variable does not rebind an existing worker. After draining and closing the
+  old worker, a replacement configured with a new `Api` uses the new credentials for subsequent
+  queued jobs without rewriting their stored requests.
 - Runtime-specific permissions, startup and shutdown requirements are documented separately from the
   portable core. Compatibility evidence identifies tested dependency/runtime versions and any failed
   or unrun checks; type compatibility alone does not establish runtime support.

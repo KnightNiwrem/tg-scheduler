@@ -10,6 +10,11 @@ The library does not construct, clone, reconfigure or install transformers on th
 The caller owns its credentials, credential rotation, request timeout, Bot API endpoint, network
 configuration and lifetime. The scheduler imposes no separate request timeout.
 
+An `Api` retains its construction-time token. Rotating that token requires a new `Api` instance
+and replacement workers configured with it; callers drain and close workers that retain the old
+instance. Reassigning a caller's variable does not rebind a running worker, and the library provides
+no live API replacement operation.
+
 Prefer a fresh `Api` instance dedicated to scheduler use, without transformers, over `bot.api` or
 another instance shared with bot plugins. This is a recommendation, not a blanket prohibition on
 transformers. A supplied instance must preserve the
