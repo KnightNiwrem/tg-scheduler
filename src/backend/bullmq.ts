@@ -3,7 +3,13 @@ import type { Cluster, Redis } from 'ioredis';
 import { z } from 'zod';
 import { reportInternalError, toError } from '../diagnostics.ts';
 import type { SettledJobOutcome } from '../jobs.ts';
-import { type BotJob, type BotQueue, encodeJobFailure, type StoredJobData } from './stored-job.ts';
+import {
+  type BotJob,
+  type BotQueue,
+  encodeJobFailure,
+  type StoredJobData,
+  type StoredJobSuccess,
+} from './stored-job.ts';
 
 export interface BullMqBackendOptions {
   /** Caller-owned ioredis instance, passed to BullMQ. Closing the scheduler leaves it open. */
@@ -84,7 +90,7 @@ export function openBotQueues(
   config: BotBackendConfig,
   reportQueueError: (error: Error) => void,
 ): BotQueues {
-  const dispatch: BotQueue = new Queue<StoredJobData, SettledJobOutcome>(config.dispatchQueueName, {
+  const dispatch: BotQueue = new Queue<StoredJobData, StoredJobSuccess>(config.dispatchQueueName, {
     connection: config.connection,
     prefix: config.queuePrefix,
   });
@@ -133,7 +139,7 @@ export async function startBotJobProcessor(
     throw new TypeError('Invalid worker connection: BullMQ requires maxRetriesPerRequest: null');
   }
   const queues = openBotQueues(config, reportInternalError);
-  let worker: Worker<StoredJobData, SettledJobOutcome> | undefined;
+  let worker: Worker<StoredJobData, StoredJobSuccess> | undefined;
 
   async function close(): Promise<void> {
     try {
@@ -144,7 +150,7 @@ export async function startBotJobProcessor(
   }
 
   try {
-    worker = new Worker<StoredJobData, SettledJobOutcome>(
+    worker = new Worker<StoredJobData, StoredJobSuccess>(
       config.dispatchQueueName,
       async (job) => {
         let outcome: SettledJobOutcome;

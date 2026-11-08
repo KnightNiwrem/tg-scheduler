@@ -5,9 +5,10 @@
 
 ## Decision
 
-Until [job priorities](admission-job-priorities.md) are implemented, `submit` with
-`priority: 'urgent'` rejects with `UnimplementedError` instead of silently accepting urgent work as
-normal priority. Snapshots report `priority: 'normal'` for every stored job.
+Until [job priorities](admission-job-priorities.md) are implemented, `submit` and
+`createSchedule` with `priority: 'urgent'` reject with `UnimplementedError` instead of silently
+accepting urgent work as normal priority. Snapshots report `priority: 'normal'` for every stored
+job.
 
 ## Context
 
