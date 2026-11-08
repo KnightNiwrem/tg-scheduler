@@ -32,6 +32,12 @@ not establish the full queue/scheduler acceptance criteria below. The shared sui
 [Vitest on Bun, Node.js, and Deno](../README.md#testing), so cross-runtime acceptance coverage exercises
 the same library tests on each runtime.
 
+The active backend integration suite uses standalone Valkey. A separate
+[cluster namespace probe](library-research.md#cluster-namespace-compatibility) verifies the basic
+delivery path and per-bot key placement through caller-owned ioredis `Cluster` connections.
+Graceful shutdown of Deno Cluster workers remains unresolved: the probe intermittently stalls
+while closing a worker after all jobs have settled.
+
 ## Selected slice
 
 The first slice covers durable immediate jobs, one-time delayed jobs and fixed-interval UTC
@@ -95,6 +101,10 @@ acceptance validates the documented Compose configuration and its recovery limit
 - Concurrent submissions do not lose accepted jobs. New claims respect configured capacity across
   both priorities, including the [transition when capacity decreases](decisions/admission-bot-concurrency.md).
   The documented failover limitation still applies to already-sent physical HTTP requests.
+- The [bot namespace](decisions/backend-bot-id-and-key-namespace.md) supports enqueue, claim,
+  delayed activation and result retrieval on standalone Valkey and through a caller-owned ioredis
+  `Cluster`. Each bot's queue keys share one cluster hash slot, and bots sharing a prefix retain
+  independent jobs and concurrency limits. Invalid custom prefixes reject before backend I/O.
 - All workers and both priorities for one bot share one concurrency limit and cooldown state;
   other bots remain independent. Urgent priority adds no capacity and cannot bypass the cooldown.
 - A later shorter 429 at either priority cannot shorten the bot's longer existing cooldown.

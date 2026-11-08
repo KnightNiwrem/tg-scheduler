@@ -146,7 +146,7 @@ async function expectNativeFinishedState(
   jobId: string,
   state: 'completed' | 'failed',
 ): Promise<void> {
-  const queueKey = `${queuePrefix}:${botId}.ordinary`;
+  const queueKey = `${queuePrefix}:{${botId}}.ordinary`;
   expect(await inspector.zscore(`${queueKey}:${state}`, jobId)).not.toBeNull();
   const otherState = state === 'completed' ? 'failed' : 'completed';
   expect(await inspector.zscore(`${queueKey}:${otherState}`, jobId)).toBeNull();
@@ -204,7 +204,7 @@ integrationTest.each([
 ])('stored job data with %s fails without sending a request', async (_case, corruptRequest) => {
   const client = openClient();
   const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
-  const jobKey = `${queuePrefix}:${botId}.ordinary:${handle.id}`;
+  const jobKey = `${queuePrefix}:{${botId}}.ordinary:${handle.id}`;
   const corruptData = { request: corruptRequest, originalDueAtMs: 0 };
   await inspector.hset(jobKey, 'data', JSON.stringify(corruptData));
 
@@ -322,7 +322,7 @@ integrationTest.each(['failed', 'uncertain'])(
 
     const error = { message: 'Bad Gateway', telegramErrorCode: 502 };
     await inspector.hset(
-      `${queuePrefix}:${botId}.ordinary:${handle.id}`,
+      `${queuePrefix}:{${botId}}.ordinary:${handle.id}`,
       'returnvalue',
       JSON.stringify({ state, error }),
     );
@@ -336,7 +336,7 @@ integrationTest.each(['failed', 'uncertain'])(
 integrationTest('a terminal Telegram failure ignores a larger stored retry budget', async () => {
   const client = openClient();
   const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
-  const jobKey = `${queuePrefix}:${botId}.ordinary:${handle.id}`;
+  const jobKey = `${queuePrefix}:{${botId}}.ordinary:${handle.id}`;
   await inspector.hset(jobKey, 'opts', JSON.stringify({ attempts: 4 }));
   const error = { message: 'Forbidden: "chat" is unavailable\nNo access', telegramErrorCode: 403 };
   const telegram = new FakeTelegram(() => ({ kind: 'failed', error }));
@@ -374,7 +374,7 @@ integrationTest(
       error: { message: "Network request for 'sendChatAction' failed!" },
     });
     expect(
-      await inspector.hget(`${queuePrefix}:${botId}.ordinary:${lostResponse.id}`, 'returnvalue'),
+      await inspector.hget(`${queuePrefix}:{${botId}}.ordinary:${lostResponse.id}`, 'returnvalue'),
     ).toBeNull();
     await expectNativeFinishedState(lostResponse.id, 'failed');
     expect(await settledJob(client, unrelated.id)).toMatchObject({
@@ -430,7 +430,7 @@ integrationTest.each(['succeeded', 'failed'] as const)(
     const nativeState = state === 'succeeded' ? 'completed' : 'failed';
     await expectNativeFinishedState(first.id, nativeState);
 
-    const queueKey = `${queuePrefix}:${botId}.ordinary`;
+    const queueKey = `${queuePrefix}:{${botId}}.ordinary`;
     const oldFinishedOnMs = Date.now() - 365 * 24 * 60 * 60 * 1000;
     await inspector.hset(`${queueKey}:${first.id}`, 'finishedOn', oldFinishedOnMs);
     await inspector.zadd(`${queueKey}:${nativeState}`, oldFinishedOnMs, first.id);
@@ -458,7 +458,7 @@ integrationTest.each([
   const handle = await client.submit('sendChatAction', { chat_id: 1, action: 'typing' });
   expect((await settledJob(client, handle.id)).state).toBe('failed');
   await inspector.hset(
-    `${queuePrefix}:${botId}.ordinary:${handle.id}`,
+    `${queuePrefix}:{${botId}}.ordinary:${handle.id}`,
     'failedReason',
     `tg-scheduler:failure:${encodedFailure}`,
   );

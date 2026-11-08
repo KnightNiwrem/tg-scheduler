@@ -52,6 +52,15 @@ test.each([
   expect(() => openClient(overrides)).toThrow(new RegExp(`^${message}`));
 });
 
+test.each(['scheduler{}', 'scheduler{', 'scheduler}', '{shared}'])(
+  'construction rejects braces in queue prefix %s',
+  (queuePrefix) => {
+    expect(() => openClient({ backend: { ...unreachableBackend, queuePrefix } })).toThrow(
+      /^Invalid queuePrefix/,
+    );
+  },
+);
+
 test('construction and close perform no backend I/O', async () => {
   const errors: Error[] = [];
   const originalOptions = { ...connection.options };

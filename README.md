@@ -89,6 +89,11 @@ satisfy [BullMQ's connection requirements](https://docs.bullmq.io/guide/connecti
 `maxRetriesPerRequest: null`. See the [connection decision](docs/decisions/backend-ioredis-driver.md)
 and [usage sketch](examples/library.ts).
 
+Client and worker connections may target standalone Valkey or Valkey Cluster. See the
+[bot namespace decision](docs/decisions/backend-bot-id-and-key-namespace.md) for the key layout and
+custom prefix restrictions. Cluster delivery has been checked on all three runtimes, but Deno
+Cluster workers have an unresolved [shutdown limitation](docs/library-research.md#cluster-namespace-compatibility).
+
 For deployments beyond local testing, operators configure Valkey authentication and network
 restrictions, and supply credentials through their ioredis connection configuration.
 Prefer `rediss://` with a trusted server certificate, or an equivalent encrypted transport, to
