@@ -1,6 +1,7 @@
 import { isRedisInstance, Queue, UnrecoverableError, Worker } from 'bullmq';
 import type { Cluster, Redis } from 'ioredis';
 import { z } from 'zod';
+import type { BaseSchedulerOptions } from '../base-scheduler-options.ts';
 import { reportInternalError, toError } from '../diagnostics.ts';
 import type { SettledJobOutcome } from '../jobs.ts';
 import {
@@ -10,16 +11,6 @@ import {
   type StoredJobData,
   type StoredJobSuccess,
 } from './stored-job.ts';
-
-export interface BullMqBackendOptions {
-  /** Caller-owned ioredis instance, passed to BullMQ. Closing the scheduler leaves it open. */
-  connection: Redis | Cluster;
-  /**
-   * Shared key namespace for producers and workers; bot identity supplies per-bot isolation.
-   * Defaults to `tg-scheduler`. Whitespace and braces are not allowed.
-   */
-  queuePrefix?: string;
-}
 
 const defaultQueuePrefix = 'tg-scheduler';
 
@@ -35,7 +26,7 @@ const connectionSchema = z.custom<Redis | Cluster>(
 );
 
 /** Validated queue identity and the caller-owned connection used to access one bot's queues. */
-export interface BotBackendConfig {
+export interface BotQueueConfig {
   botId: string;
   connection: Redis | Cluster;
   queuePrefix: string;
@@ -47,23 +38,20 @@ export interface BotBackendConfig {
 }
 
 /**
- * Validate backend options and derive the bot's queue identity without connecting.
+ * Validate the shared scheduler options and derive the bot's queue identity without connecting.
  *
  * @throws {TypeError} when an option is invalid. Messages omit connection details and credentials.
  */
-export function resolveBotBackendConfig(
-  botId: unknown,
-  backend: BullMqBackendOptions,
-): BotBackendConfig {
-  const parsedBotId = botIdSchema.safeParse(botId);
+export function resolveBotQueueConfig(options: BaseSchedulerOptions): BotQueueConfig {
+  const parsedBotId = botIdSchema.safeParse(options.botId);
   if (!parsedBotId.success) {
     throw new TypeError(`Invalid botId: ${z.prettifyError(parsedBotId.error)}`);
   }
-  const parsedPrefix = queuePrefixSchema.safeParse(backend.queuePrefix ?? defaultQueuePrefix);
+  const parsedPrefix = queuePrefixSchema.safeParse(options.queuePrefix ?? defaultQueuePrefix);
   if (!parsedPrefix.success) {
     throw new TypeError(`Invalid queuePrefix: ${z.prettifyError(parsedPrefix.error)}`);
   }
-  const parsedConnection = connectionSchema.safeParse(backend.connection);
+  const parsedConnection = connectionSchema.safeParse(options.connection);
   if (!parsedConnection.success) {
     throw new TypeError('Invalid connection: expected an ioredis instance accepted by BullMQ');
   }
@@ -87,7 +75,7 @@ export interface BotQueues {
  * @param reportQueueError Receives queue error events, which no awaited operation reports.
  */
 export function openBotQueues(
-  config: BotBackendConfig,
+  config: BotQueueConfig,
   reportQueueError: (error: Error) => void,
 ): BotQueues {
   const dispatch: BotQueue = new Queue<StoredJobData, StoredJobSuccess>(config.dispatchQueueName, {
@@ -127,7 +115,7 @@ function isClusterConnection(connection: Redis | Cluster): connection is Cluster
  * @throws when BullMQ cannot start or configure capacity; owned resources are released.
  */
 export async function startBotJobProcessor(
-  config: BotBackendConfig,
+  config: BotQueueConfig,
   options: BotJobProcessorOptions,
 ): Promise<BotJobProcessor> {
   // BullMQ creates a blocking duplicate before rejecting an invalid retry setting. Check the
