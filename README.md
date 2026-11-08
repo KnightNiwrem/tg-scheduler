@@ -34,11 +34,12 @@ See the [library overview](docs/library-overview.md) for the component flow and 
 
 ## Planned capabilities
 
-The rest of the first implementation will add fixed-interval recurring schedules with status/result
-retrieval like other jobs. Disabling a schedule will stop recurrence and remove its next occurrence
-if it is still delayed. Jobs already ready for dispatch, in flight or finished will remain. See the
+The rest of the first implementation will add fixed-interval recurring schedules, listing of their
+retained jobs by schedule ID, and status/result retrieval by job ID. Deleting a schedule will remove
+its definition and its next occurrence if still delayed. Jobs already ready for dispatch, in flight
+or finished will remain listable while retained, including after schedule deletion. See the
 [native scheduler lifecycle](docs/decisions/recurrence-planned-time-anchored.md) for creation,
-recovery and removal details.
+recovery, deletion and listing. Per-schedule pause and resume are deferred.
 
 Immediate, delayed and recurring work will support normal or urgent
 [priority](docs/decisions/admission-job-priorities.md) through a

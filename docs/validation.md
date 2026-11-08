@@ -27,7 +27,7 @@ across workers, graceful shutdown, caller-connection reuse and option
 preservation, startup failure cleanup, and release of BullMQ's blocking connection.
 The dedicated job-fetch error handler, new internal diagnostic routing, caller-owned grammY API
 instances, stalled-worker recovery, Valkey restart, and the 429, priority, independent activation,
-and full recurrence criteria are not yet covered.
+schedule job listing and full recurrence criteria are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
 not establish the full queue/scheduler acceptance criteria below. The shared suite uses
@@ -43,9 +43,9 @@ while closing a worker after all jobs have settled.
 ## Selected slice
 
 The first slice covers durable immediate jobs, one-time delayed jobs and fixed-interval UTC
-recurrence for each bot, with status/result retrieval and disabling of future recurrence. Its
-normal and urgent priorities share one dispatch queue. Behavior is defined by the
-[decisions linked from the architecture](architecture.md#decisions-by-area).
+recurrence for each bot, with native schedule creation/deletion, retained job listing by schedule ID
+and status/result retrieval by job ID. Its normal and urgent priorities share one dispatch queue.
+Behavior follows the [decisions linked from the architecture](architecture.md#decisions-by-area).
 Store-level persistence and recovery guarantees follow the operator's configuration. Local
 acceptance validates the documented Compose configuration and its recovery limits.
 
@@ -161,24 +161,31 @@ acceptance validates the documented Compose configuration and its recovery limit
   Missed, uncreated occurrences are skipped without an additional catch-up job. Occurrence
   creation and advancement remain unique under competing workers.
 - Recovery preserves accepted queued jobs.
-- Disabling recurrence follows [native scheduler removal](decisions/recurrence-planned-time-anchored.md):
-  it stops occurrence generation and removes the next occurrence if it is still delayed, including
-  an overdue occurrence awaiting activation. `getJob` returns `undefined` for the removed job.
-  Ready, in-flight and finished occurrences remain intact.
-- Disabling a schedule while an occurrence is ready or in-flight does not prevent that occurrence
+- Schedule creation uses native BullMQ Job Schedulers. Deletion follows
+  [native scheduler removal](decisions/recurrence-planned-time-anchored.md): it removes the scheduler
+  definition and the next occurrence if still delayed, including an overdue occurrence awaiting
+  activation. `getJob` returns `undefined` for the removed job. Ready, in-flight and finished
+  occurrences remain intact.
+- Deleting a schedule while an occurrence is ready or in-flight does not prevent that occurrence
   from executing or settling, and its execution cannot recreate the scheduler. Races with due-job
   activation and occurrence advancement follow the native ordering: activation before removal
   preserves the ready job, while removal before activation deletes the delayed job.
+- A new client can list retained jobs by schedule ID after the creating client exits, including
+  after deletion of the schedule definition. Listing follows each job's native scheduler
+  association, excludes unrelated jobs, and provides job IDs usable with `getJob` to retrieve their
+  current states and outcomes. Deleted delayed occurrences, jobs removed by retention cleanup and
+  skipped times whose jobs were never created have no listing entry. Listing introduces no separate
+  occurrence history or resumable schedule definition.
 - Supported payloads remain usable after the submitting process exits. Unsupported transient
   payloads are rejected at submission rather than accepted unreliably.
 
 ## Deferred, not blocking this slice
 
-Additional priority levels, calendar cron/timezones, richer missed-occurrence policies, generic job
-cancellation, custom deadlines, bounded waiting, transparent awaiting transformers, caller-supplied
-submission deduplication, new-file upload persistence, additional backends and hypothetical-scale
-optimizations are deferred. Internal occurrence uniqueness and safe claims remain core checks, not
-deferred conveniences.
+Additional priority levels, per-schedule pause/resume, calendar cron/timezones, richer
+missed-occurrence policies, generic job cancellation, custom deadlines, bounded waiting, transparent
+awaiting transformers, caller-supplied submission deduplication, new-file upload persistence,
+additional backends and hypothetical-scale optimizations are deferred. Internal occurrence
+uniqueness and safe claims remain core checks, not deferred conveniences.
 
 ## Acceptance outcome
 

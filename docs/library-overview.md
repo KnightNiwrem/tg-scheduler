@@ -20,9 +20,10 @@ package manifest.
 
 A definite 429 currently [settles the job as `failed`](decisions/rate-limit-interim-429-failure.md),
 because the bot cooldown is not implemented.
-Schedules, urgent-priority requests, and the coordinator's recovery function reject with
-`UnimplementedError`. Priority selection and due-job activation independent of dispatch capacity
-are not implemented yet; delayed promotion currently runs through BullMQ worker fetching.
+Schedule creation and deletion, urgent-priority requests, and the coordinator's recovery function
+reject with `UnimplementedError`. Listing retained jobs by schedule ID has no public method yet.
+Priority selection and due-job activation independent of dispatch capacity are not implemented
+yet; delayed promotion currently runs through BullMQ worker fetching.
 
 ## Intended flow
 
@@ -57,7 +58,7 @@ All participants for one bot must use the same backend namespace and stable bot 
 | Module                                                                          | Responsibility                                                                                          |
 | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | [`src/index.ts`](../src/index.ts)                                               | Public library exports; importing them performs no startup or environment access.                       |
-| [`src/client.ts`](../src/client.ts)                                             | Producer configuration, submission, job retrieval, schedule creation/disable, and connection cleanup.   |
+| [`src/client.ts`](../src/client.ts)                                             | Producer configuration, submission, job retrieval, schedule creation/deletion, and connection cleanup.  |
 | [`src/worker.ts`](../src/worker.ts)                                             | Worker configuration and lifecycle, including shared per-bot policy and token resolution.               |
 | [`src/shared-bot-options.ts`](../src/shared-bot-options.ts)                     | Bot identity, caller-owned connections, and the queue namespace used by clients and workers.            |
 | [`src/jobs.ts`](../src/jobs.ts)                                                 | Job handles, earliest execution time, delivery lane, visible job outcomes, and settled outcomes.        |
@@ -79,22 +80,27 @@ Environment access, runtime permissions, process signals, and process exit
 ## Consumer API
 
 [`examples/library.ts`](../examples/library.ts) is a type-checked usage sketch. It shows immediate
-submission, delayed submission using `runAtMs`, fixed-interval schedules, result retrieval, disabling
-recurrence, and worker configuration. It has no top-level execution; its schedule calls reject
+submission, delayed submission using `runAtMs`, fixed-interval schedules, result retrieval, schedule
+deletion, and worker configuration. It has no top-level execution; its schedule calls reject
 until recurrence is implemented.
 
 - `submit(method, payload, options?)` returns a durable job handle after acceptance.
 - `getJob(jobId)` retrieves a stored snapshot or `undefined` when the job does not exist.
 - `createSchedule(method, payload, options)` is scaffolded for fixed-interval recurrence and currently
   rejects as unimplemented.
-- `disableSchedule(scheduleId)` is scaffolded and currently rejects as unimplemented. It will stop
-  recurrence and remove its next occurrence if still delayed, while preserving ready, in-flight and
-  finished jobs. See [native scheduler removal](decisions/recurrence-planned-time-anchored.md) for
-  the removal boundary and races with activation.
+- Schedule deletion is currently scaffolded as `disableSchedule(scheduleId)` and rejects as
+  unimplemented. It will remove the definition and its next occurrence if still delayed, while
+  preserving ready, in-flight and finished jobs. See
+  [native scheduler removal](decisions/recurrence-planned-time-anchored.md) for the removal boundary
+  and races with activation.
 - `client.close()` releases its BullMQ resources while leaving the supplied connection open;
   later operations reject.
 - `worker.start()` begins due-work activation; `worker.close()` stops admission, drains active
   work, and releases its resources.
+
+The planned [schedule job listing](decisions/recurrence-planned-time-anchored.md) will expose retained
+jobs by schedule ID, including after deletion of the schedule definition. Callers can use a listed
+job ID with `getJob` for its current state and outcome. The listing API is not scaffolded yet.
 
 Public payload and result types come from grammY. The Telegram Bot API lifecycle methods `logOut`
 and `close` remain part of the method surface; update polling and webhook management are excluded.
