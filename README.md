@@ -35,8 +35,10 @@ See the [library overview](docs/library-overview.md) for the component flow and 
 ## Planned capabilities
 
 The rest of the first implementation will add fixed-interval recurring schedules with status/result
-retrieval like other jobs. Creation, recovery and disabling follow the
-[native scheduler lifecycle](docs/decisions/recurrence-planned-time-anchored.md).
+retrieval like other jobs. Disabling a schedule will stop recurrence and remove its next occurrence
+if it is still delayed. Jobs already ready for dispatch, in flight or finished will remain. See the
+[native scheduler lifecycle](docs/decisions/recurrence-planned-time-anchored.md) for creation,
+recovery and removal details.
 
 Immediate, delayed and recurring work will support normal or urgent
 [priority](docs/decisions/admission-job-priorities.md) through a

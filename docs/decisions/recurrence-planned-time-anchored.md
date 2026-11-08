@@ -28,7 +28,8 @@ Disabling a schedule uses BullMQ's native `Queue.removeJobScheduler` operation:
   moves the next occurrence out of the delayed set first, removal leaves that job intact.
 
 A removed occurrence no longer exists, so `getJob` returns `undefined` for its ID. Removal does
-not record a separate cancellation outcome.
+not record a separate cancellation outcome. Both delayed and ready occurrences report the public
+`queued` state; that state alone does not determine whether an occurrence will be removed.
 
 Calendar cron expressions, time zones and alternative missed-occurrence policies are outside the
 first slice. Interrupted Telegram attempts still follow the
