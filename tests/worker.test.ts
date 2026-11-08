@@ -1,7 +1,7 @@
 import { Api } from 'grammy';
 import { Redis } from 'ioredis';
 import { afterEach, expect, test } from 'vitest';
-import { createSchedulerWorker, type SchedulerWorkerOptions } from '../src/index.ts';
+import { SchedulerWorker, type SchedulerWorkerOptions } from '../src/index.ts';
 
 const connections: Redis[] = [];
 afterEach(() => {
@@ -18,8 +18,8 @@ function workerOptions(overrides: Partial<SchedulerWorkerOptions> = {}): Schedul
   connections.push(connection);
   return {
     botId: '123456',
-    // Nothing listens on port 1, so any backend command would fail.
-    backend: { connection },
+    // Nothing listens on port 1, so any Valkey command would fail.
+    connection,
     api: new Api('123456:token'),
     ...overrides,
   };
@@ -33,19 +33,19 @@ test.each([
   ['a token string instead of an API instance', { api: '123456:token' as never }, 'Invalid api'],
   ['an invalid bot ID', { botId: 'bot:1' }, 'Invalid botId'],
 ])('construction rejects %s', (_case, overrides, message) => {
-  expect(() => createSchedulerWorker(workerOptions(overrides))).toThrow(message);
+  expect(() => new SchedulerWorker(workerOptions(overrides))).toThrow(message);
 });
 
-test('closing a worker that was never started performs no backend I/O', async () => {
+test('closing a worker that was never started performs no Valkey I/O', async () => {
   const options = workerOptions();
-  const worker = createSchedulerWorker(options);
+  const worker = new SchedulerWorker(options);
   await worker.close();
-  expect(options.backend.connection.status).toBe('wait');
+  expect(options.connection.status).toBe('wait');
   await expect(worker.start()).rejects.toThrow('SchedulerWorker is closed');
 });
 
 test('start rejects when Valkey is unreachable', async () => {
-  const worker = createSchedulerWorker(workerOptions());
+  const worker = new SchedulerWorker(workerOptions());
   await expect(worker.start()).rejects.toThrow();
   await worker.close();
 });

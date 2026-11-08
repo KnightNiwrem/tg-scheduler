@@ -5,8 +5,9 @@
 
 ## Decision
 
-Importing the library performs no startup or environment access. Constructing a client or worker
-validates its options and performs no I/O. A client initializes its BullMQ queue on first use, and
+Importing the library performs no startup or environment access. Applications construct the
+`SchedulerClient` and `SchedulerWorker` classes with `new`; construction validates options and
+performs no I/O. A client initializes its BullMQ queue on first use, and
 a worker initializes its BullMQ resources in `start()`. The
 [caller-owned connection](backend-ioredis-driver.md) may already be connected or may connect when
 BullMQ first uses it, according to the caller's settings. Operations after `close()` reject.

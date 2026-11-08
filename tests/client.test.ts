@@ -1,12 +1,7 @@
 import { InputFile } from 'grammy';
 import { Cluster, Redis } from 'ioredis';
 import { afterAll, afterEach, expect, test } from 'vitest';
-import {
-  createSchedulerClient,
-  type SchedulerClient,
-  type SchedulerClientOptions,
-  UnimplementedError,
-} from '../src/index.ts';
+import { SchedulerClient, type SchedulerClientOptions, UnimplementedError } from '../src/index.ts';
 
 // Nothing listens on port 1. Validation failures must reject before any command is sent.
 const connection = new Redis('redis://127.0.0.1:1', {
@@ -14,7 +9,6 @@ const connection = new Redis('redis://127.0.0.1:1', {
   enableOfflineQueue: false,
   maxRetriesPerRequest: 1,
 });
-const unreachableBackend = { connection };
 const openClients: SchedulerClient[] = [];
 
 afterEach(async () => {
@@ -23,9 +17,9 @@ afterEach(async () => {
 afterAll(() => connection.disconnect());
 
 function openClient(overrides: Partial<SchedulerClientOptions> = {}): SchedulerClient {
-  const client = createSchedulerClient({
+  const client = new SchedulerClient({
     botId: '123456',
-    backend: unreachableBackend,
+    connection,
     ...overrides,
   });
   openClients.push(client);
@@ -36,15 +30,11 @@ test.each([
   ['an empty bot ID', { botId: '' }, 'Invalid botId'],
   ['a bot ID containing a key separator', { botId: 'bot:1' }, 'Invalid botId'],
   ['a bot ID containing a dot', { botId: 'bot.1' }, 'Invalid botId'],
-  [
-    'an empty queue prefix',
-    { backend: { ...unreachableBackend, queuePrefix: '' } },
-    'Invalid queuePrefix',
-  ],
-  ['a missing connection', { backend: { connection: undefined as never } }, 'Invalid connection'],
+  ['an empty queue prefix', { queuePrefix: '' }, 'Invalid queuePrefix'],
+  ['a missing connection', { connection: undefined as never }, 'Invalid connection'],
   [
     'connection options instead of an instance',
-    { backend: { connection: { host: 'localhost' } as never } },
+    { connection: { host: 'localhost' } as never },
     'Invalid connection',
   ],
 ])('construction rejects %s', (_case, overrides, message) => {
@@ -54,13 +44,11 @@ test.each([
 test.each(['scheduler{}', 'scheduler{', 'scheduler}', '{shared}'])(
   'construction rejects braces in queue prefix %s',
   (queuePrefix) => {
-    expect(() => openClient({ backend: { ...unreachableBackend, queuePrefix } })).toThrow(
-      /^Invalid queuePrefix/,
-    );
+    expect(() => openClient({ queuePrefix })).toThrow(/^Invalid queuePrefix/);
   },
 );
 
-test('construction and close perform no backend I/O', async () => {
+test('construction and close perform no Valkey I/O', async () => {
   const originalOptions = { ...connection.options };
   const client = openClient();
   await client.close();
@@ -75,7 +63,7 @@ test('a caller-owned lazy cluster is accepted without opening it', async () => {
     redisOptions: { maxRetriesPerRequest: null },
   });
   try {
-    const client = openClient({ backend: { connection: cluster } });
+    const client = openClient({ connection: cluster });
     await client.close();
     expect(cluster.status).toBe('wait');
   } finally {

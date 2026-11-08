@@ -1,15 +1,15 @@
 # Caller-owned ioredis connections
 
 - **Status:** provisional
-- **Human-confirmed:** yes
+- **Human-confirmed:** no
 
 ## Decision
 
-Client and worker options accept a caller-created ioredis `Redis` or `Cluster` instance through
-`backend.connection`. The library passes that instance to BullMQ without changing its connection
+Client and worker options accept a caller-created ioredis `Redis` or `Cluster` instance through the
+`connection` option. The library passes that instance to BullMQ without changing its connection
 settings. The caller controls authentication, TLS, retries, timeouts, reconnection, and connection
-lifetime. Separate instances may be supplied to clients and workers, or a compatible instance may
-be shared.
+lifetime. Separate instances may be supplied to clients and workers, or a compatible instance may be
+shared.
 
 Closing a scheduler client or worker closes its BullMQ resources and removes their listeners, but
 leaves the supplied connection open. BullMQ owns and closes the duplicated connection it creates

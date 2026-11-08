@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type BotJob, decodeStoredJob } from '../backend/stored-job.ts';
+import { type BotJob, decodeStoredJob } from '../queue/stored-job.ts';
 import { toError } from '../diagnostics.ts';
 import type { SettledJobOutcome } from '../jobs.ts';
 import type { TelegramRequest } from '../telegram.ts';

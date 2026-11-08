@@ -1,16 +1,16 @@
 import { Api } from 'grammy';
 import {
-  createSchedulerClient,
-  createSchedulerWorker,
+  type BaseSchedulerOptions,
+  SchedulerClient,
   type SchedulerClientOptions,
-  type SharedBotOptions,
+  SchedulerWorker,
 } from 'tg-scheduler';
 
-// The caller supplies backend.connection and closes it after all clients and workers finish.
+// The caller supplies the connection and closes it after all clients and workers finish.
 // Usage sketch: submission and retrieval, plus a worker that is configured but not started here.
 // Schedule calls reject until recurrence is implemented, so they run after retrieval.
 export async function submitAndInspect(options: SchedulerClientOptions) {
-  const client = createSchedulerClient(options);
+  const client = new SchedulerClient(options);
   try {
     const immediate = await client.submit('sendMessage', { chat_id: 123, text: 'Hello' });
     await client.submit(
@@ -53,10 +53,10 @@ export async function submitAndInspect(options: SchedulerClientOptions) {
   await client.close();
 }
 
-export function configureWorker(options: SharedBotOptions, botToken: string) {
+export function configureWorker(options: BaseSchedulerOptions, botToken: string) {
   // A fresh instance dedicated to the scheduler, without auto-retry or other retrying transformers.
   const api = new Api(botToken);
-  const worker = createSchedulerWorker({ ...options, api, policy: { dispatchConcurrency: 3 } });
+  const worker = new SchedulerWorker({ ...options, api, policy: { dispatchConcurrency: 3 } });
   // The host application calls start(), handles signals, and awaits close().
   return worker;
 }

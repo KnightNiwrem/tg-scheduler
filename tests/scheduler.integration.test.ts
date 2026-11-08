@@ -2,20 +2,15 @@ import { Queue } from 'bullmq';
 import { Api } from 'grammy';
 import { Redis, type RedisOptions } from 'ioredis';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import {
-  type BotPolicy,
-  createSchedulerClient,
-  type JobSnapshot,
-  type SchedulerClient,
-} from '../src/index.ts';
-import type { StoredJobData } from '../src/backend/stored-job.ts';
+import { type BotPolicy, type JobSnapshot, SchedulerClient } from '../src/index.ts';
+import type { StoredJobData } from '../src/queue/stored-job.ts';
 import type { TelegramRequest } from '../src/telegram.ts';
 import { createGrammyTransport } from '../src/transport/grammy.ts';
 import type {
   TelegramAttemptOutcome,
   TelegramTransport,
 } from '../src/transport/telegram-transport.ts';
-import { createSchedulerWorkerWithTransport, type SchedulerWorker } from '../src/worker.ts';
+import { DispatchWorker } from '../src/worker.ts';
 
 const valkeyTestUrl = process.env.VALKEY_TEST_URL;
 const integrationTest = test.runIf(Boolean(valkeyTestUrl));
@@ -77,11 +72,11 @@ function openConnection(options: RedisOptions = {}): Redis {
 }
 
 function sharedOptions(connection: Redis) {
-  return { botId, backend: { connection, queuePrefix } };
+  return { botId, connection, queuePrefix };
 }
 
 function openClient(connection = openConnection()): SchedulerClient {
-  const client = createSchedulerClient(sharedOptions(connection));
+  const client = new SchedulerClient(sharedOptions(connection));
   ownedResources.push(client);
   return client;
 }
@@ -90,11 +85,8 @@ function openWorker(
   transport: TelegramTransport,
   policy?: BotPolicy,
   connection = openConnection(),
-): SchedulerWorker {
-  const worker = createSchedulerWorkerWithTransport(
-    { ...sharedOptions(connection), policy },
-    transport,
-  );
+): DispatchWorker {
+  const worker = new DispatchWorker({ ...sharedOptions(connection), policy }, transport);
   ownedResources.push(worker);
   return worker;
 }

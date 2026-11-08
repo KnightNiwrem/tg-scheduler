@@ -8,9 +8,9 @@ the same bot.
 ## Current state
 
 The library entry point is [`src/index.ts`](../src/index.ts). The client and worker implement the
-basic delivery path for immediate and one-time delayed jobs. Client and worker factories validate
-their options at construction, which performs no I/O. The client initializes BullMQ on first use;
-the worker initializes it in `start()`. Connections are
+basic delivery path for immediate and one-time delayed jobs. The `SchedulerClient` and
+`SchedulerWorker` constructors validate their options and perform no I/O. The client initializes
+BullMQ on first use; the worker initializes it in `start()`. Connections are
 [created and owned by the caller](decisions/backend-ioredis-driver.md).
 
 Workers use a [caller-owned grammY API instance](decisions/transport-caller-owned-api.md), and
@@ -56,7 +56,7 @@ Clients and workers can run in the same application process or in separate appli
 A library worker can process queued requests without a grammY `Bot` or an inbound update handler.
 The submitting process may exit after acceptance; running library workers provide future execution
 opportunities.
-All participants for one bot must use the same backend namespace and stable bot identity.
+All participants for one bot must use the same queue prefix and stable bot identity.
 
 ## Source map
 
@@ -65,13 +65,13 @@ All participants for one bot must use the same backend namespace and stable bot 
 | [`src/index.ts`](../src/index.ts)                                               | Public library exports; importing them performs no startup or environment access.                      |
 | [`src/client.ts`](../src/client.ts)                                             | Producer configuration, submission, job retrieval, schedule creation/deletion, and connection cleanup. |
 | [`src/worker.ts`](../src/worker.ts)                                             | Worker configuration and lifecycle, including shared per-bot policy and the caller's grammY API.       |
-| [`src/shared-bot-options.ts`](../src/shared-bot-options.ts)                     | Bot identity, caller-owned connections, and the queue namespace used by clients and workers.           |
+| [`src/base-scheduler-options.ts`](../src/base-scheduler-options.ts)             | Bot identity, caller-owned connections, and the queue namespace used by clients and workers.           |
 | [`src/jobs.ts`](../src/jobs.ts)                                                 | Job handles, earliest execution time, job priority, visible job outcomes, and settled outcomes.        |
 | [`src/schedules.ts`](../src/schedules.ts)                                       | Schedule handles, priority, and the BullMQ-typed interval and UTC cron recurrence forms.               |
 | [`src/telegram.ts`](../src/telegram.ts)                                         | grammY-derived method, payload, and result types, and durable JSON request validation at submission.   |
 | [`src/core/coordinator.ts`](../src/core/coordinator.ts)                         | Bot policy and settlement of one claimed job; cooldowns and 429 requeue belong here.                   |
-| [`src/backend/bullmq.ts`](../src/backend/bullmq.ts)                             | Queue identity, caller-owned connections, shared capacity, and BullMQ resource cleanup.                |
-| [`src/backend/stored-job.ts`](../src/backend/stored-job.ts)                     | Stored job data and outcomes, enqueueing, and mapping BullMQ job states to job snapshots.              |
+| [`src/queue/bullmq.ts`](../src/queue/bullmq.ts)                                 | Queue identity, caller-owned connections, shared capacity, and BullMQ resource cleanup.                |
+| [`src/queue/stored-job.ts`](../src/queue/stored-job.ts)                         | Stored job data and outcomes, enqueueing, and mapping BullMQ job states to job snapshots.              |
 | [`src/transport/telegram-transport.ts`](../src/transport/telegram-transport.ts) | Transport interface used by the coordinator: one attempt and its classified outcome.                   |
 | [`src/transport/grammy.ts`](../src/transport/grammy.ts)                         | Transport over the caller's grammY API instance, without an automatic retry layer.                     |
 | [`src/diagnostics.ts`](../src/diagnostics.ts)                                   | Local console diagnostics for errors that no operation awaits.                                         |

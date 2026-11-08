@@ -1,15 +1,16 @@
 import type { Api } from 'grammy';
 import {
+  type BotQueueConfig,
   type BotJobProcessor,
-  resolveBotBackendConfig,
+  resolveBotQueueConfig,
   startBotJobProcessor,
-} from './backend/bullmq.ts';
+} from './queue/bullmq.ts';
+import type { BaseSchedulerOptions } from './base-scheduler-options.ts';
 import { type BotPolicy, coordinateJob, parseBotPolicy } from './core/coordinator.ts';
-import type { SharedBotOptions } from './shared-bot-options.ts';
 import { createGrammyTransport } from './transport/grammy.ts';
 import type { TelegramTransport } from './transport/telegram-transport.ts';
 
-export interface SchedulerWorkerOptions extends SharedBotOptions {
+export interface SchedulerWorkerOptions extends BaseSchedulerOptions {
   /**
    * Caller-owned grammY API instance, used by reference for every admitted call. The caller owns
    * its token, rotation, timeout, endpoint and lifetime. Prefer a fresh instance without
@@ -20,29 +21,37 @@ export interface SchedulerWorkerOptions extends SharedBotOptions {
   policy?: BotPolicy;
 }
 
-export interface SchedulerWorker {
+/**
+ * Claims one bot's due jobs and dispatches them through the caller's grammY API. Construction
+ * validates options but performs no I/O. Runtime environment access and process signal handlers
+ * stay in the host application. Unexpected processing errors and unawaited worker faults are
+ * reported locally through `console.error`.
+ */
+export class SchedulerWorker {
+  readonly #dispatchWorker: DispatchWorker;
+
+  /** @throws {TypeError} when the bot identity, connection, queue prefix, policy, or API instance is invalid. */
+  constructor(options: SchedulerWorkerOptions) {
+    const transport = createGrammyTransport(parseApi(options.api));
+    this.#dispatchWorker = new DispatchWorker(options, transport);
+  }
+
   /**
    * Configure the bot's shared capacity and start claiming due jobs. Connection behavior follows
    * the supplied client. A failed start may be retried. Recurrence and job priorities are not
    * implemented yet.
    */
-  start(): Promise<void>;
+  start(): Promise<void> {
+    return this.#dispatchWorker.start();
+  }
+
   /**
    * Stop admission, drain active work, and close BullMQ resources.
    * The caller's connection and API instance remain usable.
    */
-  close(): Promise<void>;
-}
-
-/**
- * Construction validates options but performs no I/O. Runtime environment access and process
- * signal handlers stay in the host application. Unexpected processing errors and unawaited worker
- * faults are reported locally through `console.error`.
- *
- * @throws {TypeError} when the bot identity, backend options, policy, or API instance is invalid.
- */
-export function createSchedulerWorker(options: SchedulerWorkerOptions): SchedulerWorker {
-  return createSchedulerWorkerWithTransport(options, createGrammyTransport(parseApi(options.api)));
+  close(): Promise<void> {
+    return this.#dispatchWorker.close();
+  }
 }
 
 /**
@@ -60,41 +69,47 @@ function parseApi(api: unknown): Api {
   return api as Api;
 }
 
-/** Assemble a worker around a given transport, such as a fake Telegram API in tests. */
-export function createSchedulerWorkerWithTransport(
-  options: Omit<SchedulerWorkerOptions, 'api'>,
-  transport: TelegramTransport,
-): SchedulerWorker {
-  const config = resolveBotBackendConfig(options.botId, options.backend);
-  const policy = parseBotPolicy(options.policy);
-  let starting: Promise<BotJobProcessor> | undefined;
-  let closing: Promise<void> | undefined;
+/**
+ * The `SchedulerWorker` lifecycle around a given transport, such as a fake Telegram API in tests.
+ * Errors name `SchedulerWorker` because they reach applications through it.
+ */
+export class DispatchWorker {
+  readonly #config: BotQueueConfig;
+  readonly #policy: Required<BotPolicy>;
+  readonly #transport: TelegramTransport;
+  #starting: Promise<BotJobProcessor> | undefined;
+  #closing: Promise<void> | undefined;
 
-  async function closeProcessor(): Promise<void> {
-    // A failed start has already released its resources.
-    const processor = await starting?.catch(() => undefined);
-    await processor?.close();
+  constructor(options: Omit<SchedulerWorkerOptions, 'api'>, transport: TelegramTransport) {
+    this.#config = resolveBotQueueConfig(options);
+    this.#policy = parseBotPolicy(options.policy);
+    this.#transport = transport;
   }
 
-  return {
-    async start() {
-      if (closing !== undefined) throw new Error('SchedulerWorker is closed');
-      if (starting !== undefined) throw new Error('SchedulerWorker is already started');
-      const attempt = startBotJobProcessor(config, {
-        dispatchConcurrency: policy.dispatchConcurrency,
-        processJob: (job) => coordinateJob(job, { transport }),
-      });
-      starting = attempt;
-      try {
-        await attempt;
-      } catch (error) {
-        if (starting === attempt && closing === undefined) starting = undefined;
-        throw error;
-      }
-    },
-    close() {
-      closing ??= closeProcessor();
-      return closing;
-    },
-  };
+  async start(): Promise<void> {
+    if (this.#closing !== undefined) throw new Error('SchedulerWorker is closed');
+    if (this.#starting !== undefined) throw new Error('SchedulerWorker is already started');
+    const attempt = startBotJobProcessor(this.#config, {
+      dispatchConcurrency: this.#policy.dispatchConcurrency,
+      processJob: (job) => coordinateJob(job, { transport: this.#transport }),
+    });
+    this.#starting = attempt;
+    try {
+      await attempt;
+    } catch (error) {
+      if (this.#starting === attempt && this.#closing === undefined) this.#starting = undefined;
+      throw error;
+    }
+  }
+
+  close(): Promise<void> {
+    this.#closing ??= this.#closeProcessor();
+    return this.#closing;
+  }
+
+  async #closeProcessor(): Promise<void> {
+    // A failed start has already released its resources.
+    const processor = await this.#starting?.catch(() => undefined);
+    await processor?.close();
+  }
 }

@@ -83,12 +83,12 @@ tradeoffs. This configuration is for local testing.
 
 Job durability depends on the store's persistence, replication, and recovery configuration.
 
-Create and configure an ioredis instance in the application, then pass it as `backend.connection`
+Create and configure an ioredis instance in the application, then pass it as the `connection` option
 to each client or worker. Connections may be shared or separate. Callers own their settings and
 lifetime; closing scheduler resources leaves the supplied connection open. Worker connections must
 satisfy [BullMQ's connection requirements](https://docs.bullmq.io/guide/connections), including
-`maxRetriesPerRequest: null`. See the [connection decision](docs/decisions/backend-ioredis-driver.md)
-and [usage sketch](examples/library.ts).
+`maxRetriesPerRequest: null`. See the
+[connection decision](docs/decisions/backend-ioredis-driver.md) and [usage sketch](examples/library.ts).
 
 grammY is a peer dependency: create a dedicated `Api` from the application's grammY installation
 and pass it as the worker's `api` option. Do not install auto-retry or other transformers that
