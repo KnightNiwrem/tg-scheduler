@@ -1,5 +1,5 @@
+import { Api } from 'grammy';
 import {
-  type BotTokenResolver,
   createSchedulerClient,
   createSchedulerWorker,
   type SchedulerClientOptions,
@@ -27,6 +27,7 @@ export async function submitAndInspect(options: SchedulerClientOptions) {
       'sendMessage',
       { chat_id: 123, text: 'Every hour at minute 26, UTC' },
       { pattern: '26 * * * *' },
+      { priority: 'urgent' },
     );
     const intervalSchedule = await client.createSchedule(
       'sendMessage',
@@ -35,6 +36,10 @@ export async function submitAndInspect(options: SchedulerClientOptions) {
     );
     await client.deleteSchedule(hourlySchedule.id);
     await client.deleteSchedule(intervalSchedule.id);
+    // Retained occurrences stay listable after deletion; getJob reports each one's outcome.
+    for (const occurrence of await client.listScheduleJobs(hourlySchedule.id)) {
+      console.log(await client.getJob(occurrence.id));
+    }
   } catch (operationError) {
     await client.close().catch((cleanupError: unknown) => {
       throw new AggregateError(
@@ -48,12 +53,10 @@ export async function submitAndInspect(options: SchedulerClientOptions) {
   await client.close();
 }
 
-export function configureWorker(options: SharedBotOptions, resolveBotToken: BotTokenResolver) {
-  const worker = createSchedulerWorker({
-    ...options,
-    resolveBotToken,
-    policy: { ordinaryConcurrency: 3, urgentBypassEnabled: false },
-  });
+export function configureWorker(options: SharedBotOptions, botToken: string) {
+  // A fresh instance dedicated to the scheduler, without auto-retry or other retrying transformers.
+  const api = new Api(botToken);
+  const worker = createSchedulerWorker({ ...options, api, policy: { dispatchConcurrency: 3 } });
   // The host application calls start(), handles signals, and awaits close().
   return worker;
 }

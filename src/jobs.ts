@@ -1,12 +1,13 @@
 import type { TelegramMethod, TelegramResult } from './telegram.ts';
 
-export type DeliveryLane = 'ordinary' | 'urgent';
+/** Relative preference among a bot's queued jobs; both priorities share capacity and cooldown. */
+export type JobPriority = 'normal' | 'urgent';
 
 export interface SubmitOptions {
   /** Earliest execution time in Unix epoch milliseconds; omitted or past times mean immediate work. */
   runAtMs?: number;
-  /** Defaults to ordinary. Urgent submissions currently reject as unimplemented. */
-  lane?: DeliveryLane;
+  /** Defaults to normal. Urgent submissions currently reject as unimplemented. */
+  priority?: JobPriority;
 }
 
 export interface JobHandle<Method extends TelegramMethod = TelegramMethod> {
@@ -37,6 +38,6 @@ export type JobSnapshot = {
     botId: string;
     /** Native initial eligibility time in Unix epoch milliseconds, preserved after execution. */
     scheduledForMs: number;
-    lane: DeliveryLane;
+    priority: JobPriority;
   } & JobOutcome<Method>;
 }[TelegramMethod];

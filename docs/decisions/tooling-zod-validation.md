@@ -9,7 +9,9 @@ Use Zod schemas for library-defined structured input at the
 [trust boundaries](validation-trust-boundaries.md): `botId`, `queuePrefix`, submit options, the
 worker policy, and job data, native timing metadata and outcomes read back from Valkey. A `z.custom`
 check uses BullMQ's instance predicate for the caller-owned connection, retaining the resource by
-reference. Required function options are checked with `typeof`. Submitted payloads use the
+reference. The caller-owned grammY API instance is checked for the `token` and `raw` members the
+transport uses rather than by constructor identity, so an instance from the application's grammY
+installation is accepted. Submitted payloads use the
 hand-written [durable JSON request](api-durable-json-requests.md) parser instead of Zod, and a payload
 read back from Valkey is checked in place with `z.custom` rather than rebuilt by an object or record
 schema.

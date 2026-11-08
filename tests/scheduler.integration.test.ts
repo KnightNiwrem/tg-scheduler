@@ -1,6 +1,7 @@
 import { Queue } from 'bullmq';
+import { Api } from 'grammy';
 import { Redis, type RedisOptions } from 'ioredis';
-import { afterEach, beforeEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import {
   type BotPolicy,
   createSchedulerClient,
@@ -32,6 +33,12 @@ beforeEach(() => {
   backendErrors = [];
   inspector = new Redis(valkeyTestUrl, { maxRetriesPerRequest: 1 });
   inspector.on('error', (error) => backendErrors.push(error));
+  // Library diagnostics log `('tg-scheduler:', error)`; collect them so tests can assert on them.
+  const collectDiagnostic = (_label: unknown, error: Error) => {
+    backendErrors.push(error);
+  };
+  vi.spyOn(console, 'warn').mockImplementation(collectDiagnostic);
+  vi.spyOn(console, 'error').mockImplementation(collectDiagnostic);
 });
 
 afterEach(async () => {
@@ -41,6 +48,7 @@ afterEach(async () => {
     await deleteKeys(`${queuePrefix}:*`);
     expect(backendErrors).toEqual([]);
   } finally {
+    vi.restoreAllMocks();
     for (const connection of connections.splice(0)) connection.disconnect();
     inspector.disconnect();
   }
@@ -69,11 +77,7 @@ function openConnection(options: RedisOptions = {}): Redis {
 }
 
 function sharedOptions(connection: Redis) {
-  return {
-    botId,
-    backend: { connection, queuePrefix },
-    onError: (error: Error) => backendErrors.push(error),
-  };
+  return { botId, backend: { connection, queuePrefix } };
 }
 
 function openClient(connection = openConnection()): SchedulerClient {
@@ -149,7 +153,7 @@ async function expectNativeFinishedState(
   jobId: string,
   state: 'completed' | 'failed',
 ): Promise<void> {
-  const queueKey = `${queuePrefix}:{${botId}}.ordinary`;
+  const queueKey = `${queuePrefix}:{${botId}}.dispatch`;
   expect(await inspector.zscore(`${queueKey}:${state}`, jobId)).not.toBeNull();
   const otherState = state === 'completed' ? 'failed' : 'completed';
   expect(await inspector.zscore(`${queueKey}:${otherState}`, jobId)).toBeNull();
@@ -180,7 +184,7 @@ integrationTest.each([
       id: handle.id,
       method: 'sendMessage',
       botId,
-      lane: 'ordinary',
+      priority: 'normal',
       state: 'succeeded',
       result: { delivered: 'sendMessage' },
     });
@@ -210,7 +214,7 @@ integrationTest.each([
 ])('stored job data with %s fails without sending a request', async (_case, corruptRequest) => {
   const client = openClient();
   const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
-  const jobKey = `${queuePrefix}:{${botId}}.ordinary:${handle.id}`;
+  const jobKey = `${queuePrefix}:{${botId}}.dispatch:${handle.id}`;
   const corruptData = { request: corruptRequest };
   await inspector.hset(jobKey, 'data', JSON.stringify(corruptData));
 
@@ -233,7 +237,7 @@ integrationTest.each([
 ])('invalid native timing with $problem fails without sending', async ({ timestamp, delay }) => {
   const client = openClient();
   const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
-  const jobKey = `${queuePrefix}:{${botId}}.ordinary:${handle.id}`;
+  const jobKey = `${queuePrefix}:{${botId}}.dispatch:${handle.id}`;
   await inspector.hset(jobKey, 'timestamp', timestamp, 'opts', JSON.stringify({ delay }));
   await expect(client.getJob(handle.id)).rejects.toThrow(/^Invalid stored job/);
 
@@ -291,7 +295,7 @@ integrationTest('delayed work stays queued until its run time', async () => {
 integrationTest(
   'native scheduler occurrences expose their own IDs and scheduling times',
   async () => {
-    const queue = new Queue<StoredJobData>(`{${botId}}.ordinary`, {
+    const queue = new Queue<StoredJobData>(`{${botId}}.dispatch`, {
       connection: inspector,
       prefix: queuePrefix,
     });
@@ -387,32 +391,27 @@ integrationTest(
   },
 );
 
-integrationTest.each(['failed', 'uncertain'])(
-  'legacy completed %s outcomes are read as failed with their errors preserved',
-  async (state) => {
-    const client = openClient();
-    const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
-    const telegram = new FakeTelegram();
-    await openWorker(telegram).start();
-    await settledJob(client, handle.id);
+integrationTest('a completed job whose stored outcome is not a success rejects', async () => {
+  const client = openClient();
+  const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+  const telegram = new FakeTelegram();
+  await openWorker(telegram).start();
+  await settledJob(client, handle.id);
 
-    const error = { message: 'Bad Gateway', telegramErrorCode: 502 };
-    await inspector.hset(
-      `${queuePrefix}:{${botId}}.ordinary:${handle.id}`,
-      'returnvalue',
-      JSON.stringify({ state, error }),
-    );
+  await inspector.hset(
+    `${queuePrefix}:{${botId}}.dispatch:${handle.id}`,
+    'returnvalue',
+    JSON.stringify({ state: 'failed', error: { message: 'Bad Gateway' } }),
+  );
 
-    expect(await client.getJob(handle.id)).toMatchObject({ state: 'failed', error });
-    await expectNativeFinishedState(handle.id, 'completed');
-    expect(telegram.attempts).toHaveLength(1);
-  },
-);
+  await expect(client.getJob(handle.id)).rejects.toThrow(/^Invalid stored job outcome/);
+  expect(telegram.attempts).toHaveLength(1);
+});
 
 integrationTest('a terminal Telegram failure ignores a larger stored retry budget', async () => {
   const client = openClient();
   const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
-  const jobKey = `${queuePrefix}:{${botId}}.ordinary:${handle.id}`;
+  const jobKey = `${queuePrefix}:{${botId}}.dispatch:${handle.id}`;
   await inspector.hset(jobKey, 'opts', JSON.stringify({ attempts: 4 }));
   const error = { message: 'Forbidden: "chat" is unavailable\nNo access', telegramErrorCode: 403 };
   const telegram = new FakeTelegram(() => ({ kind: 'failed', error }));
@@ -430,16 +429,18 @@ integrationTest(
   'a lost response after an accepted call fails once and releases capacity',
   async () => {
     let acceptedCalls = 0;
-    const transport = createGrammyTransport(botId, () => '123456:test-token', {
-      fetch: async () => {
-        acceptedCalls++;
-        if (acceptedCalls === 1) throw new Error('Connection dropped after acceptance');
-        return new Response(JSON.stringify({ ok: true, result: true }), {
-          headers: { 'content-type': 'application/json' },
-        });
-      },
-    });
-    await openWorker(transport, { ordinaryConcurrency: 1 }).start();
+    const transport = createGrammyTransport(
+      new Api('123456:test-token', {
+        fetch: async () => {
+          acceptedCalls++;
+          if (acceptedCalls === 1) throw new Error('Connection dropped after acceptance');
+          return new Response(JSON.stringify({ ok: true, result: true }), {
+            headers: { 'content-type': 'application/json' },
+          });
+        },
+      }),
+    );
+    await openWorker(transport, { dispatchConcurrency: 1 }).start();
     const client = openClient();
     const lostResponse = await client.submit('sendChatAction', { chat_id: 1, action: 'typing' });
     const unrelated = await client.submit('sendChatAction', { chat_id: 2, action: 'typing' });
@@ -450,7 +451,7 @@ integrationTest(
       error: { message: "Network request for 'sendChatAction' failed!" },
     });
     expect(
-      await inspector.hget(`${queuePrefix}:{${botId}}.ordinary:${lostResponse.id}`, 'returnvalue'),
+      await inspector.hget(`${queuePrefix}:{${botId}}.dispatch:${lostResponse.id}`, 'returnvalue'),
     ).toBeNull();
     await expectNativeFinishedState(lostResponse.id, 'failed');
     expect(await settledJob(client, unrelated.id)).toMatchObject({
@@ -470,14 +471,14 @@ integrationTest(
       }
       return { kind: 'succeeded', result: true };
     });
-    await openWorker(telegram, { ordinaryConcurrency: 1 }).start();
+    await openWorker(telegram, { dispatchConcurrency: 1 }).start();
     const client = openClient();
     const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
     const unrelated = await client.submit('sendChatAction', { chat_id: 2, action: 'typing' });
 
     const job = await settledJob(client, handle.id);
     expect(job.state).toBe('failed');
-    // The stored reason is generic; the original error goes only to the worker's handler.
+    // The stored reason is generic; the original error goes only to local diagnostics.
     const message = job.state === 'failed' ? job.error.message : '';
     expect(message).toContain('Unexpected processing error');
     expect(message).not.toContain('secret details');
@@ -506,7 +507,7 @@ integrationTest.each(['succeeded', 'failed'] as const)(
     const nativeState = state === 'succeeded' ? 'completed' : 'failed';
     await expectNativeFinishedState(first.id, nativeState);
 
-    const queueKey = `${queuePrefix}:{${botId}}.ordinary`;
+    const queueKey = `${queuePrefix}:{${botId}}.dispatch`;
     const oldFinishedOnMs = Date.now() - 365 * 24 * 60 * 60 * 1000;
     await inspector.hset(`${queueKey}:${first.id}`, 'finishedOn', oldFinishedOnMs);
     await inspector.zadd(`${queueKey}:${nativeState}`, oldFinishedOnMs, first.id);
@@ -534,7 +535,7 @@ integrationTest.each([
   const handle = await client.submit('sendChatAction', { chat_id: 1, action: 'typing' });
   expect((await settledJob(client, handle.id)).state).toBe('failed');
   await inspector.hset(
-    `${queuePrefix}:{${botId}}.ordinary:${handle.id}`,
+    `${queuePrefix}:{${botId}}.dispatch:${handle.id}`,
     'failedReason',
     `tg-scheduler:failure:${encodedFailure}`,
   );
@@ -578,16 +579,16 @@ integrationTest.each([
   { configuration: 'an empty policy', policy: {}, expectedConcurrency: 3 },
   {
     configuration: 'an explicit concurrency of one',
-    policy: { ordinaryConcurrency: 1 },
+    policy: { dispatchConcurrency: 1 },
     expectedConcurrency: 1,
   },
   {
     configuration: 'an explicit concurrency of two',
-    policy: { ordinaryConcurrency: 2 },
+    policy: { dispatchConcurrency: 2 },
     expectedConcurrency: 2,
   },
 ])(
-  '$configuration shares ordinary capacity of $expectedConcurrency across workers',
+  '$configuration shares dispatch capacity of $expectedConcurrency across workers',
   async ({ policy, expectedConcurrency }) => {
     const release = deferred();
     const telegram = new FakeTelegram(async () => {

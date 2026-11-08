@@ -1,7 +1,7 @@
 import { isRedisInstance, Queue, UnrecoverableError, Worker } from 'bullmq';
 import type { Cluster, Redis } from 'ioredis';
 import { z } from 'zod';
-import { type ErrorHandler, toError } from '../error-handler.ts';
+import { reportInternalError, toError } from '../diagnostics.ts';
 import type { SettledJobOutcome } from '../jobs.ts';
 import { type BotJob, type BotQueue, encodeJobFailure, type StoredJobData } from './stored-job.ts';
 
@@ -33,8 +33,11 @@ export interface BotBackendConfig {
   botId: string;
   connection: Redis | Cluster;
   queuePrefix: string;
-  /** The bot ID is a cluster hash tag, keeping the queue's keys in one slot. */
-  ordinaryQueueName: string;
+  /**
+   * The bot's single dispatch queue for both priorities. The bot ID is a cluster hash tag, keeping
+   * the queue's keys in one slot.
+   */
+  dispatchQueueName: string;
 }
 
 /**
@@ -62,39 +65,43 @@ export function resolveBotBackendConfig(
     botId: parsedBotId.data,
     connection: parsedConnection.data,
     queuePrefix: parsedPrefix.data,
-    ordinaryQueueName: `{${parsedBotId.data}}.ordinary`,
+    dispatchQueueName: `{${parsedBotId.data}}.dispatch`,
   };
 }
 
 /** Native BullMQ queues borrowing the caller's connection. */
 export interface BotQueues {
-  ordinary: BotQueue;
+  dispatch: BotQueue;
   close(): Promise<void>;
 }
 
 /**
  * Open the bot's queues using the caller's connection and its configured connection behavior.
+ *
+ * @param reportQueueError Receives queue error events, which no awaited operation reports.
  */
-export function openBotQueues(config: BotBackendConfig, onError: ErrorHandler): BotQueues {
-  const ordinary: BotQueue = new Queue<StoredJobData, SettledJobOutcome>(config.ordinaryQueueName, {
+export function openBotQueues(
+  config: BotBackendConfig,
+  reportQueueError: (error: Error) => void,
+): BotQueues {
+  const dispatch: BotQueue = new Queue<StoredJobData, SettledJobOutcome>(config.dispatchQueueName, {
     connection: config.connection,
     prefix: config.queuePrefix,
   });
-  ordinary.on('error', onError);
+  dispatch.on('error', reportQueueError);
   return {
-    ordinary,
+    dispatch,
     async close() {
-      await ordinary.close();
+      await dispatch.close();
     },
   };
 }
 
 export interface BotJobProcessorOptions {
-  /** Shared across every worker for the bot, not only this process. */
-  ordinaryConcurrency: number;
+  /** Shared across every worker and both priorities for the bot, not only this process. */
+  dispatchConcurrency: number;
   /** Settle one claimed job. A rejection is recorded as an interrupted failure. */
   processJob(job: BotJob): Promise<SettledJobOutcome>;
-  onError: ErrorHandler;
 }
 
 /** A running BullMQ worker and its owned connections. */
@@ -109,7 +116,7 @@ function isClusterConnection(connection: Redis | Cluster): connection is Cluster
 
 /**
  * Wait for the worker's connection to be ready, set the bot's queue-wide capacity, then start
- * claiming ordinary jobs.
+ * claiming jobs. Unawaited worker and queue faults are reported through local diagnostics.
  *
  * @throws when BullMQ cannot start or configure capacity; owned resources are released.
  */
@@ -125,7 +132,7 @@ export async function startBotJobProcessor(
   if (connectionOptions?.maxRetriesPerRequest) {
     throw new TypeError('Invalid worker connection: BullMQ requires maxRetriesPerRequest: null');
   }
-  const queues = openBotQueues(config, options.onError);
+  const queues = openBotQueues(config, reportInternalError);
   let worker: Worker<StoredJobData, SettledJobOutcome> | undefined;
 
   async function close(): Promise<void> {
@@ -138,16 +145,16 @@ export async function startBotJobProcessor(
 
   try {
     worker = new Worker<StoredJobData, SettledJobOutcome>(
-      config.ordinaryQueueName,
+      config.dispatchQueueName,
       async (job) => {
         let outcome: SettledJobOutcome;
         try {
           outcome = await options.processJob(job);
         } catch (error) {
-          options.onError(toError(error));
+          reportInternalError(toError(error));
           // BullMQ stores this message as the job's failure reason, which job snapshots expose;
           // the original error may carry details that do not belong in stored job data.
-          throw new Error('Unexpected processing error, reported to the worker error handler');
+          throw new Error('Unexpected processing error, reported in worker diagnostics');
         }
         if (outcome.state === 'failed') {
           // A terminal Telegram failure must reach the native failed set without retransmission.
@@ -159,20 +166,20 @@ export async function startBotJobProcessor(
         autorun: false,
         connection: config.connection,
         prefix: config.queuePrefix,
-        concurrency: options.ordinaryConcurrency,
+        concurrency: options.dispatchConcurrency,
         // Default stalled recovery would run an abandoned attempt again and could retransmit a
         // request Telegram already accepted. With zero, BullMQ fails the job without replay.
         maxStalledCount: 0,
       },
     );
-    worker.on('error', options.onError);
+    worker.on('error', reportInternalError);
     await worker.waitUntilReady();
     // Worker-local concurrency alone lets several workers exceed the bot's shared capacity.
-    await queues.ordinary.setGlobalConcurrency(options.ordinaryConcurrency);
+    await queues.dispatch.setGlobalConcurrency(options.dispatchConcurrency);
     // run() settles only when the worker closes; claim-loop failures are emitted as `error`.
-    worker.run().catch((error: unknown) => options.onError(toError(error)));
+    worker.run().catch((error: unknown) => reportInternalError(toError(error)));
   } catch (error) {
-    await close().catch((cleanupError: unknown) => options.onError(toError(cleanupError)));
+    await close().catch((cleanupError: unknown) => reportInternalError(toError(cleanupError)));
     throw error;
   }
   return { close };

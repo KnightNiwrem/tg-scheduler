@@ -46,6 +46,7 @@ Workers also use a [caller-owned grammY API instance](decisions/transport-caller
   [finished-job retention](decisions/backend-finished-job-retention.md).
 - **Public API:**
   [construction without I/O](decisions/api-construction-without-io.md),
+  [native BullMQ option types](decisions/api-native-bullmq-option-types.md),
   [job-fetch error reporting](decisions/api-job-fetch-error-reporting.md),
   [internal diagnostics](decisions/api-internal-error-reporting.md),
   [submit options](decisions/api-submit-options.md),

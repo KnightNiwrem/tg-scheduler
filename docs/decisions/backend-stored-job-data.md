@@ -26,17 +26,17 @@ and native stalled failures retain their unstructured failure reasons and are re
 interrupted processing. Unexpected processor error details follow
 [internal diagnostics](api-internal-error-reporting.md).
 
-Readers also accept completed return values with `state: 'failed'` or `state: 'uncertain'`, exposing
-both as `failed` with their recorded errors, without rewriting existing jobs.
-
 Stored requests and native timing metadata are checked together before dispatch and when creating
 snapshots. The creation timestamp, configured delay and their sum must be non-negative safe
-integers; an omitted configured delay means zero. Completed outcomes and structured failure
-reasons are also checked when read back. Malformed or unsupported structured failure reasons
-reject with a `TypeError`. The method must pass the same outgoing-only method check as `submit`.
-The payload is checked to be a JSON object but is not copied again, because BullMQ has already
-parsed it from JSON. Data that fails the check settles the job as `failed` without sending a
-request, and `getJob` rejects with a `TypeError`.
+integers; an omitted configured delay means zero. The method must pass the same outgoing-only
+method check as `submit`. The payload is checked to be a JSON object but is not copied again,
+because BullMQ has already parsed it from JSON. A request or timing that fails the check settles
+the job as `failed` without sending a request, and `getJob` rejects with a `TypeError`.
+
+Outcomes are checked when read back. A completed return value must be a stored success, and a
+failure reason with the structured prefix must decode as above; otherwise `getJob` rejects with
+a `TypeError`. A failure reason without that prefix is valid and reported as interrupted
+processing.
 
 BullMQ assigns job IDs, and the public API treats them as opaque strings. One-time jobs use native
 default IDs; recurring occurrences use native Job Scheduler IDs. IDs do not encode a public

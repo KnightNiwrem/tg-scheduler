@@ -1,52 +1,23 @@
-import { Api, type ApiClientOptions, GrammyError } from 'grammy';
+import type { Api } from 'grammy';
 import type { JobError } from '../jobs.ts';
 import type { TelegramMethod, TelegramRequest, TelegramResult } from '../telegram.ts';
-import type {
-  BotTokenResolver,
-  TelegramAttemptOutcome,
-  TelegramTransport,
-} from './telegram-transport.ts';
+import type { TelegramAttemptOutcome, TelegramTransport } from './telegram-transport.ts';
 
 /**
- * grammY client settings the transport accepts. Webhook replies and transformers stay excluded
- * because they would hide the observed result or add retries.
+ * grammY implementation of the transport, calling the caller-owned API instance by reference.
+ * The library adds no retry layer and leaves the instance's configuration and transformers as
+ * supplied; the caller keeps them free of hidden retries, throttling and webhook replies.
  */
-export type GrammyTransportOptions = Pick<ApiClientOptions, 'fetch'>;
-
-/** grammY implementation of the transport; it adds no automatic retry layer. */
-export function createGrammyTransport(
-  botId: string,
-  resolveBotToken: BotTokenResolver,
-  apiOptions: GrammyTransportOptions = {},
-): TelegramTransport {
-  // Tokens are resolved per attempt so rotation takes effect; the client is reused while unchanged.
-  let client: { token: string; api: Api } | undefined;
-
+export function createGrammyTransport(api: Api): TelegramTransport {
   return {
     async attempt(request) {
-      let token: unknown;
       try {
-        token = await resolveBotToken(botId);
-      } catch {
-        // The resolver's error is not stored: it is caller-defined and may describe credentials.
-        return failedBeforeSending('Bot token resolution failed');
-      }
-      if (typeof token !== 'string' || token.length === 0) {
-        return failedBeforeSending('Bot token resolver did not return a non-empty string');
-      }
-      if (client?.token !== token) client = { token, api: new Api(token, apiOptions) };
-
-      try {
-        return { kind: 'succeeded', result: await callRawMethod(client.api, request) };
+        return { kind: 'succeeded', result: await callRawMethod(api, request) };
       } catch (error) {
-        return classifyAttemptError(error, token);
+        return classifyAttemptError(error, api.token);
       }
     },
   };
-}
-
-function failedBeforeSending(reason: string): TelegramAttemptOutcome {
-  return { kind: 'failed', error: { message: `${reason}; no request was sent` } };
 }
 
 type RawMethodCall = (
@@ -65,14 +36,36 @@ function callRawMethod(
   return Object.keys(payload).length === 0 ? call() : call(payload);
 }
 
+/** The fields of grammY's `GrammyError` that classification reads. */
+interface TelegramApiError {
+  error_code: number;
+  description: string;
+  parameters?: { retry_after?: unknown };
+}
+
+/**
+ * Recognize a Telegram API error by its fields rather than by constructor identity, which differs
+ * when the caller's API instance comes from another grammY installation.
+ */
+function isTelegramApiError(error: unknown): error is TelegramApiError {
+  if (!(error instanceof Error)) return false;
+  const fields = error as Partial<Record<keyof TelegramApiError, unknown>>;
+  return (
+    typeof fields.error_code === 'number' &&
+    typeof fields.description === 'string' &&
+    (fields.parameters === undefined ||
+      (typeof fields.parameters === 'object' && fields.parameters !== null))
+  );
+}
+
 function classifyAttemptError(error: unknown, token: string): TelegramAttemptOutcome {
   const describe = (message: string, telegramErrorCode?: number): JobError => ({
     // grammY omits the request URL from its messages; redaction guards other error sources.
-    message: message.replaceAll(token, '[bot token]'),
+    message: token.length === 0 ? message : message.replaceAll(token, '[bot token]'),
     ...(telegramErrorCode === undefined ? {} : { telegramErrorCode }),
   });
 
-  if (error instanceof GrammyError) {
+  if (isTelegramApiError(error)) {
     if (error.error_code === 429) {
       return { kind: 'rate-limited', retryAfterSeconds: error.parameters?.retry_after };
     }

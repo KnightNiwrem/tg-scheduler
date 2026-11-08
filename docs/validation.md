@@ -21,13 +21,14 @@ With `VALKEY_TEST_URL` set, as in CI, they also run the client and worker agains
 fake Telegram transport. Those tests cover immediate and past-time delivery after producer exit,
 delayed activation, native job IDs and scheduling times in snapshots (including scheduler-generated
 occurrences), rejection of invalid native timing without transmission, visible errors without
-retries, native terminal states, indefinite default retention,
-accepted-effect/lost-response failures, stored-outcome compatibility, shared ordinary capacity
-across workers, graceful shutdown, caller-connection reuse and option
-preservation, startup failure cleanup, and release of BullMQ's blocking connection.
-The dedicated job-fetch error handler, new internal diagnostic routing, caller-owned grammY API
-instances, stalled-worker recovery, Valkey restart, and the 429, priority, independent activation,
-schedule job listing and full recurrence criteria are not yet covered.
+retries, native terminal states, indefinite default retention, accepted-effect/lost-response
+failures, rejection of invalid stored outcomes, shared dispatch capacity across workers, graceful
+shutdown, caller-connection reuse and option preservation, startup failure cleanup, and release of
+BullMQ's blocking connection. They also check that unexpected processing errors reach local
+diagnostics, and the transport tests use caller-owned grammY API instances by reference. The
+dedicated job-fetch error handler, credential rotation through replacement workers, stalled-worker
+recovery, Valkey restart, and the 429, priority, independent activation, schedule job listing and
+full recurrence criteria are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
 not establish the full queue/scheduler acceptance criteria below. The shared suite uses
@@ -129,9 +130,6 @@ acceptance validates the documented Compose configuration and its recovery limit
   their schedule's priority.
 - Eligible urgent jobs precede normal jobs. New ready jobs enter the back of their selected
   priority; future jobs do not block ready work, and already-admitted jobs are not interrupted.
-- Jobs accepted by the current API without a priority remain normal jobs, preserving their identity,
-  payload, native scheduled time and recorded outcomes. Priority implementation must account for those
-  stored jobs before enabling urgent-first claims on the existing queue.
 - Due-job activation progresses while all C dispatch slots are occupied and while a bot cooldown
   is active. Within one priority, an immediate job ready before a scheduled job's activation stays
   ahead, and an immediate job ready after activation stays behind. Verify the same order after
@@ -153,7 +151,7 @@ acceptance validates the documented Compose configuration and its recovery limit
   remain visible to callers.
 - New terminal successes enter BullMQ's completed set and terminal failures enter its failed set,
   with structured Telegram errors preserved through `getJob` and no automatic retransmission.
-  Completed failure outcomes from existing storage remain readable. Default retention keeps both
+  Default retention keeps both
   terminal states without automatic removal. Configured age/count cleanup follows the
   [native lazy policy](decisions/backend-finished-job-retention.md).
 - Schedule options expose the native `every` interval in milliseconds or UTC cron `pattern` form.

@@ -5,12 +5,10 @@ export {
   type SchedulerClientOptions,
 } from './client.ts';
 export type { BotPolicy } from './core/coordinator.ts';
-export type { ErrorHandler } from './error-handler.ts';
-export type { DeliveryLane, JobError, JobHandle, JobSnapshot, SubmitOptions } from './jobs.ts';
-export type { ScheduleHandle, ScheduleOptions } from './schedules.ts';
+export type { JobError, JobHandle, JobPriority, JobSnapshot, SubmitOptions } from './jobs.ts';
+export type { ScheduleHandle, ScheduleOptions, ScheduleRecurrence } from './schedules.ts';
 export type { SharedBotOptions } from './shared-bot-options.ts';
 export type { TelegramMethod, TelegramPayload, TelegramResult } from './telegram.ts';
-export type { BotTokenResolver } from './transport/telegram-transport.ts';
 export { UnimplementedError } from './unimplemented-error.ts';
 export {
   createSchedulerWorker,

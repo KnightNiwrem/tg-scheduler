@@ -7,8 +7,9 @@ in CI.
 The library currently supports the basic delivery path for immediate and one-time delayed jobs:
 
 - `submit` parses a payload as durable JSON and stores the parsed copy in Valkey through BullMQ.
-- A library worker claims due jobs within an ordinary concurrency shared by every worker for the
-  bot, and makes one grammY call per job.
+- A library worker claims due jobs within a dispatch concurrency shared by every worker for the
+  bot, and makes one call per job through a
+  [caller-owned grammY `Api` instance](docs/decisions/transport-caller-owned-api.md).
 - `getJob` reports the job as `queued`, `in-flight`, `succeeded`, or `failed`, with the Telegram
   result or error.
 
@@ -25,9 +26,9 @@ it and records it as `failed`, which can take longer when the queue is busy. A `
 therefore does not prove that a request was never sent.
 
 A Telegram 429 currently settles the job as `failed`; durable 429 retry with a bot cooldown is not
-implemented yet, so the worker is not ready for production traffic. Recurring schedules and
-urgent-priority requests reject with `UnimplementedError`. Priority selection and due-job activation
-independent of dispatch capacity are also not implemented yet.
+implemented yet, so the worker is not ready for production traffic. Recurring schedules, schedule
+job listing and urgent-priority requests reject with `UnimplementedError`. Priority selection and
+due-job activation independent of dispatch capacity are also not implemented yet.
 
 See the [library overview](docs/library-overview.md) for the component flow and source map, and the
 [usage sketch](examples/library.ts) for the intended API.
@@ -49,9 +50,6 @@ that queue while dispatch is busy, following [ready-entry ordering](docs/decisio
 Telegram 429 responses will return the affected job to the queue using
 [native retry insertion](docs/decisions/rate-limit-native-429-requeue.md). The bot cooldown will pause
 claims for both priorities until it expires.
-
-Workers will accept a [caller-owned grammY API instance](docs/decisions/transport-caller-owned-api.md).
-The current worker still accepts a token resolver and constructs its own `Api`.
 
 Durable new-file sending is a candidate for v1; its storage and API design remain open. The
 [current request contract](docs/decisions/api-durable-json-requests.md) covers the first slice.
@@ -91,6 +89,10 @@ lifetime; closing scheduler resources leaves the supplied connection open. Worke
 satisfy [BullMQ's connection requirements](https://docs.bullmq.io/guide/connections), including
 `maxRetriesPerRequest: null`. See the [connection decision](docs/decisions/backend-ioredis-driver.md)
 and [usage sketch](examples/library.ts).
+
+grammY is a peer dependency: create a dedicated `Api` from the application's grammY installation
+and pass it as the worker's `api` option. Do not install auto-retry or other transformers that
+retry, throttle or hide results on that instance.
 
 Client and worker connections may target standalone Valkey or Valkey Cluster. See the
 [bot namespace decision](docs/decisions/backend-bot-id-and-key-namespace.md) for the key layout and

@@ -6,9 +6,9 @@
 ## Decision
 
 - `botId` contains 1–64 ASCII letters, digits, `_` or `-`.
-- The bot's single dispatch queue is named `{<botId>}.ordinary`, so its Valkey keys are
-  `<queuePrefix>:{<botId>}.ordinary:<suffix>`. Both priorities use this identity; priority is not part
-  of the queue name.
+- The bot's single dispatch queue is named `{<botId>}.dispatch`, so its Valkey keys are
+  `<queuePrefix>:{<botId>}.dispatch:<suffix>`. Both priorities use this identity; priority is not
+  part of the queue name.
 - The bot ID inside braces is the queue's Valkey Cluster hash tag. All keys for one bot's queue
   share a hash slot; different bot IDs can map to different slots. The same key layout is used
   with standalone Valkey.
