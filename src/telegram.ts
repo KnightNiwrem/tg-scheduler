@@ -67,8 +67,8 @@ export function parseTelegramMethod(method: unknown): TelegramMethod {
 }
 
 /**
- * Validation only: the copy comes from JSON encoding, because Zod's rebuilt output would drop own
- * `__proto__` keys. `z.json()` does not detect cycles; encoding rejects them.
+ * Validation only: the copy comes from JSON encoding, which also rejects the cycles `z.json()` does
+ * not detect, so the stored payload is exactly what JSON encodes.
  */
 const jsonPayloadSchema = z.record(z.string(), z.json());
 

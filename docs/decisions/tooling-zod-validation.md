@@ -22,8 +22,7 @@ without a Zod schema for their values or cron syntax.
 ## Context
 
 Zod covers fixed-shape input concisely and reports every problem in one message. Its `z.json()`
-schema accepts exactly the values JSON encodes without loss. Zod object, record and JSON schemas
-rebuild objects and drop own `__proto__` keys, which would alter a payload Telegram should receive
-as submitted, so their output is never stored as a payload.
+schema accepts exactly the values JSON encodes without loss, but not cycles, so the payload copy
+comes from JSON encoding, which rejects them.
 BullMQ owns recurrence validation, so supported expressions and native error behavior can evolve
 with the selected dependency without a second validator restricting them.

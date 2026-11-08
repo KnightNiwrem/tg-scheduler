@@ -17,8 +17,7 @@ array elements. The error describes the accepted values but does not name the of
 `submit` then copies the payload by encoding it with `JSON.stringify` and decoding the result, and
 stores that copy rather than the caller's object. Encoding rejects what validation does not detect,
 such as circular references, with a `TypeError` that keeps the encoding error as its `cause`.
-Changing the caller's object after `submit` returns has no effect on the stored job. An own
-`__proto__` key is copied as data.
+Changing the caller's object after `submit` returns has no effect on the stored job.
 
 Method names must look like Bot API methods and exclude inbound methods. They are not checked
 against the full method list, and per-method fields are left to Telegram.
@@ -37,8 +36,8 @@ A property set to `undefined` is rejected rather than omitted: an absent key is 
 stored form, and callers can leave the key out. Validation does not report the offending path
 because `z.json()` reports union failures at the top level; a dedicated parser that named the path
 was more code to maintain than the diagnostic was worth. Zod's parsed output is discarded because
-rebuilding objects drops own `__proto__` keys, which would alter a payload Telegram should receive
-as submitted.
+the JSON encoding is needed anyway to reject circular references, and its result is exactly what
+BullMQ stores.
 
 Storing a copy follows the [trust-boundary rule](validation-trust-boundaries.md), which also
 explains why proxies, getters and `toJSON` hooks on the caller's value are read like ordinary
