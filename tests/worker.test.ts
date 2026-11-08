@@ -1,10 +1,7 @@
+import { Api } from 'grammy';
 import { Redis } from 'ioredis';
 import { afterEach, expect, test } from 'vitest';
-import {
-  createSchedulerWorker,
-  type SchedulerWorkerOptions,
-  UnimplementedError,
-} from '../src/index.ts';
+import { createSchedulerWorker, type SchedulerWorkerOptions } from '../src/index.ts';
 
 const connections: Redis[] = [];
 afterEach(() => {
@@ -23,34 +20,33 @@ function workerOptions(overrides: Partial<SchedulerWorkerOptions> = {}): Schedul
     botId: '123456',
     // Nothing listens on port 1, so any backend command would fail.
     backend: { connection },
-    resolveBotToken: () => 'token',
-    onError: () => {},
+    api: new Api('123456:token'),
     ...overrides,
   };
 }
 
 test.each([
-  ['zero ordinary concurrency', { policy: { ordinaryConcurrency: 0 } }, 'Invalid policy'],
-  ['fractional ordinary concurrency', { policy: { ordinaryConcurrency: 1.5 } }, 'Invalid policy'],
+  ['zero dispatch concurrency', { policy: { dispatchConcurrency: 0 } }, 'Invalid policy'],
+  ['fractional dispatch concurrency', { policy: { dispatchConcurrency: 1.5 } }, 'Invalid policy'],
   ['an unknown policy setting', { policy: { concurrency: 2 } as never }, 'Invalid policy'],
-  ['a missing token resolver', { resolveBotToken: undefined as never }, 'Invalid resolveBotToken'],
+  [
+    'the removed urgent bypass setting',
+    { policy: { urgentBypassEnabled: true } as never },
+    'Invalid policy',
+  ],
+  ['a missing API instance', { api: undefined as never }, 'Invalid api'],
+  ['a token string instead of an API instance', { api: '123456:token' as never }, 'Invalid api'],
   ['an invalid bot ID', { botId: 'bot:1' }, 'Invalid botId'],
 ])('construction rejects %s', (_case, overrides, message) => {
   expect(() => createSchedulerWorker(workerOptions(overrides))).toThrow(message);
 });
 
 test('closing a worker that was never started performs no backend I/O', async () => {
-  const errors: Error[] = [];
-  const worker = createSchedulerWorker(workerOptions({ onError: (error) => errors.push(error) }));
+  const options = workerOptions();
+  const worker = createSchedulerWorker(options);
   await worker.close();
-  expect(errors).toEqual([]);
+  expect(options.backend.connection.status).toBe('wait');
   await expect(worker.start()).rejects.toThrow('SchedulerWorker is closed');
-});
-
-test('urgent bypass is not implemented yet', async () => {
-  const worker = createSchedulerWorker(workerOptions({ policy: { urgentBypassEnabled: true } }));
-  await expect(worker.start()).rejects.toThrow(UnimplementedError);
-  await worker.close();
 });
 
 test('start rejects when Valkey is unreachable', async () => {

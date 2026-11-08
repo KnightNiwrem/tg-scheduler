@@ -1,6 +1,6 @@
 import type { Job, JobState, Queue } from 'bullmq';
 import { z } from 'zod';
-import { toError } from '../error-handler.ts';
+import { toError } from '../diagnostics.ts';
 import type { JobError, JobOutcome, JobSnapshot, SettledJobOutcome } from '../jobs.ts';
 import { parseTelegramMethod, type TelegramRequest } from '../telegram.ts';
 
@@ -166,7 +166,8 @@ export async function readJobSnapshot(
     method: request.method,
     botId,
     scheduledForMs,
-    lane: 'ordinary' as const,
+    // Priorities are not implemented; every stored job is normal priority.
+    priority: 'normal' as const,
     ...jobOutcome(engineState, job),
   };
   // The stored result belongs to the stored method; TypeScript cannot correlate the two values.

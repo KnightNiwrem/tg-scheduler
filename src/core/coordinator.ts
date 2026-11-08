@@ -1,24 +1,17 @@
 import { z } from 'zod';
-import type { BotQueues } from '../backend/bullmq.ts';
 import { type BotJob, decodeStoredJob } from '../backend/stored-job.ts';
-import { toError } from '../error-handler.ts';
+import { toError } from '../diagnostics.ts';
 import type { SettledJobOutcome } from '../jobs.ts';
 import type { TelegramRequest } from '../telegram.ts';
 import type { TelegramTransport } from '../transport/telegram-transport.ts';
-import { UnimplementedError } from '../unimplemented-error.ts';
 
 export interface BotPolicy {
-  /** Shared ordinary capacity across workers; defaults to three. */
-  ordinaryConcurrency?: number;
-  /** Legacy placeholder; enabling it currently rejects with UnimplementedError. */
-  urgentBypassEnabled?: boolean;
+  /** Dispatch capacity shared by every worker and both priorities for the bot; defaults to 3. */
+  dispatchConcurrency?: number;
 }
 
 const botPolicySchema = z
-  .strictObject({
-    ordinaryConcurrency: z.int().positive().default(3),
-    urgentBypassEnabled: z.boolean().default(false),
-  })
+  .strictObject({ dispatchConcurrency: z.int().positive().default(3) })
   .prefault({});
 
 /** @throws {TypeError} when the policy has unknown or invalid settings. */
@@ -59,7 +52,7 @@ export async function coordinateJob(
     case 'failed':
       return { state: 'failed', error: outcome.error };
     case 'rate-limited': {
-      // Lane cooldowns are not implemented, and retrying without a pause would add to the flood
+      // The bot cooldown is not implemented, and retrying without a pause would add to the flood
       // wait, so a definite 429 currently settles the job as failed. A valid server delay is kept
       // in the message so callers know when resubmitting is reasonable.
       const { retryAfterSeconds } = outcome;
@@ -76,9 +69,4 @@ export async function coordinateJob(
       };
     }
   }
-}
-
-/** Fence stale attempts and record interrupted failures without retransmitting them. */
-export async function recoverAbandonedAttempts(_queues: BotQueues, _nowMs: number): Promise<void> {
-  throw new UnimplementedError('recoverAbandonedAttempts');
 }

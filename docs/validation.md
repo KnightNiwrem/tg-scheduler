@@ -25,8 +25,9 @@ retries, native terminal states, indefinite default retention,
 accepted-effect/lost-response failures, stored-outcome compatibility, shared ordinary capacity
 across workers, graceful shutdown, caller-connection reuse and option
 preservation, startup failure cleanup, and release of BullMQ's blocking connection.
-The dedicated job-fetch error handler, new internal diagnostic routing, caller-owned grammY API
-instances, stalled-worker recovery, Valkey restart, and the 429, priority, independent activation,
+They also check that unexpected processing errors reach local diagnostics, and the transport
+tests use caller-owned grammY API instances by reference. The dedicated job-fetch error handler,
+credential rotation through replacement workers, stalled-worker recovery, Valkey restart, and the 429, priority, independent activation,
 schedule job listing and full recurrence criteria are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does

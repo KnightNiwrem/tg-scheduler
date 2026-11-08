@@ -5,8 +5,11 @@
 
 ## Decision
 
-Schedules use BullMQ Job Schedulers. The selected `createSchedule` API accepts exactly one native
-recurrence form:
+Schedules use BullMQ Job Schedulers. `createSchedule(method, payload, recurrence, options?)`
+accepts exactly one native recurrence form as `recurrence`, typed with BullMQ's `RepeatOptions`
+fields under the [native option type](api-native-bullmq-option-types.md) decision. The schedule's
+[job priority](admission-job-priorities.md) is a library option in the separate `options` argument,
+so the recurrence object carries only native fields:
 
 - `{ every: number }` specifies the native interval in milliseconds. A new schedule's
   first occurrence is immediately eligible under BullMQ's defaults; later planned times follow
@@ -53,8 +56,8 @@ A removed occurrence no longer exists, so `getJob` returns `undefined` for its I
 not record a separate cancellation outcome. Both delayed and ready occurrences report the public
 `queued` state; that state alone does not determine whether an occurrence will be removed.
 
-The first-slice client API must support listing retained jobs by schedule ID and retrieving an
-individual listed job through `getJob`. Listing must use each job's native BullMQ scheduler
+The first-slice client API lists retained jobs by schedule ID through
+`listScheduleJobs(scheduleId)`, which returns job handles; `getJob` retrieves each listed job. Listing must use each job's native BullMQ scheduler
 association and remain available after schedule deletion while the jobs are retained under the
 [finished-job retention policy](backend-finished-job-retention.md). It must exclude skipped times
 whose jobs were never created and jobs removed by deletion or cleanup. This requires a library

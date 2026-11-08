@@ -1,9 +1,8 @@
+import { Api, type ApiClientOptions } from 'grammy';
 import { expect, test } from 'vitest';
 import type { TelegramRequest } from '../src/telegram.ts';
-import { createGrammyTransport, type GrammyTransportOptions } from '../src/transport/grammy.ts';
-import type { BotTokenResolver } from '../src/transport/telegram-transport.ts';
+import { createGrammyTransport } from '../src/transport/grammy.ts';
 
-const botId = '123456';
 const token = '123456:secret-token';
 
 interface FetchCall {
@@ -17,7 +16,7 @@ function fakeBotApi(answer: () => Response | Promise<Response>) {
   const fetch = (async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: String(url), body: JSON.parse(String(init?.body)) });
     return answer();
-  }) as GrammyTransportOptions['fetch'];
+  }) as ApiClientOptions['fetch'];
   return { calls, fetch };
 }
 
@@ -36,11 +35,10 @@ const sendMessage: TelegramRequest = {
 async function attemptWith(
   answer: () => Response | Promise<Response>,
   request: TelegramRequest = sendMessage,
-  resolveBotToken: BotTokenResolver = () => token,
 ) {
-  const api = fakeBotApi(answer);
-  const transport = createGrammyTransport(botId, resolveBotToken, { fetch: api.fetch });
-  return { outcome: await transport.attempt(request), calls: api.calls };
+  const botApi = fakeBotApi(answer);
+  const transport = createGrammyTransport(new Api(token, { fetch: botApi.fetch }));
+  return { outcome: await transport.attempt(request), calls: botApi.calls };
 }
 
 test('a successful call sends one request and returns the Telegram result', async () => {
@@ -116,35 +114,43 @@ test.each([
   expect(calls).toHaveLength(1);
 });
 
-test.each([
-  [
-    'throws',
-    () => {
-      throw new Error(`vault lookup failed for ${token}`);
-    },
-  ],
-  ['returns an empty token', () => ''],
-])('when the token resolver %s, the call fails without sending', async (_case, resolveBotToken) => {
-  const { outcome, calls } = await attemptWith(
-    () => telegramResponse({ ok: true, result: true }),
-    sendMessage,
-    resolveBotToken,
-  );
-  expect(outcome).toMatchObject({ kind: 'failed' });
-  expect(JSON.stringify(outcome)).not.toContain(token);
-  expect(calls).toEqual([]);
+test('the caller-owned instance is used by reference with its own configuration', async () => {
+  const botApi = fakeBotApi(() => telegramResponse({ ok: true, result: true }));
+  const api = new Api(token, { apiRoot: 'https://bot-api.example', fetch: botApi.fetch });
+  const transformedMethods: string[] = [];
+  api.config.use((prev, method, payload, signal) => {
+    transformedMethods.push(method);
+    return prev(method, payload, signal);
+  });
+  const installedTransformers = api.config.installedTransformers();
+
+  const outcome = await createGrammyTransport(api).attempt(sendMessage);
+
+  expect(outcome).toEqual({ kind: 'succeeded', result: true });
+  expect(botApi.calls.map((call) => call.url)).toEqual([
+    `https://bot-api.example/bot${token}/sendMessage`,
+  ]);
+  expect(transformedMethods).toEqual(['sendMessage']);
+  expect(api.config.installedTransformers()).toEqual(installedTransformers);
 });
 
-test('the token is resolved for each attempt, so rotation takes effect', async () => {
-  const tokens = ['1:first', '1:second'];
-  const api = fakeBotApi(() => telegramResponse({ ok: true, result: true }));
-  const transport = createGrammyTransport(botId, () => tokens.shift() ?? '', { fetch: api.fetch });
-  await transport.attempt(sendMessage);
-  await transport.attempt(sendMessage);
-  expect(api.calls.map((call) => new URL(call.url).pathname)).toEqual([
-    '/bot1:first/sendMessage',
-    '/bot1:second/sendMessage',
-  ]);
+test('a 429 from a separate grammY copy is classified by its fields', async () => {
+  const botApi = fakeBotApi(() => telegramResponse({ ok: true, result: true }));
+  const api = new Api(token, { fetch: botApi.fetch });
+  // Another grammY installation throws an error with the same fields but a different constructor.
+  api.config.use(() => {
+    throw Object.assign(new Error('Call failed (429: Too Many Requests)'), {
+      ok: false,
+      error_code: 429,
+      description: 'Too Many Requests: retry after 7',
+      parameters: { retry_after: 7 },
+    });
+  });
+
+  const outcome = await createGrammyTransport(api).attempt(sendMessage);
+
+  expect(outcome).toEqual({ kind: 'rate-limited', retryAfterSeconds: 7 });
+  expect(botApi.calls).toEqual([]);
 });
 
 test('an unknown method is sent once and its 404 is recorded', async () => {

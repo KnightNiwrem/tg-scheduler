@@ -26,7 +26,6 @@ function openClient(overrides: Partial<SchedulerClientOptions> = {}): SchedulerC
   const client = createSchedulerClient({
     botId: '123456',
     backend: unreachableBackend,
-    onError: () => {},
     ...overrides,
   });
   openClients.push(client);
@@ -62,12 +61,10 @@ test.each(['scheduler{}', 'scheduler{', 'scheduler}', '{shared}'])(
 );
 
 test('construction and close perform no backend I/O', async () => {
-  const errors: Error[] = [];
   const originalOptions = { ...connection.options };
-  const client = openClient({ onError: (error) => errors.push(error) });
+  const client = openClient();
   await client.close();
   await client.close();
-  expect(errors).toEqual([]);
   expect(connection.status).toBe('wait');
   expect(connection.options).toEqual(originalOptions);
 });
@@ -130,7 +127,8 @@ test.each([
 test.each([
   ['a fractional run time', { runAtMs: 1.5 }],
   ['a negative run time', { runAtMs: -1 }],
-  ['an unknown lane', { lane: 'priority' }],
+  ['an unknown priority', { priority: 'high' }],
+  ['the former lane option', { lane: 'ordinary' }],
   ['an unknown option', { runAt: 1 }],
 ])('submit rejects %s', async (_case, options) => {
   const client = openClient();
@@ -142,8 +140,18 @@ test.each([
 test('urgent submission is not implemented yet', async () => {
   const client = openClient();
   await expect(
-    client.submit('answerCallbackQuery', { callback_query_id: '1' }, { lane: 'urgent' }),
+    client.submit('answerCallbackQuery', { callback_query_id: '1' }, { priority: 'urgent' }),
   ).rejects.toThrow(UnimplementedError);
+});
+
+test('schedule operations are not implemented yet', async () => {
+  const client = openClient();
+  await expect(
+    client.createSchedule('sendMessage', { chat_id: 1, text: 'x' }, { every: 60_000 }),
+  ).rejects.toThrow(UnimplementedError);
+  await expect(client.deleteSchedule('schedule')).rejects.toThrow(UnimplementedError);
+  await expect(client.listScheduleJobs('schedule')).rejects.toThrow(UnimplementedError);
+  expect(connection.status).toBe('wait');
 });
 
 test('getJob rejects an empty job ID', async () => {

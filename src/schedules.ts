@@ -1,15 +1,18 @@
-/** Native BullMQ recurrence forms; schedule creation is not implemented yet. */
-export type ScheduleOptions =
-  | {
-      /** Fixed interval in milliseconds, using BullMQ's native initial scheduling. */
-      every: number;
-      pattern?: never;
-    }
-  | {
-      /** Native BullMQ cron expression, evaluated in UTC. */
-      pattern: string;
-      every?: never;
-    };
+import type { RepeatOptions } from 'bullmq';
+import type { JobPriority } from './jobs.ts';
+
+/**
+ * One native BullMQ recurrence form, passed to the Job Scheduler unchanged; cron patterns are
+ * evaluated in UTC. Field types come from BullMQ, which also validates the values.
+ */
+export type ScheduleRecurrence =
+  | (Required<Pick<RepeatOptions, 'every'>> & { pattern?: never })
+  | (Required<Pick<RepeatOptions, 'pattern'>> & { every?: never });
+
+export interface ScheduleOptions {
+  /** Inherited by every occurrence. Defaults to normal. */
+  priority?: JobPriority;
+}
 
 export interface ScheduleHandle {
   id: string;

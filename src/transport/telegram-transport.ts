@@ -1,12 +1,9 @@
 import type { JobError } from '../jobs.ts';
 import type { TelegramMethod, TelegramRequest, TelegramResult } from '../telegram.ts';
 
-/** Resolve credentials only at the worker edge; no token belongs in a stored job. */
-export type BotTokenResolver = (botId: string) => string | Promise<string>;
-
 export type TelegramAttemptOutcome =
   | { kind: 'succeeded'; result: TelegramResult<TelegramMethod> }
-  // Telegram's raw `retry_after`, in seconds. Lane cooldowns will validate it and convert it to
+  // Telegram's raw `retry_after`, in seconds. The bot cooldown will validate it and convert it to
   // milliseconds once; until then the coordinator only reports a valid value to callers.
   | { kind: 'rate-limited'; retryAfterSeconds?: unknown }
   // A terminal error does not prove Telegram did not perform the call.
