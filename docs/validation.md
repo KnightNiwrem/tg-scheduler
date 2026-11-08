@@ -22,7 +22,7 @@ fake Telegram transport. Those tests cover immediate and past-time delivery afte
 delayed activation, native job IDs and scheduling times in snapshots (including scheduler-generated
 occurrences), rejection of invalid native timing without transmission, visible errors without
 retries, native terminal states, indefinite default retention,
-accepted-effect/lost-response failures, stored-outcome compatibility, shared ordinary capacity
+accepted-effect/lost-response failures, stored-outcome compatibility, shared dispatch capacity
 across workers, graceful shutdown, caller-connection reuse and option
 preservation, startup failure cleanup, and release of BullMQ's blocking connection.
 They also check that unexpected processing errors reach local diagnostics, and the transport

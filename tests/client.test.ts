@@ -128,7 +128,6 @@ test.each([
   ['a fractional run time', { runAtMs: 1.5 }],
   ['a negative run time', { runAtMs: -1 }],
   ['an unknown priority', { priority: 'high' }],
-  ['the former lane option', { lane: 'ordinary' }],
   ['an unknown option', { runAt: 1 }],
 ])('submit rejects %s', async (_case, options) => {
   const client = openClient();

@@ -29,11 +29,6 @@ test.each([
   ['zero dispatch concurrency', { policy: { dispatchConcurrency: 0 } }, 'Invalid policy'],
   ['fractional dispatch concurrency', { policy: { dispatchConcurrency: 1.5 } }, 'Invalid policy'],
   ['an unknown policy setting', { policy: { concurrency: 2 } as never }, 'Invalid policy'],
-  [
-    'the removed urgent bypass setting',
-    { policy: { urgentBypassEnabled: true } as never },
-    'Invalid policy',
-  ],
   ['a missing API instance', { api: undefined as never }, 'Invalid api'],
   ['a token string instead of an API instance', { api: '123456:token' as never }, 'Invalid api'],
   ['an invalid bot ID', { botId: 'bot:1' }, 'Invalid botId'],
