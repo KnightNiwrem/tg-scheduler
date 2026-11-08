@@ -117,8 +117,8 @@ than behind mandatory adapter method names:
    at claim time, not only after successful completion.
 5. **Materialize occurrence:** create occurrences and advance schedules through the
    [native Job Scheduler](decisions/recurrence-planned-time-anchored.md).
-6. **Disable recurrence:** prevent further occurrence creation without silently cancelling accepted
-   jobs.
+6. **Disable recurrence:** use [native scheduler removal](decisions/recurrence-planned-time-anchored.md),
+   including removal of the next occurrence if it is still delayed.
 7. **Activate due jobs:** move already-created due jobs into the ready queue without requiring a
    free dispatch slot or an expired cooldown; recover pending activation after an interruption.
 
