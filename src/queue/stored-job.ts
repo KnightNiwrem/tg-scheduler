@@ -20,8 +20,8 @@ export type BotQueue = Queue<StoredJobData, StoredJobSuccess>;
 
 /**
  * BullMQ parses job data from JSON, so a non-array object payload is already plain JSON that no
- * other code references. The payload is checked in place: a Zod object or record schema would
- * rebuild it and drop own `__proto__` keys. The method gets the same outgoing-only check as
+ * other code references, so only its top-level shape is checked, in place rather than rebuilt by a
+ * Zod object or record schema. The method gets the same outgoing-only check as
  * `submit`, so stored data cannot send an inbound or malformed method.
  */
 const storedPayloadSchema = z.custom<Record<string, unknown>>(
