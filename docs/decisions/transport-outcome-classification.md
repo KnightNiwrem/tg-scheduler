@@ -13,6 +13,9 @@
   includes Telegram 4xx and 5xx responses, grammY `HttpError`s (network failures, timeouts and
   non-JSON responses), and unrecognized transport errors.
 
+Classification must recognize Telegram errors from the caller's supported grammY installation;
+it must not rely solely on constructor identity from a separate library-owned copy.
+
 ## Context
 
 Failure describes the execution outcome, not whether Telegram performed the call. A server error

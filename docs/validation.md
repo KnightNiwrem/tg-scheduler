@@ -23,8 +23,8 @@ visible errors without retries, native terminal states, indefinite default reten
 accepted-effect/lost-response failures, stored-outcome compatibility, shared ordinary capacity
 across workers, graceful shutdown, caller-connection reuse and option
 preservation, startup failure cleanup, and release of BullMQ's blocking connection.
-Stalled-worker recovery, Valkey restart, and the 429, priority, independent activation, and recurrence criteria
-are not yet covered.
+Caller-owned grammY API instances, stalled-worker recovery, Valkey restart, and the 429, priority,
+independent activation, and recurrence criteria are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
 not establish the full queue/scheduler acceptance criteria below. The shared suite uses
@@ -56,7 +56,21 @@ acceptance validates the documented Compose configuration and its recovery limit
   the library's listeners and closing BullMQ-owned duplicates. Invalid worker retry settings fail
   without taking ownership of the caller's connection, and startup can be retried after correction.
 - The grammY transport uses its outgoing API surface without inbound update processing or hidden
-  automatic retries.
+  automatic retries. A manually created, caller-configured
+  [API instance](decisions/transport-caller-owned-api.md) is used by reference: configured request
+  options take effect, calls preserve their results and errors, and the scheduler leaves the
+  instance's configuration and transformers unchanged. Supported caller-produced 429 errors reach
+  the coordinator with their raw `retry_after`; classification works without depending solely on
+  constructor identity from a separate grammY copy. Package installation and public types use a
+  compatible grammY peer dependency with a pinned development/test version.
+- Under the [credential boundary](decisions/credentials-bot-token-handling.md), transport failures
+  redact the known API token from stored messages and do not persist raw error objects or causes.
+  A caller-sanitized custom error preserves its safe message and outcome fields without exposing
+  the custom endpoint or network credentials removed by caller-owned code.
+- Credential rotation follows the [API ownership contract](decisions/transport-caller-owned-api.md):
+  replacing a caller's variable does not rebind an existing worker. After draining and closing the
+  old worker, a replacement configured with a new `Api` uses the new credentials for subsequent
+  queued jobs without rewriting their stored requests.
 - Runtime-specific permissions, startup and shutdown requirements are documented separately from the
   portable core. Compatibility evidence identifies tested dependency/runtime versions and any failed
   or unrun checks; type compatibility alone does not establish runtime support.

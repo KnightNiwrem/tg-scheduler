@@ -13,6 +13,11 @@ their options at construction, which performs no I/O. The client initializes Bul
 the worker initializes it in `start()`. Connections are
 [created and owned by the caller](decisions/backend-ioredis-driver.md).
 
+The current worker accepts `resolveBotToken` and constructs its own grammY `Api`. Accepting a
+[caller-owned API instance](decisions/transport-caller-owned-api.md) and declaring grammY as a peer
+dependency are not implemented yet; grammY remains a pinned runtime dependency in the current
+package manifest.
+
 A definite 429 currently [settles the job as `failed`](decisions/rate-limit-interim-429-failure.md),
 because the bot cooldown is not implemented.
 Schedules, urgent-priority requests, and the coordinator's recovery function reject with

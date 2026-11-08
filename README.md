@@ -47,6 +47,9 @@ Telegram 429 responses will return the affected job to the queue using
 claims for both priorities until it expires. A worker executable and Compose service will run the
 worker as a long-lived process.
 
+Workers will accept a [caller-owned grammY API instance](docs/decisions/transport-caller-owned-api.md).
+The current worker still accepts a token resolver and constructs its own `Api`.
+
 Durable new-file sending is a candidate for v1; its storage and API design remain open. The
 [current request contract](docs/decisions/api-durable-json-requests.md) covers the first slice.
 
