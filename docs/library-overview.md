@@ -62,7 +62,7 @@ All participants for one bot must use the same backend namespace and stable bot 
 | [`src/worker.ts`](../src/worker.ts)                                             | Worker configuration and lifecycle, including shared per-bot policy and token resolution.               |
 | [`src/shared-bot-options.ts`](../src/shared-bot-options.ts)                     | Bot identity, caller-owned connections, and the queue namespace used by clients and workers.            |
 | [`src/jobs.ts`](../src/jobs.ts)                                                 | Job handles, earliest execution time, delivery lane, visible job outcomes, and settled outcomes.        |
-| [`src/schedules.ts`](../src/schedules.ts)                                       | Schedule handles, fixed intervals, and planned-time anchors.                                            |
+| [`src/schedules.ts`](../src/schedules.ts)                                       | Schedule handles and the native BullMQ interval and UTC cron option forms.                              |
 | [`src/telegram.ts`](../src/telegram.ts)                                         | grammY-derived method, payload, and result types, and durable JSON request validation at submission.    |
 | [`src/core/coordinator.ts`](../src/core/coordinator.ts)                         | Admission, ordering, cooldowns, outcome settlement, and abandoned-attempt recovery.                     |
 | [`src/backend/bullmq.ts`](../src/backend/bullmq.ts)                             | Queue identity, caller-owned connections, shared capacity, and BullMQ resource cleanup.                 |
@@ -80,25 +80,27 @@ Environment access, runtime permissions, process signals, and process exit
 ## Consumer API
 
 [`examples/library.ts`](../examples/library.ts) is a type-checked usage sketch. It shows immediate
-submission, delayed submission using `runAtMs`, fixed-interval schedules, result retrieval, schedule
-deletion, and worker configuration. It has no top-level execution; its schedule calls reject
-until recurrence is implemented.
+submission, delayed submission using `runAtMs`, native interval and UTC cron schedules, result
+retrieval, schedule deletion, and worker configuration. It has no top-level execution; its schedule
+calls reject until recurrence is implemented.
 
 - `submit(method, payload, options?)` returns a durable job handle after acceptance.
 - `getJob(jobId)` retrieves a stored snapshot or `undefined` when the job does not exist.
-- `createSchedule(method, payload, options)` is scaffolded for fixed-interval recurrence and currently
-  rejects as unimplemented.
+- `createSchedule(method, payload, options)` accepts one native recurrence form in its scaffolded
+  types: `{ every: milliseconds }` or `{ pattern: cronExpression }`. It currently rejects as
+  unimplemented. The [recurrence contract](decisions/recurrence-native-schedules.md) defines
+  initial eligibility and UTC cron evaluation.
 - `deleteSchedule(scheduleId)` is scaffolded and currently rejects as unimplemented. It will remove
   the definition and its next occurrence if still delayed, while preserving ready, in-flight and
   finished jobs. See
-  [native scheduler removal](decisions/recurrence-planned-time-anchored.md) for the removal boundary
+  [native scheduler removal](decisions/recurrence-native-schedules.md) for the removal boundary
   and races with activation.
 - `client.close()` releases its BullMQ resources while leaving the supplied connection open;
   later operations reject.
 - `worker.start()` begins due-work activation; `worker.close()` stops admission, drains active
   work, and releases its resources.
 
-The planned [schedule job listing](decisions/recurrence-planned-time-anchored.md) will expose retained
+The planned [schedule job listing](decisions/recurrence-native-schedules.md) will expose retained
 jobs by schedule ID, including after deletion of the schedule definition. Callers can use a listed
 job ID with `getJob` for its current state and outcome. The listing API is not scaffolded yet.
 

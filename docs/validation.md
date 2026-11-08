@@ -42,9 +42,10 @@ while closing a worker after all jobs have settled.
 
 ## Selected slice
 
-The first slice covers durable immediate jobs, one-time delayed jobs and fixed-interval UTC
-recurrence for each bot, with native schedule creation/deletion, retained job listing by schedule ID
-and status/result retrieval by job ID. Its normal and urgent priorities share one dispatch queue.
+The first slice covers durable immediate jobs, one-time delayed jobs, native BullMQ interval
+recurrence and UTC cron schedules for each bot, with native schedule creation/deletion, retained
+job listing by schedule ID and status/result retrieval by job ID. Its normal and urgent priorities
+share one dispatch queue.
 Behavior follows the [decisions linked from the architecture](architecture.md#decisions-by-area).
 Store-level persistence and recovery guarantees follow the operator's configuration. Local
 acceptance validates the documented Compose configuration and its recovery limits.
@@ -155,14 +156,26 @@ acceptance validates the documented Compose configuration and its recovery limit
   Completed failure outcomes from existing storage remain readable. Default retention keeps both
   terminal states without automatic removal. Configured age/count cleanup follows the
   [native lazy policy](decisions/backend-finished-job-retention.md).
-- Recurrence stays anchored to planned times and follows
-  [native scheduler recovery](decisions/recurrence-planned-time-anchored.md): an already-created
+- Schedule options expose the native `every` interval in milliseconds or UTC cron `pattern` form.
+  BullMQ owns form selection, option validation and cron parsing; the library adds no Zod schema,
+  option allowlist, anchor parameter or custom cron grammar. An undefined alternative follows
+  native selection behavior. Supported recurrence values reach BullMQ unchanged. When native
+  creation rejects invalid recurrence options or an unsupported pattern, `createSchedule` rejects
+  with the original BullMQ error, without converting it to a `TypeError` or generic error. Changes
+  to native expression support must not require a separate library grammar update.
+- A new `{ every: 3_600_000 }` schedule has an immediately eligible first occurrence, then follows
+  BullMQ's native interval cadence. At 12:25 UTC, a new `{ pattern: '0 * * * *' }` schedule first
+  becomes due at 13:00, and `{ pattern: '26 * * * *' }` first becomes due at 12:26. Cron expressions
+  with an optional seconds field also follow native interpretation. Claims can be late but do not
+  change an occurrence's recorded planned time.
+- Both recurrence forms follow their native planned times and
+  [native scheduler recovery](decisions/recurrence-native-schedules.md): an already-created
   overdue job runs when capacity is available, and beginning it creates the next scheduled occurrence.
   Missed, uncreated occurrences are skipped without an additional catch-up job. Occurrence
-  creation and advancement remain unique under competing workers.
+  creation and advancement remain unique under competing workers for both forms.
 - Recovery preserves accepted queued jobs.
 - Schedule creation uses native BullMQ Job Schedulers. Deletion follows
-  [native scheduler removal](decisions/recurrence-planned-time-anchored.md): it removes the scheduler
+  [native scheduler removal](decisions/recurrence-native-schedules.md): it removes the scheduler
   definition and the next occurrence if still delayed, including an overdue occurrence awaiting
   activation. `getJob` returns `undefined` for the removed job. Ready, in-flight and finished
   occurrences remain intact.
@@ -170,8 +183,9 @@ acceptance validates the documented Compose configuration and its recovery limit
   from executing or settling, and its execution cannot recreate the scheduler. Races with due-job
   activation and occurrence advancement follow the native ordering: activation before removal
   preserves the ready job, while removal before activation deletes the delayed job.
-- A new client can list retained jobs by schedule ID after the creating client exits, including
-  after deletion of the schedule definition. Listing follows each job's native scheduler
+- A new client can list retained jobs of either recurrence form by schedule ID after the creating
+  client exits, including after deletion of the schedule definition. Listing follows each job's
+  native scheduler
   association, excludes unrelated jobs, and provides job IDs usable with `getJob` to retrieve their
   current states and outcomes. Deleted delayed occurrences, jobs removed by retention cleanup and
   skipped times whose jobs were never created have no listing entry. Listing introduces no separate
@@ -181,11 +195,11 @@ acceptance validates the documented Compose configuration and its recovery limit
 
 ## Deferred, not blocking this slice
 
-Additional priority levels, per-schedule pause/resume, calendar cron/timezones, richer
-missed-occurrence policies, generic job cancellation, custom deadlines, bounded waiting, transparent
-awaiting transformers, caller-supplied submission deduplication, new-file upload persistence,
-additional backends and hypothetical-scale optimizations are deferred. Internal occurrence
-uniqueness and safe claims remain core checks, not deferred conveniences.
+Additional priority levels, per-schedule pause/resume, non-UTC time zones, richer missed-occurrence
+policies, generic job cancellation, custom deadlines, bounded waiting, transparent awaiting
+transformers, caller-supplied submission deduplication, new-file upload persistence, additional
+backends and hypothetical-scale optimizations are deferred. Internal occurrence uniqueness and safe
+claims remain core checks, not deferred conveniences.
 
 ## Acceptance outcome
 

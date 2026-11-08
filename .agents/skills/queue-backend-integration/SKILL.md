@@ -33,7 +33,7 @@ when a replacement client qualifies. Validate a replacement before updating that
   [ready-entry ordering](../../../docs/decisions/ordering-eligible-fifo.md),
   [native 429 requeue](../../../docs/decisions/rate-limit-native-429-requeue.md),
   [bot cooldown](../../../docs/decisions/rate-limit-bot-cooldown.md), and
-  [recurrence](../../../docs/decisions/recurrence-planned-time-anchored.md) decisions. Check due-job
+  [recurrence](../../../docs/decisions/recurrence-native-schedules.md) decisions. Check due-job
   activation while dispatch capacity is full and during cooldowns. Reuse native machinery where
   it satisfies the selected behavior.
 - Exercise interrupted and stalled workers against the uncertainty policy. Native recovery must

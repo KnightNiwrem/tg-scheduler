@@ -13,10 +13,10 @@ equivalent:
   recurring occurrence. Native representations determine
   [retry ordering](rate-limit-native-429-requeue.md); there is no separate original-rank record.
 - **Bot state:** shared blocked-until time, current reservations and dispatch concurrency.
-- **Schedule:** native scheduler definition with its interval, planned-time anchor, next occurrence,
-  unique occurrence identity, and the priority inherited by occurrences. Definition removal follows
-  the [native schedule lifecycle](recurrence-planned-time-anchored.md); there is no separate enabled,
-  paused or deleted state record.
+- **Schedule:** native scheduler definition with its recurrence form (`every` or UTC `pattern`),
+  next occurrence, unique occurrence identity, and the priority inherited by occurrences.
+  Definition removal follows the [native schedule lifecycle](recurrence-native-schedules.md);
+  there is no separate enabled, paused or deleted state record.
 
 Concurrency above one uses multiple in-flight reservations rather than a single retained head
 pointer.

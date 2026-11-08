@@ -64,7 +64,7 @@ Workers also use a [caller-owned grammY API instance](decisions/transport-caller
   [retry delay](decisions/rate-limit-retry-after-fallback.md),
   [interim 429 failure](decisions/rate-limit-interim-429-failure.md).
 - **Ordering and recurrence:** [priority and ready-entry FIFO](decisions/ordering-eligible-fifo.md),
-  [planned-time recurrence](decisions/recurrence-planned-time-anchored.md).
+  [native interval and UTC cron schedules](decisions/recurrence-native-schedules.md).
 - **Outcomes and recovery:**
   [no automatic retransmission](decisions/uncertainty-no-automatic-retransmission.md),
   [stalled-job reporting](decisions/recovery-stalled-replay-disabled.md),
@@ -116,8 +116,8 @@ than behind mandatory adapter method names:
    [no-retransmission policy](decisions/uncertainty-no-automatic-retransmission.md); arrange recovery
    at claim time, not only after successful completion.
 5. **Create and advance schedules:** materialize occurrences through the
-   [native Job Scheduler](decisions/recurrence-planned-time-anchored.md).
-6. **Delete schedule:** use [native scheduler removal](decisions/recurrence-planned-time-anchored.md),
+   [native Job Scheduler](decisions/recurrence-native-schedules.md).
+6. **Delete schedule:** use [native scheduler removal](decisions/recurrence-native-schedules.md),
    including removal of the next occurrence if it is still delayed.
 7. **Activate due jobs:** move already-created due jobs into the ready queue without requiring a
    free dispatch slot or an expired cooldown; recover pending activation after an interruption.

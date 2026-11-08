@@ -23,12 +23,18 @@ export async function submitAndInspect(options: SchedulerClientOptions) {
       // Narrowing the stored method gives the corresponding grammY result type.
       console.log(job.result.message_id);
     }
-    const schedule = await client.createSchedule(
+    const hourlySchedule = await client.createSchedule(
       'sendMessage',
-      { chat_id: 123, text: 'Recurring' },
-      { intervalMs: 3_600_000, anchorAtMs: Date.now() + 3_600_000 },
+      { chat_id: 123, text: 'Every hour at minute 26, UTC' },
+      { pattern: '26 * * * *' },
     );
-    await client.deleteSchedule(schedule.id);
+    const intervalSchedule = await client.createSchedule(
+      'sendMessage',
+      { chat_id: 123, text: 'Immediately, then every hour' },
+      { every: 3_600_000 },
+    );
+    await client.deleteSchedule(hourlySchedule.id);
+    await client.deleteSchedule(intervalSchedule.id);
   } catch (operationError) {
     await client.close().catch((cleanupError: unknown) => {
       throw new AggregateError(

@@ -144,13 +144,32 @@ representing the latest missed time. This matches the documented
 
 BullMQ provides both [fixed-interval and cron strategies](https://docs.bullmq.io/guide/job-schedulers/repeat-strategies).
 Its existing delayed-job machinery supplies the wakeup; an operating-system cron service is not
-required. The [recurrence decision](decisions/recurrence-planned-time-anchored.md) selects this
+required. The [recurrence decision](decisions/recurrence-native-schedules.md) selects this
 native recovery behavior.
 
 This probe used temporary queues outside the active suite and removed its data afterward. It did
 not implement the scheduler API, simulate a process crash or backend restart, or establish atomic
 occurrence uniqueness, schedule deletion, or interaction with the shared cooldown, job priorities
 and independent due-job activation. Those library integration checks remain pending.
+
+## Native recurrence forms
+
+A source review on 8 November 2026 of BullMQ **6.7.1** distinguishes its native interval and cron
+forms. `every` is an interval in milliseconds; a new scheduler without a future start date initially
+uses the current time. Its later planned times follow the interval cadence. The native `pattern`
+strategy evaluates a cron expression and selects the next matching time. It accepts an optional
+seconds field and a `tz` setting; `tz: 'UTC'` makes interpretation independent of the host time zone.
+An hourly cron pattern is `0 * * * *`, and an hourly pattern at minute 26 is `26 * * * *`.
+
+The pinned interval helper, `getJobSchedulerEveryNextMillis`, chooses the later of an initial
+`startDate` and the current time. The cron strategy instead advances the parsed expression to
+its next match. The [repeat strategy documentation](https://docs.bullmq.io/guide/job-schedulers/repeat-strategies)
+describes the two forms; the [interval initial-run note](https://docs.bullmq.io/guide/job-schedulers/repeat-options#immediately)
+records the immediate default for new interval schedulers. These findings support the selected
+[recurrence forms](decisions/recurrence-native-schedules.md), not a custom anchor or alignment
+algorithm. The earlier native recovery probe exercised both strategies on all three runtimes;
+library schedule creation, delegation of native validation errors and full recurrence integration
+remain unimplemented.
 
 ## BullMQ integration findings
 
@@ -193,11 +212,12 @@ remains unverified:
   backend, `Queue.promoteJobs()` uses an unbounded timestamp and promotes all delayed jobs, including
   future ones; it is not a due-only scheduling loop. An activation mechanism still needs to be
   selected and validated against the project's ordering and recovery criteria.
-- **Recurrence:** the library still needs to integrate native Job Schedulers and verify planned-time
-  anchoring, occurrence uniqueness, schedule deletion, and interaction with the shared cooldown,
-  priorities and independent activation. In the pinned backend, `removeJobScheduler` deletes the
+- **Recurrence:** the library still needs to integrate native interval and UTC cron Job Schedulers
+  and verify initial eligibility, native planned times, occurrence uniqueness, schedule deletion,
+  and interaction with the shared cooldown, priorities and independent activation. In the pinned
+  backend, `removeJobScheduler` deletes the
   next occurrence only if it remains in the delayed set. The
-  [removal contract](decisions/recurrence-planned-time-anchored.md) adopts that boundary; integration
+  [removal contract](decisions/recurrence-native-schedules.md) adopts that boundary; integration
   checks must distinguish delayed from ready occurrences and cover activation and advancement races.
   [Job
   schedulers](https://docs.bullmq.io/guide/job-schedulers/)

@@ -1,9 +1,15 @@
-/** Fixed-interval scheduling options; schedule creation is not implemented yet. */
-export interface ScheduleOptions {
-  intervalMs: number;
-  /** Planned-time anchor in Unix epoch milliseconds. */
-  anchorAtMs: number;
-}
+/** Native BullMQ recurrence forms; schedule creation is not implemented yet. */
+export type ScheduleOptions =
+  | {
+      /** Fixed interval in milliseconds, using BullMQ's native initial scheduling. */
+      every: number;
+      pattern?: never;
+    }
+  | {
+      /** Native BullMQ cron expression, evaluated in UTC. */
+      pattern: string;
+      every?: never;
+    };
 
 export interface ScheduleHandle {
   id: string;

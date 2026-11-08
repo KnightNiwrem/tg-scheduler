@@ -17,7 +17,7 @@ before normal jobs. New jobs enter the back of their selected priority when they
 - If activation is late, the job joins when actually activated; its original due time does not
   retroactively move it ahead of ready jobs. A past `runAtMs` requests immediate entry in the same way.
 - Future jobs do not block ready work. Recurring occurrence production and missed occurrences still
-  follow [native scheduler recovery](recurrence-planned-time-anchored.md).
+  follow [native scheduler recovery](recurrence-native-schedules.md).
 
 [Native 429 requeue](rate-limit-native-429-requeue.md) determines retry insertion and concurrent retry
 ordering; the library does not reconstruct a job's original admission rank.
