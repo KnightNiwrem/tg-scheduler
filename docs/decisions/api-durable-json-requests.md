@@ -12,7 +12,8 @@ references are supported as strings.
 `submit` validates the payload with Zod's `z.json()` inside a string-keyed record and rejects, with
 a `TypeError`, `InputFile` uploads, other class instances, dates, functions, bigints, symbols,
 non-finite numbers, `undefined` values (object properties as well as array elements) and missing
-array elements. The error describes the accepted values but does not name the offending path.
+array elements. The error describes the accepted values but does not name the offending path; Zod's validation
+error is kept as its `cause`.
 
 `submit` then copies the payload by encoding it with `JSON.stringify` and decoding the result, and
 stores that copy rather than the caller's object. Encoding rejects what validation does not detect,
@@ -29,8 +30,9 @@ New-file upload persistence is outside the first slice.
 Another process sends the request after the submitter may have exited, so callbacks, closures,
 process-local streams and temporary files cannot be replayed reliably and are rejected at submission
 rather than accepted unreliably. `JSON.stringify` alone would silently drop or alter several of
-these values (non-finite numbers and `undefined` array elements become `null`, functions and class
-fields are dropped, dates become strings), so validation must come first.
+these values (non-finite numbers and `undefined` array elements become `null`, functions are
+dropped, class instances lose their prototype and `Map` and `Set` contents, dates become strings),
+so validation must come first.
 
 A property set to `undefined` is rejected rather than omitted: an absent key is the only correct
 stored form, and callers can leave the key out. Validation does not report the offending path

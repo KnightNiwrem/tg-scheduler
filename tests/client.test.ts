@@ -1,6 +1,7 @@
 import { InputFile } from 'grammy';
 import { Cluster, Redis } from 'ioredis';
 import { afterAll, afterEach, expect, test } from 'vitest';
+import { z } from 'zod';
 import { SchedulerClient, type SchedulerClientOptions, UnimplementedError } from '../src/index.ts';
 
 // Nothing listens on port 1. Validation failures must reject before any command is sent.
@@ -89,9 +90,9 @@ test.each([
   ['a sparse array', { chat_id: 1, text: 'x', entities: [, {}] }],
 ])('submit rejects a payload with %s', async (_case, payload) => {
   const client = openClient();
-  await expect(client.submit('sendMessage', payload as never)).rejects.toThrow(
-    /^Invalid payload: expected a plain object of /,
-  );
+  const rejection = client.submit('sendMessage', payload as never);
+  await expect(rejection).rejects.toThrow(/^Invalid payload: expected a plain object of /);
+  await expect(rejection).rejects.toHaveProperty('cause', expect.any(z.ZodError));
 });
 
 test('submit rejects a payload with a circular reference', async () => {

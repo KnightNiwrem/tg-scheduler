@@ -73,11 +73,13 @@ export function parseTelegramMethod(method: unknown): TelegramMethod {
 const jsonPayloadSchema = z.record(z.string(), z.json());
 
 function copyJsonPayload(payload: unknown): Record<string, unknown> {
-  if (!jsonPayloadSchema.safeParse(payload).success) {
+  const validation = jsonPayloadSchema.safeParse(payload);
+  if (!validation.success) {
     throw new TypeError(
       'Invalid payload: expected a plain object of strings, booleans, finite numbers, null, ' +
         'arrays and plain objects; InputFile uploads, class instances and undefined values are ' +
         'not supported',
+      { cause: validation.error },
     );
   }
   let encodedPayload: string;

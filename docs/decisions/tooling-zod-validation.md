@@ -22,7 +22,7 @@ without a Zod schema for their values or cron syntax.
 ## Context
 
 Zod covers fixed-shape input concisely and reports every problem in one message. Its `z.json()`
-schema accepts exactly the values JSON encodes without loss, but not cycles, so the payload copy
-comes from JSON encoding, which rejects them.
+schema accepts the values JSON encodes without loss, but it does not detect cycles, so the payload
+copy comes from JSON encoding, which rejects them.
 BullMQ owns recurrence validation, so supported expressions and native error behavior can evolve
 with the selected dependency without a second validator restricting them.
