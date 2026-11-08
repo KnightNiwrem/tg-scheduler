@@ -1,3 +1,4 @@
+import { Queue } from 'bullmq';
 import { Redis, type RedisOptions } from 'ioredis';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import {
@@ -6,6 +7,7 @@ import {
   type JobSnapshot,
   type SchedulerClient,
 } from '../src/index.ts';
+import type { StoredJobData } from '../src/backend/stored-job.ts';
 import type { TelegramRequest } from '../src/telegram.ts';
 import { createGrammyTransport } from '../src/transport/grammy.ts';
 import type {
@@ -154,13 +156,16 @@ async function expectNativeFinishedState(
   expect(Number(await inspector.hget(`${queueKey}:${jobId}`, 'finishedOn'))).toBeGreaterThan(0);
 }
 
-integrationTest(
-  'accepted work runs after the producer exits and its result is retrievable',
-  async () => {
+integrationTest.each([
+  { timing: 'immediate', runAtMs: undefined },
+  { timing: 'past', runAtMs: 0 },
+])(
+  'accepted $timing work runs after producer exit and reports its native scheduling time',
+  async ({ runAtMs }) => {
     const connection = openConnection();
     const producer = openClient(connection);
     const beforeSubmitMs = Date.now();
-    const handle = await producer.submit('sendMessage', { chat_id: 1, text: 'hello' });
+    const handle = await producer.submit('sendMessage', { chat_id: 1, text: 'hello' }, { runAtMs });
     const afterSubmitMs = Date.now();
     await producer.close();
     connection.disconnect();
@@ -179,8 +184,8 @@ integrationTest(
       state: 'succeeded',
       result: { delivered: 'sendMessage' },
     });
-    expect(job.originalDueAtMs).toBeGreaterThanOrEqual(beforeSubmitMs);
-    expect(job.originalDueAtMs).toBeLessThanOrEqual(afterSubmitMs);
+    expect(job.scheduledForMs).toBeGreaterThanOrEqual(beforeSubmitMs);
+    expect(job.scheduledForMs).toBeLessThanOrEqual(afterSubmitMs);
     expect(telegram.attempts.map((attempt) => attempt.request)).toEqual([
       { method: 'sendMessage', payload: { chat_id: 1, text: 'hello' } },
     ]);
@@ -206,17 +211,39 @@ integrationTest.each([
   const client = openClient();
   const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
   const jobKey = `${queuePrefix}:{${botId}}.ordinary:${handle.id}`;
-  const corruptData = { request: corruptRequest, originalDueAtMs: 0 };
+  const corruptData = { request: corruptRequest };
   await inspector.hset(jobKey, 'data', JSON.stringify(corruptData));
 
   const telegram = new FakeTelegram();
   await openWorker(telegram).start();
   await expect
     .poll(async () => inspector.hget(jobKey, 'failedReason'), { timeout: 5_000 })
-    .toMatch(/Invalid stored job data.*no request was sent/);
+    .toMatch(/Invalid stored job.*no request was sent/);
   await expectNativeFinishedState(handle.id, 'failed');
   expect(telegram.attempts).toEqual([]);
-  await expect(client.getJob(handle.id)).rejects.toThrow(/^Invalid stored job data/);
+  await expect(client.getJob(handle.id)).rejects.toThrow(/^Invalid stored job/);
+});
+
+integrationTest.each([
+  { problem: 'a negative creation timestamp', timestamp: -1, delay: 0 },
+  { problem: 'a negative initial delay', timestamp: 1, delay: -1 },
+  { problem: 'a fractional initial delay', timestamp: 1, delay: 1.5 },
+  { problem: 'a non-numeric initial delay', timestamp: 1, delay: '500' },
+  { problem: 'an overflowing scheduled time', timestamp: Number.MAX_SAFE_INTEGER, delay: 1 },
+])('invalid native timing with $problem fails without sending', async ({ timestamp, delay }) => {
+  const client = openClient();
+  const handle = await client.submit('sendMessage', { chat_id: 1, text: 'hello' });
+  const jobKey = `${queuePrefix}:{${botId}}.ordinary:${handle.id}`;
+  await inspector.hset(jobKey, 'timestamp', timestamp, 'opts', JSON.stringify({ delay }));
+  await expect(client.getJob(handle.id)).rejects.toThrow(/^Invalid stored job/);
+
+  const telegram = new FakeTelegram();
+  await openWorker(telegram).start();
+  await expect
+    .poll(async () => inspector.hget(jobKey, 'failedReason'), { timeout: 5_000 })
+    .toMatch(/Invalid stored job.*no request was sent/);
+  await expectNativeFinishedState(handle.id, 'failed');
+  expect(telegram.attempts).toEqual([]);
 });
 
 integrationTest('mutating a payload after submit does not change the stored job', async () => {
@@ -248,15 +275,63 @@ integrationTest('delayed work stays queued until its run time', async () => {
   // Asserted before any worker runs, so the check cannot race the delayed claim.
   expect(await client.getJob(handle.id)).toMatchObject({
     state: 'queued',
-    originalDueAtMs: runAtMs,
+    scheduledForMs: runAtMs,
   });
 
   const telegram = new FakeTelegram();
   await openWorker(telegram).start();
-  expect((await settledJob(client, handle.id)).state).toBe('succeeded');
+  expect(await settledJob(client, handle.id)).toMatchObject({
+    state: 'succeeded',
+    scheduledForMs: runAtMs,
+  });
   expect(telegram.attempts).toHaveLength(1);
   expect(telegram.attempts[0]?.startedAtMs).toBeGreaterThanOrEqual(runAtMs);
 });
+
+integrationTest(
+  'native scheduler occurrences expose their own IDs and scheduling times',
+  async () => {
+    const queue = new Queue<StoredJobData>(`{${botId}}.ordinary`, {
+      connection: inspector,
+      prefix: queuePrefix,
+    });
+    ownedResources.push(queue);
+    const client = openClient();
+    const firstRunAtMs = Date.now() + 1_000;
+    const intervalMs = 3_600_000;
+    const request: TelegramRequest = {
+      method: 'sendMessage',
+      payload: { chat_id: 1, text: 'recurring' },
+    };
+    const first = await queue.upsertJobScheduler(
+      'hourly',
+      { every: intervalMs, startDate: firstRunAtMs },
+      { name: request.method, data: { request }, opts: { attempts: 1 } },
+    );
+    if (!first?.id) throw new Error('Native scheduler did not create its first occurrence');
+    expect(await client.getJob(first.id)).toMatchObject({
+      id: first.id,
+      state: 'queued',
+      scheduledForMs: firstRunAtMs,
+    });
+
+    const telegram = new FakeTelegram();
+    await openWorker(telegram).start();
+    expect(await settledJob(client, first.id)).toMatchObject({
+      id: first.id,
+      state: 'succeeded',
+      scheduledForMs: firstRunAtMs,
+    });
+    const [next] = await queue.getDelayed();
+    if (!next?.id) throw new Error('Native scheduler did not create its next occurrence');
+    expect(await client.getJob(next.id)).toMatchObject({
+      id: next.id,
+      state: 'queued',
+      scheduledForMs: firstRunAtMs + intervalMs,
+    });
+    expect(telegram.attempts.map((attempt) => attempt.request)).toEqual([request]);
+  },
+);
 
 integrationTest(
   'Telegram rejections, transport errors, and rate limits stay visible without retries',

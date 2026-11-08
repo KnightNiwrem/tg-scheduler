@@ -7,8 +7,6 @@ import { parseTelegramMethod, type TelegramRequest } from '../telegram.ts';
 /** Job data persisted in BullMQ. Jobs are read back by later processes, so reads revalidate it. */
 export interface StoredJobData {
   request: TelegramRequest;
-  /** Unix epoch milliseconds: the requested run time, or the submission time for immediate work. */
-  originalDueAtMs: number;
 }
 
 /**
@@ -29,20 +27,27 @@ const storedPayloadSchema = z.custom<Record<string, unknown>>(
   'Expected a JSON object',
 );
 
-const storedJobDataSchema = z.object({
-  request: z.object({
-    method: z.unknown().transform((method, context) => {
-      try {
-        return parseTelegramMethod(method);
-      } catch (error) {
-        context.addIssue({ code: 'custom', message: toError(error).message });
-        return z.NEVER;
-      }
+const storedJobSchema = z
+  .object({
+    data: z.object({
+      request: z.object({
+        method: z.unknown().transform((method, context) => {
+          try {
+            return parseTelegramMethod(method);
+          } catch (error) {
+            context.addIssue({ code: 'custom', message: toError(error).message });
+            return z.NEVER;
+          }
+        }),
+        payload: storedPayloadSchema,
+      }),
     }),
-    payload: storedPayloadSchema,
-  }),
-  originalDueAtMs: z.int().nonnegative(),
-});
+    timestamp: z.int().nonnegative(),
+    opts: z.object({ delay: z.int().nonnegative().default(0) }),
+  })
+  .refine(({ timestamp, opts }) => Number.isSafeInteger(timestamp + opts.delay), {
+    error: 'Scheduled time must be a safe integer number of milliseconds',
+  });
 
 const jobErrorSchema = z.object({
   message: z.string(),
@@ -84,15 +89,21 @@ const settledJobOutcomeSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('uncertain'), error: jobErrorSchema }),
 ]);
 
-/** @throws {TypeError} when stored data does not describe a supported Telegram request. */
-export function decodeStoredJobData(data: unknown): StoredJobData {
-  const parsed = storedJobDataSchema.safeParse(data);
+/**
+ * Validate the stored request and native timing before dispatch or snapshot creation.
+ * @throws {TypeError} when the stored request or scheduling metadata is invalid.
+ */
+export function decodeStoredJob(job: BotJob): {
+  request: TelegramRequest;
+  scheduledForMs: number;
+} {
+  const parsed = storedJobSchema.safeParse(job);
   if (!parsed.success) {
-    throw new TypeError(`Invalid stored job data: ${z.prettifyError(parsed.error)}`);
+    throw new TypeError(`Invalid stored job: ${z.prettifyError(parsed.error)}`);
   }
-  const { request, originalDueAtMs } = parsed.data;
-  // `submit` paired the method with its payload, which is left to Telegram to check.
-  return { request: request as TelegramRequest, originalDueAtMs };
+  const { data, timestamp, opts } = parsed.data;
+  // Telegram checks method-specific payload fields; stored reads enforce the outgoing JSON shape.
+  return { request: data.request as TelegramRequest, scheduledForMs: timestamp + opts.delay };
 }
 
 function decodeSettledJobOutcome(value: unknown): SettledJobOutcome {
@@ -118,13 +129,12 @@ export async function enqueueJob(
   runAtMs: number | undefined,
   nowMs: number,
 ): Promise<string> {
-  const originalDueAtMs = runAtMs ?? nowMs;
   const job = await queue.add(
     request.method,
-    { request, originalDueAtMs },
+    { request },
     {
       timestamp: nowMs,
-      delay: Math.max(0, originalDueAtMs - nowMs),
+      delay: Math.max(0, (runAtMs ?? nowMs) - nowMs),
       // An unsettled attempt may already have reached Telegram, so BullMQ must never retry it.
       attempts: 1,
     },
@@ -139,7 +149,7 @@ export async function enqueueJob(
  * The state is read before the job, and finished states are final, so a finished state always has
  * its outcome. A job that finishes between the reads is reported in its earlier state.
  *
- * @throws {TypeError} when the stored job data or outcome is invalid.
+ * @throws {TypeError} when the stored request, native timing or outcome is invalid.
  */
 export async function readJobSnapshot(
   queue: BotQueue,
@@ -150,12 +160,12 @@ export async function readJobSnapshot(
   if (engineState === 'unknown') return undefined;
   const job = await queue.getJob(jobId);
   if (job === undefined) return undefined;
-  const { request, originalDueAtMs } = decodeStoredJobData(job.data);
+  const { request, scheduledForMs } = decodeStoredJob(job);
   const snapshot = {
     id: jobId,
     method: request.method,
     botId,
-    originalDueAtMs,
+    scheduledForMs,
     lane: 'ordinary' as const,
     ...jobOutcome(engineState, job),
   };

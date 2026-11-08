@@ -29,7 +29,7 @@ Values from outside the library enter at these boundaries:
   [durable JSON requests](api-durable-json-requests.md);
 - fields read from Telegram responses, such as `retry_after`, whose parsing the
   [retry delay](rate-limit-retry-after-fallback.md) decision places;
-- job data and outcomes read back from Valkey, as recorded in
+- job data, native scheduling metadata and outcomes read back from Valkey, as recorded in
   [stored job data](backend-stored-job-data.md).
 
 Invalid input is reported as a `TypeError` whose message omits credentials. The

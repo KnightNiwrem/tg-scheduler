@@ -7,8 +7,9 @@
 
 `submit` rejects unknown option keys. `runAtMs` must be a non-negative integer in
 [Unix epoch milliseconds](time-unix-epoch-milliseconds.md); omitting it requests immediate work. A
-`runAtMs` in the past requests immediate ready-queue entry and keeps the past value as its original
-due time in job snapshots. It does not reserve a position ahead of existing ready work.
+`runAtMs` in the past requests immediate ready-queue entry. Its snapshot reports the native enqueue
+time through `scheduledForMs`, following the [stored timing contract](backend-stored-job-data.md).
+It does not reserve a position ahead of existing ready work.
 
 ## Context
 

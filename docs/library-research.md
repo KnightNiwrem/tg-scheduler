@@ -1,8 +1,7 @@
 # Supporting library research
 
-The source findings below date to 2 November 2026; the native behavior experiments were run on
-6 November 2026, with scheduler recovery and busy-worker promotion probes on 7 November 2026,
-against the pinned dependencies.
+The source review dates to 2 November 2026. Native behavior experiments and library-level probes
+record their execution dates, tested versions and coverage limits in their own sections.
 The [decisions](decisions/) record the selected choices, and [validation](validation.md) defines
 acceptance criteria. The project pins BullMQ 6.7.1, ioredis 6.0.0, and Zod 4.6.7; current integration
 coverage is described in the [testing guide](../README.md#testing). Default-branch source links can
@@ -44,9 +43,24 @@ unverified. The temporary cluster was removed after testing. These checks do not
 cluster failover, resharding or replica durability; the active integration suite continues to use
 standalone Valkey.
 
+## Native job timing metadata
+
+On 8 November 2026, an isolated native probe on Bun **1.4.4**, BullMQ **6.7.1**, ioredis **6.0.0**
+and Valkey **9.0.7** verified `job.timestamp + (job.opts.delay ?? 0)` for one-time delayed jobs and
+native Job Scheduler occurrences. The timestamp plus configured delay matched the planned time
+before activation, after promotion, after manual rate-limit requeue and after completion. The
+next generated occurrence had its own timestamp and configured delay, yielding its distinct
+planned time even though it shared the same template payload.
+
+Promotion reset the live `job.delay` field to zero while preserving `job.opts.delay`. A past
+requested time converted to zero delay yielded native enqueue time. These observations support
+the [stored timing contract](decisions/backend-stored-job-data.md). The probe made no Telegram
+calls and removed its isolated queue. It characterized native fields rather than implementing
+the library's recurrence or 429 coordinator; their full acceptance checks remain pending.
+
 ## Selected-version native behavior
 
-The experiments used BullMQ **6.7.1**, ioredis **6.0.0**, and the official
+On 6 November 2026, the experiments used BullMQ **6.7.1**, ioredis **6.0.0**, and the official
 `valkey/valkey:9.0.7-alpine` image (Valkey **9.0.7**). Tested runtimes are Bun **1.4.4**, Node.js
 **24.22.1**, and Deno **2.9.6** on Linux ARM64. The same experiments passed on each runtime.
 They used isolated queue names, simulated 429 responses, and a separate accepted-effect ledger;
