@@ -168,7 +168,8 @@ describes the two forms; the [interval initial-run note](https://docs.bullmq.io/
 records the immediate default for new interval schedulers. These findings support the selected
 [recurrence forms](decisions/recurrence-native-schedules.md), not a custom anchor or alignment
 algorithm. The earlier native recovery probe exercised both strategies on all three runtimes;
-library schedule creation, input validation and full recurrence integration remain unimplemented.
+library schedule creation, delegation of native validation errors and full recurrence integration
+remain unimplemented.
 
 ## BullMQ integration findings
 

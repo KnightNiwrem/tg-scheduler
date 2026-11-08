@@ -156,12 +156,13 @@ acceptance validates the documented Compose configuration and its recovery limit
   Completed failure outcomes from existing storage remain readable. Default retention keeps both
   terminal states without automatic removal. Configured age/count cleanup follows the
   [native lazy policy](decisions/backend-finished-job-retention.md).
-- Schedule options accept exactly one native form, `every` or `pattern`. `every` is a positive safe
-  integer number of milliseconds; `pattern` uses native BullMQ cron syntax with UTC evaluation.
-  An alternative recurrence field set to `undefined` is treated as absent for form selection.
-  Invalid options, including both forms together, neither form, or unsupported option keys, reject
-  with a `TypeError` before work is accepted. The library adds no separate anchor parameter or
-  custom cron grammar.
+- Schedule options expose the native `every` interval in milliseconds or UTC cron `pattern` form.
+  BullMQ owns form selection, option validation and cron parsing; the library adds no Zod schema,
+  option allowlist, anchor parameter or custom cron grammar. An undefined alternative follows
+  native selection behavior. Supported recurrence values reach BullMQ unchanged. When native
+  creation rejects invalid recurrence options or an unsupported pattern, `createSchedule` rejects
+  with the original BullMQ error, without converting it to a `TypeError` or generic error. Changes
+  to native expression support must not require a separate library grammar update.
 - A new `{ every: 3_600_000 }` schedule has an immediately eligible first occurrence, then follows
   BullMQ's native interval cadence. At 12:25 UTC, a new `{ pattern: '0 * * * *' }` schedule first
   becomes due at 13:00, and `{ pattern: '26 * * * *' }` first becomes due at 12:26. Cron expressions

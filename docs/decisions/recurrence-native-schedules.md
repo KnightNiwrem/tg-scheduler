@@ -8,7 +8,7 @@
 Schedules use BullMQ Job Schedulers. The selected `createSchedule` API accepts exactly one native
 recurrence form:
 
-- `{ every: number }` specifies a positive safe integer interval in milliseconds. A new schedule's
+- `{ every: number }` specifies the native interval in milliseconds. A new schedule's
   first occurrence is immediately eligible under BullMQ's defaults; later planned times follow
   its native interval cadence rather than completion times. The library adds no clock alignment.
 - `{ pattern: string }` specifies a native BullMQ cron expression, including its optional seconds
@@ -16,8 +16,14 @@ recurrence form:
   Created at 12:25 UTC, `0 * * * *` first becomes due at 13:00, while `26 * * * *` becomes due at
   12:26. Parsing and calendar calculations use BullMQ's native cron strategy.
 
+BullMQ validates recurrence options, selects the configured form and parses cron expressions. The
+library does not validate those options with Zod, duplicate the supported cron grammar, or reject
+options with a library-maintained allowlist. The `every` and `pattern` values must reach BullMQ
+unchanged, with UTC evaluation configured for cron. An error from native schedule creation must reject
+`createSchedule` unchanged, without conversion to a library `TypeError` or generic wrapper.
+
 The public forms keep the native `every` and `pattern` names. Form selection treats an alternative
-field set to `undefined` as absent. There is no separate anchor timestamp,
+field set to `undefined` as absent under native behavior. There is no separate anchor timestamp,
 alignment algorithm or custom repeat strategy. Creation uses native `Queue.upsertJobScheduler`;
 occurrence generation, recovery and deletion follow the native scheduler lifecycle without custom
 scheduling or removal semantics. A planned occurrence time is an eligibility time, not a delivery
@@ -63,8 +69,10 @@ deleted-schedule state. Interrupted Telegram attempts still follow the
 ## Context
 
 Native intervals and UTC cron patterns express recurrence by duration and by calendar time without
-a custom anchor contract. Skipping uncreated times avoids a burst of stale work, while recovery
-retains already-created overdue jobs. Native removal treats the advance-created delayed occurrence
+a custom anchor contract. Delegating validation avoids imposing a second interpretation of native
+options or limiting expressions that a later selected BullMQ version supports. Skipping uncreated
+times avoids a burst of stale work, while recovery retains already-created overdue jobs. Native
+removal treats the advance-created delayed occurrence
 as part of the schedule being deleted and keeps removal coordinated with occurrence creation and
 activation. Reusing BullMQ's durable scheduler, delayed-job and removal machinery avoids a second
 recovery or cancellation system.

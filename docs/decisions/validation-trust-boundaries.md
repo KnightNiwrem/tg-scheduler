@@ -7,7 +7,9 @@
 
 A value from outside the library is validated once, where it enters. Caller-supplied data is
 parsed into a new value the library owns, and code after that point uses the parsed value, never
-the original. Caller-supplied functions,
+the original. Validation of [native recurrence options](recurrence-native-schedules.md) is delegated
+to BullMQ; the library does not add a Zod schema or cron parser before that handoff.
+Caller-supplied functions,
 [connections](backend-ioredis-driver.md) and [API instances](transport-caller-owned-api.md) are
 checked as their contracts require and retained by reference. Data read back from Valkey has just
 been parsed from JSON by BullMQ and is referenced by no other code, so it is checked in place without
@@ -33,7 +35,8 @@ Values from outside the library enter at these boundaries:
 - job data, native scheduling metadata and outcomes read back from Valkey, as recorded in
   [stored job data](backend-stored-job-data.md).
 
-Invalid input is reported as a `TypeError` whose message omits credentials. The
+Invalid library-defined input is reported as a `TypeError` whose message omits credentials. Native
+BullMQ schedule-creation errors propagate unchanged through `createSchedule`. The
 [Zod decision](tooling-zod-validation.md) covers which parser handles which input.
 
 ## Context
