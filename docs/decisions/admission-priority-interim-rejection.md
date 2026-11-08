@@ -11,6 +11,5 @@ normal priority. Snapshots report `priority: 'normal'` for every stored job.
 
 ## Context
 
-A silent fallback would accept a preference the worker does not honor. Jobs stored before
-priorities exist carry no BullMQ priority and are normal jobs. This decision is removed when job
-priorities are implemented.
+A silent fallback would accept a preference the worker does not honor. This decision is removed
+when job priorities are implemented.

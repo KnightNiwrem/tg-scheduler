@@ -26,14 +26,11 @@ and native stalled failures retain their unstructured failure reasons and are re
 interrupted processing. Unexpected processor error details follow
 [internal diagnostics](api-internal-error-reporting.md).
 
-Readers also accept completed return values with `state: 'failed'` or `state: 'uncertain'`, exposing
-both as `failed` with their recorded errors, without rewriting existing jobs.
-
 Stored requests and native timing metadata are checked together before dispatch and when creating
 snapshots. The creation timestamp, configured delay and their sum must be non-negative safe
-integers; an omitted configured delay means zero. Completed outcomes and structured failure
-reasons are also checked when read back. Malformed or unsupported structured failure reasons
-reject with a `TypeError`. The method must pass the same outgoing-only method check as `submit`.
+integers; an omitted configured delay means zero. Completed return values and structured failure
+reasons are also checked when read back; a completed return value must be a stored success.
+Malformed or unsupported outcomes reject with a `TypeError`. The method must pass the same outgoing-only method check as `submit`.
 The payload is checked to be a JSON object but is not copied again, because BullMQ has already
 parsed it from JSON. Data that fails the check settles the job as `failed` without sending a
 request, and `getJob` rejects with a `TypeError`.

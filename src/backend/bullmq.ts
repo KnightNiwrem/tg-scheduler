@@ -35,7 +35,7 @@ export interface BotBackendConfig {
   queuePrefix: string;
   /**
    * The bot's single dispatch queue for both priorities. The bot ID is a cluster hash tag, keeping
-   * the queue's keys in one slot. The `.ordinary` suffix is part of stored job keys.
+   * the queue's keys in one slot.
    */
   dispatchQueueName: string;
 }
@@ -65,7 +65,7 @@ export function resolveBotBackendConfig(
     botId: parsedBotId.data,
     connection: parsedConnection.data,
     queuePrefix: parsedPrefix.data,
-    dispatchQueueName: `{${parsedBotId.data}}.ordinary`,
+    dispatchQueueName: `{${parsedBotId.data}}.dispatch`,
   };
 }
 

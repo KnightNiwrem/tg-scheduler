@@ -9,10 +9,7 @@ export interface StoredJobData {
   request: TelegramRequest;
 }
 
-/**
- * Successful outcomes use BullMQ's return value. Terminal errors use its failure reason;
- * previously completed failure outcomes remain readable through the return value.
- */
+/** Successful outcomes use BullMQ's return value; terminal errors use its failure reason. */
 export type BotJob = Job<StoredJobData, SettledJobOutcome>;
 export type BotQueue = Queue<StoredJobData, SettledJobOutcome>;
 
@@ -82,12 +79,7 @@ function decodeJobFailure(reason: string): JobError {
   return parsed.data.error;
 }
 
-const settledJobOutcomeSchema = z.discriminatedUnion('state', [
-  z.object({ state: z.literal('succeeded'), result: z.json() }),
-  z.object({ state: z.literal('failed'), error: jobErrorSchema }),
-  // Older workers stored ambiguous errors separately; reads expose the current failure model.
-  z.object({ state: z.literal('uncertain'), error: jobErrorSchema }),
-]);
+const storedSuccessSchema = z.object({ state: z.literal('succeeded'), result: z.json() });
 
 /**
  * Validate the stored request and native timing before dispatch or snapshot creation.
@@ -106,13 +98,10 @@ export function decodeStoredJob(job: BotJob): {
   return { request: data.request as TelegramRequest, scheduledForMs: timestamp + opts.delay };
 }
 
-function decodeSettledJobOutcome(value: unknown): SettledJobOutcome {
-  const parsed = settledJobOutcomeSchema.safeParse(value);
+function decodeStoredSuccess(value: unknown): SettledJobOutcome {
+  const parsed = storedSuccessSchema.safeParse(value);
   if (!parsed.success) {
     throw new TypeError(`Invalid stored job outcome: ${z.prettifyError(parsed.error)}`);
-  }
-  if (parsed.data.state === 'uncertain') {
-    return { state: 'failed', error: parsed.data.error };
   }
   // Results are stored exactly as Telegram returned them for the job's own method.
   return parsed.data as SettledJobOutcome;
@@ -184,7 +173,7 @@ function jobOutcome(engineState: JobState, job: BotJob): JobOutcome {
     case 'active':
       return { state: 'in-flight' };
     case 'completed':
-      return decodeSettledJobOutcome(job.returnvalue);
+      return decodeStoredSuccess(job.returnvalue);
     case 'failed':
       return { state: 'failed', error: decodeJobFailure(job.failedReason) };
   }

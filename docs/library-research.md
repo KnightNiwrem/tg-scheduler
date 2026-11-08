@@ -203,9 +203,7 @@ remains unverified:
 - **Priority assignment:** BullMQ processes jobs with omitted priority or priority zero before
   jobs with positive priority values. With a positive-priority encoding, urgent needs a lower value
   than normal, and normal needs an explicit positive value as well. Leaving the application default
-  omitted would give normal jobs precedence over positive-priority urgent jobs. Current enqueues
-  omit priority, so implementation must also account for existing jobs rather than silently mixing
-  incompatible defaults.
+  omitted would give normal jobs precedence over positive-priority urgent jobs.
   [Priorities](https://docs.bullmq.io/guide/jobs/prioritized)
 - **Due-job activation:** delayed promotion normally runs when a worker fetches work. The
   busy-worker probe above shows why this is insufficient for independent activation. In the pinned
