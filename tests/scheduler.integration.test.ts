@@ -142,6 +142,7 @@ async function settledJob(client: SchedulerClient, jobId: string): Promise<JobSn
   return job;
 }
 
+/** Check stored settlement so snapshot mapping cannot hide an incorrect native state. */
 async function expectNativeFinishedState(
   jobId: string,
   state: 'completed' | 'failed',
