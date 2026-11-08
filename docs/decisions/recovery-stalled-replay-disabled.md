@@ -13,7 +13,7 @@ have reached Telegram, until a worker fetches it and records the failure; that f
 capacity, so on a busy queue the job can stay `queued` for some time. Native stalled failures are
 exposed as interrupted processing under the [stored failure format](backend-stored-job-data.md).
 Unexpected processor errors follow
-[unawaited error reporting](api-unawaited-error-reporting.md).
+[internal diagnostics](api-internal-error-reporting.md).
 
 ## Context
 

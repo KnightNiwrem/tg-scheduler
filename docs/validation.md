@@ -23,8 +23,9 @@ visible errors without retries, native terminal states, indefinite default reten
 accepted-effect/lost-response failures, stored-outcome compatibility, shared ordinary capacity
 across workers, graceful shutdown, caller-connection reuse and option
 preservation, startup failure cleanup, and release of BullMQ's blocking connection.
-Caller-owned grammY API instances, stalled-worker recovery, Valkey restart, and the 429, priority,
-independent activation, and recurrence criteria are not yet covered.
+The dedicated job-fetch error handler, new internal diagnostic routing, caller-owned grammY API
+instances, stalled-worker recovery, Valkey restart, and the 429, priority, independent activation,
+and recurrence criteria are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
 not establish the full queue/scheduler acceptance criteria below. The shared suite uses
@@ -55,6 +56,16 @@ acceptance validates the documented Compose configuration and its recovery limit
   Closing clients and workers preserves supplied connections and their settings while removing
   the library's listeners and closing BullMQ-owned duplicates. Invalid worker retry settings fail
   without taking ownership of the caller's connection, and startup can be retried after correction.
+- A failure reported by the background next-job retrieval operation reaches the optional
+  [job-fetch handler](decisions/api-job-fetch-error-reporting.md), or `console.warn` when omitted.
+  Reporting the retrieval error does not itself mark a job as failed. Telegram failures, rejected
+  public operations and unrelated internal exceptions do not route through this dedicated handler.
+  Separately emitted queue or connection error events use internal diagnostics, even when they
+  occur during retrieval or share the outage that caused a retrieval operation to fail.
+- Client operation failures reject their promises. Under
+  [internal diagnostics](decisions/api-internal-error-reporting.md), unexpected processing exceptions
+  log the original error locally and store a generic job failure without invoking a public handler.
+  Client queue connection events between operations remain visible as local warnings.
 - The grammY transport uses its outgoing API surface without inbound update processing or hidden
   automatic retries. A manually created, caller-configured
   [API instance](decisions/transport-caller-owned-api.md) is used by reference: configured request

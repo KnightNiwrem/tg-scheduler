@@ -52,7 +52,8 @@ Workers also use a [caller-owned grammY API instance](decisions/transport-caller
   [finished-job retention](decisions/backend-finished-job-retention.md).
 - **Public API:**
   [construction without I/O](decisions/api-construction-without-io.md),
-  [unawaited error reporting](decisions/api-unawaited-error-reporting.md),
+  [job-fetch error reporting](decisions/api-job-fetch-error-reporting.md),
+  [internal diagnostics](decisions/api-internal-error-reporting.md),
   [submit options](decisions/api-submit-options.md),
   [durable JSON requests](decisions/api-durable-json-requests.md),
   [bot token handling](decisions/credentials-bot-token-handling.md),

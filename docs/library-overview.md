@@ -101,8 +101,11 @@ Job states and their meanings are defined in [visible job
 states](decisions/api-visible-job-states.md). A worker that stops mid-attempt leaves its job
 `in-flight`, then `queued`, until a running worker [records it as
 `failed`](decisions/recovery-stalled-replay-disabled.md), so `queued` does not prove that a
-request was never sent. Clients and workers report asynchronous
-errors that no operation awaits [to `onError`](decisions/api-unawaited-error-reporting.md).
+request was never sent. Clients and workers currently report asynchronous errors through `onError`,
+which defaults to `console.error` and receives both queue errors and unexpected processing errors.
+The dedicated [job-fetch handler](decisions/api-job-fetch-error-reporting.md), its warning default
+and the replacement of the broad callback with [local internal diagnostics](decisions/api-internal-error-reporting.md)
+are not implemented yet.
 
 ## Coordination contract
 
