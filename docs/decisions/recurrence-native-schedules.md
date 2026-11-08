@@ -57,8 +57,9 @@ not record a separate cancellation outcome. Both delayed and ready occurrences r
 `queued` state; that state alone does not determine whether an occurrence will be removed.
 
 The first-slice client API lists retained jobs by schedule ID through
-`listScheduleJobs(scheduleId)`, which returns job handles; `getJob` retrieves each listed job. Listing must use each job's native BullMQ scheduler
-association and remain available after schedule deletion while the jobs are retained under the
+`listScheduleJobs(scheduleId)`, which returns job handles; `getJob` retrieves each listed job.
+Listing must use each job's native BullMQ scheduler association and remain available after
+schedule deletion while the jobs are retained under the
 [finished-job retention policy](backend-finished-job-retention.md). It must exclude skipped times
 whose jobs were never created and jobs removed by deletion or cleanup. This requires a library
 query over retained jobs; BullMQ does not provide a native per-schedule job-history listing

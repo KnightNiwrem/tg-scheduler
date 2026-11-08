@@ -27,8 +27,8 @@ therefore does not prove that a request was never sent.
 
 A Telegram 429 currently settles the job as `failed`; durable 429 retry with a bot cooldown is not
 implemented yet, so the worker is not ready for production traffic. Recurring schedules, schedule
-job listing and urgent-priority requests reject with `UnimplementedError`. Priority selection and due-job activation
-independent of dispatch capacity are also not implemented yet.
+job listing and urgent-priority requests reject with `UnimplementedError`. Priority selection and
+due-job activation independent of dispatch capacity are also not implemented yet.
 
 See the [library overview](docs/library-overview.md) for the component flow and source map, and the
 [usage sketch](examples/library.ts) for the intended API.

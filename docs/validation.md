@@ -21,14 +21,14 @@ With `VALKEY_TEST_URL` set, as in CI, they also run the client and worker agains
 fake Telegram transport. Those tests cover immediate and past-time delivery after producer exit,
 delayed activation, native job IDs and scheduling times in snapshots (including scheduler-generated
 occurrences), rejection of invalid native timing without transmission, visible errors without
-retries, native terminal states, indefinite default retention,
-accepted-effect/lost-response failures, rejection of invalid stored outcomes, shared dispatch capacity
-across workers, graceful shutdown, caller-connection reuse and option
-preservation, startup failure cleanup, and release of BullMQ's blocking connection.
-They also check that unexpected processing errors reach local diagnostics, and the transport
-tests use caller-owned grammY API instances by reference. The dedicated job-fetch error handler,
-credential rotation through replacement workers, stalled-worker recovery, Valkey restart, and the 429, priority, independent activation,
-schedule job listing and full recurrence criteria are not yet covered.
+retries, native terminal states, indefinite default retention, accepted-effect/lost-response
+failures, rejection of invalid stored outcomes, shared dispatch capacity across workers, graceful
+shutdown, caller-connection reuse and option preservation, startup failure cleanup, and release of
+BullMQ's blocking connection. They also check that unexpected processing errors reach local
+diagnostics, and the transport tests use caller-owned grammY API instances by reference. The
+dedicated job-fetch error handler, credential rotation through replacement workers, stalled-worker
+recovery, Valkey restart, and the 429, priority, independent activation, schedule job listing and
+full recurrence criteria are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
 not establish the full queue/scheduler acceptance criteria below. The shared suite uses
