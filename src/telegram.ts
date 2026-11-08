@@ -1,5 +1,6 @@
 import type { InputFile } from 'grammy';
 import type { ApiMethods, Opts } from 'grammy/types';
+import { z } from 'zod';
 
 /** Inbound update processing and webhook management are outside the scheduler. */
 const inboundMethods = ['getUpdates', 'setWebhook', 'deleteWebhook', 'getWebhookInfo'] as const;
@@ -32,21 +33,18 @@ const inboundMethodNames: ReadonlySet<string> = new Set(inboundMethods);
 /**
  * Parse a request that must remain replayable after the submitting process exits.
  *
- * The method must be a Bot API method name outside the inbound set, and the payload a plain JSON
- * object. The returned payload is a new value copied from the caller's, so later changes to the
- * caller's object do not affect the stored job. Field-level payload semantics are left to Telegram,
- * which reports violations as failed calls.
+ * The method must be a Bot API method name outside the inbound set, and the payload a plain object
+ * of JSON values. The returned payload is a JSON-encoded copy of the caller's, so later changes to
+ * the caller's object do not affect the stored job. Field-level payload semantics are left to
+ * Telegram, which reports violations as failed calls.
  *
- * @throws {TypeError} naming the first unsupported value, such as an `InputFile` upload.
+ * @throws {TypeError} when the payload is not a plain object of JSON values, such as one containing
+ * an `InputFile` upload, or cannot be encoded as JSON.
  */
 export function parseTelegramRequest(method: unknown, payload: unknown): TelegramRequest {
   const outgoingMethod = parseTelegramMethod(method);
-  if (!isPlainObject(payload)) {
-    throw new TypeError('Invalid payload: expected a plain object');
-  }
-  const ownedPayload = copyDurableJson(payload, 'payload', new Set());
-  // Copying establishes the durable JSON shape; per-method field types cannot be checked at
-  // runtime without duplicating the Bot API schema.
+  const ownedPayload = copyJsonPayload(payload);
+  // Per-method field types cannot be checked at runtime without duplicating the Bot API schema.
   return { method: outgoingMethod, payload: ownedPayload } as TelegramRequest;
 }
 
@@ -68,66 +66,31 @@ export function parseTelegramMethod(method: unknown): TelegramMethod {
   return method as TelegramMethod;
 }
 
-type DurableJson =
-  | null
-  | string
-  | boolean
-  | number
-  | DurableJson[]
-  | { [key: string]: DurableJson };
-
-function invalidPayload(problem: string): TypeError {
-  return new TypeError(`Invalid payload: ${problem}`);
-}
-
-function isPlainObject(value: unknown): value is object {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
 /**
- * Copy a value that JSON storage encodes faithfully, rejecting the first value it would drop,
- * alter, or fail to encode. Object properties set to `undefined` are omitted, matching an absent
- * option; JSON would encode an `undefined` array element as `null`, so it is rejected.
+ * Validation only: the copy comes from JSON encoding, because Zod's rebuilt output would drop own
+ * `__proto__` keys. `z.json()` does not detect cycles; encoding rejects them.
  */
-function copyDurableJson(value: unknown, path: string, ancestors: Set<object>): DurableJson {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
-  if (typeof value === 'number') {
-    if (Number.isFinite(value)) return value;
-    throw invalidPayload(`${path} must be a finite number`);
-  }
-  if (typeof value !== 'object') {
-    throw invalidPayload(`${path} has unsupported type ${typeof value}`);
-  }
-  if (ancestors.has(value)) throw invalidPayload(`${path} is a circular reference`);
-  if (!Array.isArray(value) && !isPlainObject(value)) {
-    throw invalidPayload(
-      `${path} must be plain JSON; InputFile uploads and other class instances are not supported`,
+const jsonPayloadSchema = z.record(z.string(), z.json());
+
+function copyJsonPayload(payload: unknown): Record<string, unknown> {
+  if (!jsonPayloadSchema.safeParse(payload).success) {
+    throw new TypeError(
+      'Invalid payload: expected a plain object of strings, booleans, finite numbers, null, ' +
+        'arrays and plain objects; InputFile uploads, class instances and undefined values are ' +
+        'not supported',
     );
   }
-  ancestors.add(value);
+  let encodedPayload: string;
   try {
-    if (Array.isArray(value)) {
-      const copy: DurableJson[] = [];
-      for (let index = 0; index < value.length; index++) {
-        const elementPath = `${path}[${index}]`;
-        const element: unknown = value[index];
-        if (element === undefined) throw invalidPayload(`${elementPath} must not be undefined`);
-        copy.push(copyDurableJson(element, elementPath, ancestors));
-      }
-      return copy;
-    }
-    const entries: [string, DurableJson][] = [];
-    for (const [key, property] of Object.entries(value)) {
-      if (property !== undefined) {
-        entries.push([key, copyDurableJson(property, `${path}.${key}`, ancestors)]);
-      }
-    }
-    // `fromEntries` defines own properties, so a `__proto__` key stays data instead of setting the
-    // copy's prototype.
-    return Object.fromEntries(entries);
-  } finally {
-    ancestors.delete(value);
+    encodedPayload = JSON.stringify(payload);
+  } catch (error) {
+    throw new TypeError(
+      'Invalid payload: cannot be encoded as JSON, such as a circular reference',
+      {
+        cause: error,
+      },
+    );
   }
+  const copiedPayload: Record<string, unknown> = JSON.parse(encodedPayload);
+  return copiedPayload;
 }
