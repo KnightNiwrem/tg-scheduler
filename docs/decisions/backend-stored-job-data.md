@@ -15,7 +15,7 @@ message and optional Telegram error code in the same native transition as the fa
 The adapter throws BullMQ's `UnrecoverableError` for these failures. Unexpected processor errors
 and native stalled failures retain their unstructured failure reasons and are reported as
 interrupted processing. Unexpected processor error details follow
-[unawaited error reporting](api-unawaited-error-reporting.md).
+[internal diagnostics](api-internal-error-reporting.md).
 
 Readers also accept completed return values with `state: 'failed'` or `state: 'uncertain'`, exposing
 both as `failed` with their recorded errors, without rewriting existing jobs.
