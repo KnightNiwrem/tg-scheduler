@@ -90,8 +90,7 @@ until recurrence is implemented.
   rejects as unimplemented.
 - `deleteSchedule(scheduleId)` is scaffolded and currently rejects as unimplemented. It will remove
   the definition and its next occurrence if still delayed, while preserving ready, in-flight and
-  finished jobs. `disableSchedule(scheduleId)` is a deprecated compatibility alias for this deletion
-  operation. See
+  finished jobs. See
   [native scheduler removal](decisions/recurrence-planned-time-anchored.md) for the removal boundary
   and races with activation.
 - `client.close()` releases its BullMQ resources while leaving the supplied connection open;

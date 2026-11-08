@@ -19,8 +19,7 @@ semantics. Missed-occurrence recovery follows BullMQ's native behavior:
   created, they enter the shared ready queue through [due-job activation](ordering-eligible-fifo.md).
 
 Schedule deletion through `deleteSchedule(scheduleId)` must use BullMQ's native
-`Queue.removeJobScheduler` operation. `disableSchedule(scheduleId)` is a deprecated compatibility
-alias for the same deletion operation:
+`Queue.removeJobScheduler` operation:
 
 - Delete the scheduler definition so it cannot create subsequent occurrences.
 - Delete its next occurrence if that job is still in BullMQ's delayed set, including an overdue

@@ -39,8 +39,6 @@ export interface SchedulerClient {
    * `failed` jobs.
    */
   deleteSchedule(scheduleId: string): Promise<void>;
-  /** @deprecated Use deleteSchedule to delete the schedule definition and its next delayed occurrence. */
-  disableSchedule(scheduleId: string): Promise<void>;
   /**
    * Close this client's queue resources, leaving the caller's connection open.
    * Later operations reject.
@@ -74,10 +72,6 @@ export function createSchedulerClient(options: SchedulerClientOptions): Schedule
     return queues;
   }
 
-  async function deleteSchedule(_scheduleId: string): Promise<void> {
-    throw new UnimplementedError('SchedulerClient.deleteSchedule');
-  }
-
   return {
     async submit(method, payload, submitOptions) {
       const request = parseTelegramRequest(method, payload);
@@ -105,8 +99,9 @@ export function createSchedulerClient(options: SchedulerClientOptions): Schedule
     async createSchedule(_method, _payload, _options) {
       throw new UnimplementedError('SchedulerClient.createSchedule');
     },
-    deleteSchedule,
-    disableSchedule: deleteSchedule,
+    async deleteSchedule(_scheduleId) {
+      throw new UnimplementedError('SchedulerClient.deleteSchedule');
+    },
     close() {
       closing ??= queues?.close() ?? Promise.resolve();
       return closing;
