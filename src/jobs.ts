@@ -3,13 +3,14 @@ import type { TelegramMethod, TelegramResult } from './telegram.ts';
 export type DeliveryLane = 'ordinary' | 'urgent';
 
 export interface SubmitOptions {
-  /** Earliest execution time in Unix epoch milliseconds; omission means immediate work. */
+  /** Earliest execution time in Unix epoch milliseconds; omitted or past times mean immediate work. */
   runAtMs?: number;
   /** Defaults to ordinary. Urgent submissions currently reject as unimplemented. */
   lane?: DeliveryLane;
 }
 
 export interface JobHandle<Method extends TelegramMethod = TelegramMethod> {
+  /** Opaque identifier assigned by the backend. */
   id: string;
   method: Method;
 }
@@ -34,7 +35,8 @@ export type JobOutcome<Method extends TelegramMethod = TelegramMethod> =
 export type JobSnapshot = {
   [Method in TelegramMethod]: JobHandle<Method> & {
     botId: string;
-    originalDueAtMs: number;
+    /** Native initial eligibility time in Unix epoch milliseconds, preserved after execution. */
+    scheduledForMs: number;
     lane: DeliveryLane;
   } & JobOutcome<Method>;
 }[TelegramMethod];

@@ -44,6 +44,21 @@ unverified. The temporary cluster was removed after testing. These checks do not
 cluster failover, resharding or replica durability; the active integration suite continues to use
 standalone Valkey.
 
+## Native job timing metadata
+
+On 8 November 2026, an isolated native probe on Bun **1.4.4**, BullMQ **6.7.1**, ioredis **6.0.0**
+and Valkey **9.0.7** verified `job.timestamp + (job.opts.delay ?? 0)` for one-time delayed jobs and
+native Job Scheduler occurrences. The timestamp plus configured delay matched the planned time
+before activation, after promotion, after manual rate-limit requeue and after completion. The
+next generated occurrence had its own timestamp and configured delay, yielding its distinct
+planned time even though it shared the same template payload.
+
+Promotion reset the live `job.delay` field to zero while preserving `job.opts.delay`. A past
+requested time converted to zero delay yielded native enqueue time. These observations support
+the [stored timing contract](decisions/backend-stored-job-data.md). The probe made no Telegram
+calls and removed its isolated queue. It characterized native fields rather than implementing
+the library's recurrence or 429 coordinator; their full acceptance checks remain pending.
+
 ## Selected-version native behavior
 
 The experiments used BullMQ **6.7.1**, ioredis **6.0.0**, and the official

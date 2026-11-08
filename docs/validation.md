@@ -18,14 +18,16 @@ dependency versions selected for it.
 The [repository checks](../README.md#commands) cover option and durable-payload validation,
 caller-owned connection handling, and grammY outcome classification against a fake Bot API.
 With `VALKEY_TEST_URL` set, as in CI, they also run the client and worker against Valkey with a
-fake Telegram transport. Those tests cover immediate delivery after producer exit, delayed activation,
-visible errors without retries, native terminal states, indefinite default retention,
+fake Telegram transport. Those tests cover immediate and past-time delivery after producer exit,
+delayed activation, native job IDs and scheduling times in snapshots (including scheduler-generated
+occurrences), rejection of invalid native timing without transmission, visible errors without
+retries, native terminal states, indefinite default retention,
 accepted-effect/lost-response failures, stored-outcome compatibility, shared ordinary capacity
 across workers, graceful shutdown, caller-connection reuse and option
 preservation, startup failure cleanup, and release of BullMQ's blocking connection.
 The dedicated job-fetch error handler, new internal diagnostic routing, caller-owned grammY API
 instances, stalled-worker recovery, Valkey restart, and the 429, priority, independent activation,
-and recurrence criteria are not yet covered.
+and full recurrence criteria are not yet covered.
 [Archived dependency experiments](library-research.md#selected-version-native-behavior) document
 native integration constraints separately from the active suite. Passing the current tests does
 not establish the full queue/scheduler acceptance criteria below. The shared suite uses
@@ -110,6 +112,11 @@ acceptance validates the documented Compose configuration and its recovery limit
 - A later shorter 429 at either priority cannot shorten the bot's longer existing cooldown.
 - Application timestamps use Unix epoch milliseconds and durations use milliseconds. A valid
   `retry_after` in seconds is converted exactly once before computing the bot cooldown expiry.
+- Job handles preserve native IDs as opaque strings. Snapshots derive `scheduledForMs` through the
+  [native timing contract](decisions/backend-stored-job-data.md), including distinct planned times
+  for scheduler-generated occurrences. Immediate and past-time submissions report native enqueue
+  time. Activation, manual 429 requeue, settlement and restart preserve that scheduled time.
+  Invalid stored timing fails before transmission and makes `getJob` reject with a `TypeError`.
 - A 429 with missing `parameters`, missing `retry_after`, or an invalid, nonpositive or
   unrepresentable value uses the
   [60-second fallback](decisions/rate-limit-retry-after-fallback.md). Both priorities retain the job,
@@ -122,7 +129,7 @@ acceptance validates the documented Compose configuration and its recovery limit
 - Eligible urgent jobs precede normal jobs. New ready jobs enter the back of their selected
   priority; future jobs do not block ready work, and already-admitted jobs are not interrupted.
 - Jobs accepted by the current API without a priority remain normal jobs, preserving their identity,
-  payload, requested due time and recorded outcomes. Priority implementation must account for those
+  payload, native scheduled time and recorded outcomes. Priority implementation must account for those
   stored jobs before enabling urgent-first claims on the existing queue.
 - Due-job activation progresses while all C dispatch slots are occupied and while a bot cooldown
   is active. Within one priority, an immediate job ready before a scheduled job's activation stays

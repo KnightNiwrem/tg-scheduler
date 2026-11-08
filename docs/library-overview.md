@@ -103,6 +103,11 @@ include file IDs but not new uploads. A job snapshot pairs each method with its 
 checking `state === 'succeeded'` and `method === 'sendMessage'` exposes the returned message's
 fields.
 
+Job IDs are opaque strings. Snapshots expose `scheduledForMs` through the
+[native timing contract](decisions/backend-stored-job-data.md); immediate work, including a past
+`runAtMs`, reports enqueue time. Future one-time jobs and recurring occurrences report their
+initial scheduled time, which remains available after execution.
+
 Job states and their meanings are defined in [visible job
 states](decisions/api-visible-job-states.md). A worker that stops mid-attempt leaves its job
 `in-flight`, then `queued`, until a running worker [records it as

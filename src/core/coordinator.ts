@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { BotQueues } from '../backend/bullmq.ts';
-import { type BotJob, decodeStoredJobData } from '../backend/stored-job.ts';
+import { type BotJob, decodeStoredJob } from '../backend/stored-job.ts';
 import { toError } from '../error-handler.ts';
 import type { SettledJobOutcome } from '../jobs.ts';
 import type { TelegramRequest } from '../telegram.ts';
@@ -44,7 +44,7 @@ export async function coordinateJob(
 ): Promise<SettledJobOutcome> {
   let request: TelegramRequest;
   try {
-    request = decodeStoredJobData(job.data).request;
+    request = decodeStoredJob(job).request;
   } catch (error) {
     return {
       state: 'failed',
