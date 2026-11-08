@@ -173,7 +173,7 @@ These risks are reflected in the [decisions](decisions/) and acceptance criteria
 ## Cross-runtime test framework
 
 [Vitest](https://vitest.dev/guide/features.html), the
-[selected test runner](decisions/testing-vitest-cross-runtime.md), runs on Bun, Node.js, and Deno.
+[selected test runner](../README.md#testing), runs on Bun, Node.js, and Deno.
 It provides TypeScript support, assertions, lifecycle hooks, asynchronous tests, mocking, fake
 timers, snapshots, and watch mode. The same TypeScript test files run directly on each
 runtime. The [testing guide](../README.md#testing) describes the repository commands and verified

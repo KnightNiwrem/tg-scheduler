@@ -29,17 +29,12 @@ Workers also use a [caller-owned grammY API instance](decisions/transport-caller
 
 - **Scope:** [outgoing Bot API calls only](decisions/scope-outgoing-bot-api-calls.md),
   [one coordination authority per bot](decisions/scope-one-coordination-authority-per-bot.md).
-- **Stack and tooling:** [TypeScript](decisions/language-typescript.md),
+- **Stack and tooling:**
   [Bun with Node.js and Deno targets](decisions/runtime-bun-primary-node-deno-compatible.md),
-  [Biome](decisions/tooling-biome.md),
   [Bun dependency management](decisions/tooling-bun-dependency-management.md),
   [Zod validation](decisions/tooling-zod-validation.md).
 - **Validation:** [trust boundaries](decisions/validation-trust-boundaries.md).
-- **Testing:** [Vitest on every runtime](decisions/testing-vitest-cross-runtime.md),
-  [opt-in Valkey integration tests](decisions/testing-valkey-integration-opt-in.md).
-- **Local stack:**
-  [Docker Compose with Valkey](decisions/local-docker-compose-valkey.md),
-  [local Valkey persistence](decisions/local-valkey-persistence.md).
+- **Testing:** [opt-in Valkey integration tests](decisions/testing-valkey-integration-opt-in.md).
 - **Backend:** [BullMQ backed by Valkey](decisions/backend-bullmq-valkey.md),
   [caller-owned ioredis connections](decisions/backend-ioredis-driver.md),
   [native primitives](decisions/backend-native-primitives.md),
