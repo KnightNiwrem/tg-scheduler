@@ -5,9 +5,10 @@
 
 ## Decision
 
-Bun is the primary development and worker runtime. Node.js and Deno are library compatibility
-targets: library imports and package entry points must work on all three runtimes, and the library
-core must not depend on Bun-only or Deno-only APIs.
+Bun is the primary development runtime and the reference runtime for library workers. Node.js and
+Deno are library compatibility targets for both clients and workers: library imports and package
+entry points must work on all three runtimes, and the library core must not depend on Bun-only or
+Deno-only APIs.
 
 Runtime-specific startup, permissions, environment access, process signals and exit handling belong
 to the host application, outside the shared library.
