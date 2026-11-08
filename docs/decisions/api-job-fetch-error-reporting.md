@@ -5,14 +5,18 @@
 
 ## Decision
 
-Worker options accept an optional `onJobFetchError(error)` callback for background failures while
-trying to obtain the next job from the queue backend, such as Valkey being unreachable. When the
-caller omits it, the library reports the error through `console.warn`.
+Worker options accept an optional `onJobFetchError(error)` callback for failures reported by the
+worker's background next-job retrieval operation, such as a rejected backend call to obtain the
+next job. When the caller omits it, the library reports the error through `console.warn`.
+
+Separately emitted queue or connection error events follow
+[internal diagnostics](api-internal-error-reporting.md), even when the same outage also causes a
+retrieval failure. An event occurring while the worker is waiting for work is not, by timing alone,
+a job-fetch failure; routing depends on which operation or event reports the error.
 
 This callback reports a failed retrieval; invoking it does not itself change a job's outcome.
 Telegram call failures follow the [job outcome mapping](backend-native-job-outcomes.md), and
-failures of awaited public operations reject their promises. Diagnostics for other background
-failures follow the separate [internal diagnostics](api-internal-error-reporting.md) decision.
+failures of awaited public operations reject their promises.
 
 ## Context
 
