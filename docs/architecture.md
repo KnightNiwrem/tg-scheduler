@@ -15,6 +15,7 @@ Immediate, delayed and recurring work for a bot share
 [one coordination authority](decisions/scope-one-coordination-authority-per-bot.md).
 
 Clients and workers [borrow caller-owned ioredis connections](decisions/backend-ioredis-driver.md).
+Workers also use a [caller-owned grammY API instance](decisions/transport-caller-owned-api.md).
 
 | Component                        | Owns                                                                                                                 |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -74,7 +75,7 @@ Clients and workers [borrow caller-owned ioredis connections](decisions/backend-
   [stalled-job reporting](decisions/recovery-stalled-replay-disabled.md),
   [outcome classification](decisions/transport-outcome-classification.md),
   [grammY transport](decisions/transport-grammy-outgoing-api.md),
-  [request timeout](decisions/transport-request-timeout.md).
+  [caller-owned grammY API](decisions/transport-caller-owned-api.md).
 
 ## Job lifecycle
 

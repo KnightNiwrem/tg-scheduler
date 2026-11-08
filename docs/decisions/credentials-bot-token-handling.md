@@ -6,15 +6,14 @@
 ## Decision
 
 The library never adds a bot token to job payloads or stored job data; a value the caller places in
-a payload is stored as supplied. The worker resolves the token through its `resolveBotToken` option
-before every attempt, so token rotation takes effect, and reuses the grammY `Api` instance while
-the token is unchanged.
+a payload is stored as supplied. Credentials and credential rotation belong to the caller through
+the [supplied grammY API instance](transport-caller-owned-api.md).
 
-A resolver that throws or returns anything other than a non-empty string fails the job before
-sending, with a generic message; the resolver's own error is not stored. Stored error messages have
-the current token redacted, and tokens are excluded from logs.
+Stored error messages have the supplied instance's token redacted, and tokens are excluded from
+library logs.
 
 ## Context
 
-Stored jobs persist and are readable by any process with backend access. A resolver is
-caller-defined, and its error may describe credentials.
+Stored jobs persist and are readable by any process with backend access. Errors from a
+caller-configured API instance may contain credentials and must not expose them in stored outcomes
+or library logs.
